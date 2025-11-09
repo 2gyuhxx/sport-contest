@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply m-0 min-h-screen bg-surface text-slate-900 font-sans antialiased;
+  }
+
+  a {
+    @apply text-brand-primary font-medium;
+  }
+
+  a:hover {
+    @apply text-brand-secondary;
+  }
+}
