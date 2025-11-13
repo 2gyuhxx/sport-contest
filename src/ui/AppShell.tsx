@@ -93,17 +93,20 @@ function AppHeader() {
           >
             지도 검색
           </NavLink>
-          <NavLink
-            to="/admin/events/create"
-            className={({ isActive }) =>
-              classNames(
-                'rounded-full px-3 py-1 transition',
-                isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
-              )
-            }
-          >
-            행사 등록
-          </NavLink>
+          {/* 행사 등록 메뉴는 행사 관리자만 표시 */}
+          {isAuthenticated && user?.role === 'organizer' && (
+            <NavLink
+              to="/admin/events/create"
+              className={({ isActive }) =>
+                classNames(
+                  'rounded-full px-3 py-1 transition',
+                  isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
+                )
+              }
+            >
+              행사 등록
+            </NavLink>
+          )}
         </nav>
       </div>
     </header>

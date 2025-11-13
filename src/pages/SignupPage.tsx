@@ -1,8 +1,20 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { UserPlus, Mail, Lock, User as UserIcon, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { UserPlus, Mail, Lock, User as UserIcon, AlertCircle, CheckCircle2, Users, Briefcase } from 'lucide-react'
 import { useAuthContext } from '../context/useAuthContext'
 import { AuthService } from '../services/AuthService'
+import type { UserRole, SportCategory } from '../types/auth'
+
+// 스포츠 카테고리 정보
+const SPORT_CATEGORIES: { value: SportCategory; label: string; emoji: string }[] = [
+  { value: 'football', label: '축구', emoji: '⚽' },
+  { value: 'basketball', label: '농구', emoji: '🏀' },
+  { value: 'baseball', label: '야구', emoji: '⚾' },
+  { value: 'volleyball', label: '배구', emoji: '🏐' },
+  { value: 'marathon', label: '마라톤', emoji: '🏃' },
+  { value: 'fitness', label: '피트니스', emoji: '💪' },
+  { value: 'esports', label: 'e스포츠', emoji: '🎮' },
+]
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -12,12 +24,27 @@ export function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [role, setRole] = useState<UserRole | ''>('') // 사용자 역할
+  const [interests, setInterests] = useState<SportCategory[]>([]) // 관심 종목
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  // 관심 종목 토글
+  const toggleInterest = (category: SportCategory) => {
+    setInterests((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
+    )
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+
+    // 역할 선택 검증
+    if (!role) {
+      setError('사용자 유형을 선택해주세요')
+      return
+    }
 
     // 비밀번호 확인 검증
     if (password !== passwordConfirm) {
@@ -25,11 +52,23 @@ export function SignupPage() {
       return
     }
 
+    // 일반 사용자인 경우 관심 종목 필수
+    if (role === 'user' && interests.length === 0) {
+      setError('관심 있는 체육 종목을 최소 1개 이상 선택해주세요')
+      return
+    }
+
     setIsLoading(true)
 
     try {
       // 회원가입 시도
-      const user = await AuthService.signup({ email, password, name })
+      const user = await AuthService.signup({
+        email,
+        password,
+        name,
+        role,
+        interests: role === 'user' ? interests : undefined,
+      })
 
       // Context에 사용자 정보 저장 (자동 로그인)
       dispatch({ type: 'LOGIN', payload: user })
@@ -69,6 +108,89 @@ export function SignupPage() {
               <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
                 <AlertCircle className="h-5 w-5 flex-shrink-0" />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {/* 사용자 유형 선택 */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                가입 유형 <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* 일반 사용자 */}
+                <button
+                  type="button"
+                  onClick={() => setRole('user')}
+                  className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition ${
+                    role === 'user'
+                      ? 'border-brand-primary bg-brand-primary/5'
+                      : 'border-surface-subtle bg-white hover:border-brand-primary/30'
+                  }`}
+                >
+                  <Users
+                    className={`h-8 w-8 ${role === 'user' ? 'text-brand-primary' : 'text-slate-400'}`}
+                  />
+                  <div className="text-center">
+                    <div
+                      className={`text-sm font-semibold ${role === 'user' ? 'text-brand-primary' : 'text-slate-700'}`}
+                    >
+                      일반 사용자
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">행사 검색 및 참여</div>
+                  </div>
+                </button>
+
+                {/* 행사 관리자 */}
+                <button
+                  type="button"
+                  onClick={() => setRole('organizer')}
+                  className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition ${
+                    role === 'organizer'
+                      ? 'border-brand-primary bg-brand-primary/5'
+                      : 'border-surface-subtle bg-white hover:border-brand-primary/30'
+                  }`}
+                >
+                  <Briefcase
+                    className={`h-8 w-8 ${role === 'organizer' ? 'text-brand-primary' : 'text-slate-400'}`}
+                  />
+                  <div className="text-center">
+                    <div
+                      className={`text-sm font-semibold ${role === 'organizer' ? 'text-brand-primary' : 'text-slate-700'}`}
+                    >
+                      행사 관리자
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">행사 등록 및 관리</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 관심 종목 선택 (일반 사용자인 경우만) */}
+            {role === 'user' && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  관심 있는 체육 종목 <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {SPORT_CATEGORIES.map((sport) => (
+                    <button
+                      key={sport.value}
+                      type="button"
+                      onClick={() => toggleInterest(sport.value)}
+                      className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition ${
+                        interests.includes(sport.value)
+                          ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
+                          : 'border-surface-subtle bg-white text-slate-700 hover:border-brand-primary/30'
+                      }`}
+                    >
+                      <span className="text-lg">{sport.emoji}</span>
+                      <span className="font-medium">{sport.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  선택한 종목: {interests.length > 0 ? `${interests.length}개` : '없음'}
+                </p>
               </div>
             )}
 
