@@ -99,11 +99,15 @@ export const AuthService = {
     // 네트워크 지연 시뮬레이션
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    const { email, password, name } = data
+    const { email, password, name, role, interests } = data
 
     // 입력 검증
     if (!email || !password || !name) {
       throw new Error('모든 필드를 입력해주세요')
+    }
+
+    if (!role) {
+      throw new Error('사용자 유형을 선택해주세요')
     }
 
     if (!isValidEmail(email)) {
@@ -118,6 +122,11 @@ export const AuthService = {
       throw new Error('이름은 최소 2자 이상이어야 합니다')
     }
 
+    // 일반 사용자인 경우 관심 종목 필수
+    if (role === 'user' && (!interests || interests.length === 0)) {
+      throw new Error('관심 있는 체육 종목을 최소 1개 이상 선택해주세요')
+    }
+
     // 이메일 중복 검사
     if (isEmailExists(email)) {
       throw new Error('이미 사용 중인 이메일입니다')
@@ -128,6 +137,8 @@ export const AuthService = {
       id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       email,
       name,
+      role,
+      interests: role === 'user' ? interests : undefined, // 일반 사용자만 관심 종목 저장
       createdAt: new Date().toISOString(),
     }
 
