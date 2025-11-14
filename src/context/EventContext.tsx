@@ -34,6 +34,16 @@ function eventReducer(state: EventState, action: EventAction): EventState {
       return { ...state, selectedRegion: null, selectedCategory: null, keyword: '' }
     case 'SET_ACTIVE_EVENT':
       return { ...state, activeEventId: action.payload }
+    case 'INCREMENT_VIEW': {
+      // 조회수 증가 - EventService에서 localStorage 업데이트 후 상태 갱신
+      const newViews = EventService.incrementView(action.payload)
+      return {
+        ...state,
+        events: state.events.map((event) =>
+          event.id === action.payload ? { ...event, views: newViews } : event,
+        ),
+      }
+    }
     default:
       return state
   }

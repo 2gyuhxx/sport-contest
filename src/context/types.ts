@@ -16,6 +16,7 @@ export type EventAction =
   | { type: 'SET_KEYWORD'; payload: string }
   | { type: 'CLEAR_FILTERS' }
   | { type: 'SET_ACTIVE_EVENT'; payload: string | null }
+  | { type: 'INCREMENT_VIEW'; payload: string } // 조회수 증가 (eventId)
 
 export interface EventContextValue {
   state: EventState

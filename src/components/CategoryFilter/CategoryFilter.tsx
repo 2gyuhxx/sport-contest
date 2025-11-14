@@ -7,6 +7,17 @@ interface CategoryFilterProps {
   onSelect: (category: Category | null) => void
 }
 
+// 카테고리 한글 매핑
+const CATEGORY_LABELS: Record<Category, string> = {
+  football: '축구',
+  basketball: '농구',
+  baseball: '야구',
+  volleyball: '배구',
+  marathon: '마라톤',
+  fitness: '피트니스',
+  esports: 'e스포츠',
+}
+
 export function CategoryFilter({
   categories,
   selected,
@@ -34,14 +45,14 @@ export function CategoryFilter({
             type="button"
             onClick={() => onSelect(category)}
             className={classNames(
-              'rounded-full border px-4 py-2 text-sm capitalize transition',
+              'rounded-full border px-4 py-2 text-sm transition',
               isActive
                 ? 'border-brand-primary bg-brand-primary text-white'
                 : 'border-surface-subtle bg-white hover:border-brand-primary hover:text-brand-primary',
             )}
             aria-pressed={isActive}
           >
-            {category}
+            {CATEGORY_LABELS[category]}
           </button>
         )
       })}

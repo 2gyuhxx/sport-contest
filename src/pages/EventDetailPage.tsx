@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { formatDate } from '../utils/formatDate'
@@ -8,13 +8,31 @@ export function EventDetailPage() {
   const navigate = useNavigate()
   const {
     state: { events, regions },
+    dispatch,
   } = useEventContext()
+
+  // 조회수 증가 중복 실행 방지를 위한 ref (Set으로 여러 이벤트 추적)
+  const viewProcessedRef = useRef<Set<string>>(new Set())
 
   const event = useMemo(() => events.find((item) => item.id === eventId), [eventId, events])
   const regionLabel = useMemo(
     () => regions.find((region) => region.id === event?.region)?.name ?? event?.region,
     [event?.region, regions],
   )
+
+  // 조회수 증가 로직 (매 조회마다 증가)
+  useEffect(() => {
+    if (!eventId || !event) return
+
+    // React Strict Mode 중복 실행 차단 (컴포넌트 마운트 시 1회만 실행)
+    if (viewProcessedRef.current.has(eventId)) {
+      return
+    }
+    viewProcessedRef.current.add(eventId)
+
+    // 조회수 증가
+    dispatch({ type: 'INCREMENT_VIEW', payload: eventId })
+  }, [eventId, event, dispatch])
 
   if (!event) {
     return (
