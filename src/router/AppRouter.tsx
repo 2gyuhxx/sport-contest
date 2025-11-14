@@ -5,6 +5,7 @@ import { EventDetailPage } from '../pages/EventDetailPage'
 import { CreateEventPage } from '../pages/CreateEventPage'
 import { LoginPage } from '../pages/LoginPage'
 import { SignupPage } from '../pages/SignupPage'
+import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { AppShell } from '../ui/AppShell'
 
 export function AppRouter() {
@@ -18,6 +19,7 @@ export function AppRouter() {
           <Route path="/admin/events/create" element={<CreateEventPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

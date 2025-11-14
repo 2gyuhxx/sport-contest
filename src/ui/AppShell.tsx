@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
-import { LogOut, User } from 'lucide-react'
+import { LogOut, User, CheckCircle2 } from 'lucide-react'
 import { EventProvider } from '../context/EventContext'
 import { AuthProvider } from '../context/AuthContext'
 import { useAuthContext } from '../context/useAuthContext'
@@ -11,20 +12,37 @@ function AppHeader() {
   const navigate = useNavigate()
   const { state, dispatch } = useAuthContext()
   const { user, isAuthenticated } = state
+  const [showLogoutMessage, setShowLogoutMessage] = useState(false)
 
   const handleLogout = async () => {
     try {
       await AuthService.logout()
       dispatch({ type: 'LOGOUT' })
-      navigate('/')
+      setShowLogoutMessage(true)
+      
+      // 메시지 표시 후 홈으로 이동
+      setTimeout(() => {
+        navigate('/')
+        setShowLogoutMessage(false)
+      }, 1500)
     } catch (error) {
       console.error('로그아웃 실패:', error)
     }
   }
 
   return (
-    <header className="border-b border-surface-subtle bg-white">
-      <div className="mx-auto flex max-w-content flex-col gap-3 px-6 py-5 md:py-7">
+    <>
+      {/* 로그아웃 성공 메시지 */}
+      {showLogoutMessage && (
+        <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 transition-opacity duration-300">
+          <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3 shadow-lg">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <span className="text-sm font-semibold text-green-700">로그아웃 되었습니다!</span>
+          </div>
+        </div>
+      )}
+      <header className="border-b border-surface-subtle bg-white">
+        <div className="mx-auto flex max-w-content flex-col gap-3 px-6 py-5 md:py-7">
         <div className="flex items-center justify-between gap-4">
           <Link to="/" className="flex flex-col text-left">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -110,6 +128,7 @@ function AppHeader() {
         </nav>
       </div>
     </header>
+    </>
   )
 }
 
