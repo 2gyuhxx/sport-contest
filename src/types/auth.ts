@@ -2,7 +2,7 @@
 export type UserRole = 'user' | 'organizer'
 
 // 스포츠 카테고리 타입
-export type SportCategory = 'football' | 'basketball' | 'baseball' | 'volleyball' | 'marathon' | 'fitness' | 'esports'
+export type SportCategory = 'football' | 'basketball' | 'cycling' | 'baseball' | 'track' | 'swimming' | 'tabletennis' | 'badminton' | 'taekwondo'
 
 // 사용자 정보 타입
 export interface User {
