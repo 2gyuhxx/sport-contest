@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
+import { useAuthContext } from '../context/useAuthContext'
 import type { Category } from '../types/events'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag } from 'lucide-react'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert } from 'lucide-react'
 
 type FormData = {
   title: string
@@ -33,6 +34,8 @@ const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
 export function CreateEventPage() {
   const navigate = useNavigate()
   const { state } = useEventContext()
+  const { state: authState } = useAuthContext()
+  const { user, isAuthenticated } = authState
   
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -158,6 +161,40 @@ export function CreateEventPage() {
     })
     setImagePreview('')
     setErrors({})
+  }
+
+  // 권한 체크: 행사 관리자만 접근 가능
+  if (!isAuthenticated || user?.role !== 'organizer') {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+            <ShieldAlert className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-slate-900">접근 권한이 없습니다</h1>
+          <p className="mb-6 text-slate-600">
+            행사 등록 페이지는 행사 관리자만 이용할 수 있습니다.
+            {!isAuthenticated && ' 로그인 후 이용해주세요.'}
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link
+              to="/"
+              className="rounded-lg bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+            >
+              홈으로 이동
+            </Link>
+            {!isAuthenticated && (
+              <Link
+                to="/signup"
+                className="rounded-lg border border-brand-primary px-6 py-3 font-semibold text-brand-primary transition hover:bg-brand-primary/5"
+              >
+                행사 관리자로 회원가입
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -24,6 +24,8 @@
 
 ### 2️⃣ 설치 및 실행
 
+#### 프론트엔드
+
 ```bash
 # 1. 저장소 클론
 git clone <repository-url>
@@ -37,6 +39,42 @@ npm run dev
 ```
 
 개발 서버가 정상적으로 실행되면 브라우저에서 `http://localhost:5173` 주소로 접속하세요.
+
+#### 백엔드 서버
+
+```bash
+# 1. 서버 디렉토리로 이동
+cd server
+
+# 2. 의존성 설치
+npm install
+
+# 3. 환경 변수 설정
+# .env 파일을 생성하고 server/.env.example을 참고하여 설정
+
+# 4. MySQL 데이터베이스 설정
+# Sport_contest_DB.sql 파일을 실행하여 테이블 생성
+
+# 5. 개발 서버 실행
+npm run dev
+```
+
+백엔드 서버는 `http://localhost:3001`에서 실행됩니다.
+
+**환경 변수 설정 (.env 파일):**
+```env
+PORT=3001
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=sport_contest
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=15m
+CORS_ORIGIN=http://localhost:5173
+```
+
+자세한 내용은 [server/README.md](./server/README.md)를 참고하세요.
 
 ### 3️⃣ 문제 해결
 
@@ -99,15 +137,19 @@ npm run lint
 
 ## 🛠 기술 스택
 
-### 핵심 기술
+### 프론트엔드
 - **React 18** - UI 라이브러리
 - **TypeScript** - 타입 안정성
 - **Vite** - 빠른 번들러 및 개발 서버
 - **React Router v7** - 라우팅
-
-### UI/스타일
 - **Tailwind CSS** - 유틸리티 기반 스타일링
 - **Lucide React** - 아이콘 세트
+
+### 백엔드
+- **Express** - Node.js 웹 프레임워크
+- **MySQL** - 관계형 데이터베이스
+- **JWT** - 인증 토큰
+- **bcrypt** - 비밀번호 해싱
 
 ### 지도 시각화
 - **react-simple-maps** - 지도 렌더링
@@ -120,6 +162,14 @@ npm run lint
 sportContest/
 ├── public/
 │   └── maps/              # TopoJSON 지도 데이터
+├── server/                # 백엔드 서버
+│   ├── src/
+│   │   ├── config/        # 데이터베이스 설정
+│   │   ├── models/        # 데이터 모델
+│   │   ├── routes/        # API 라우트
+│   │   ├── middleware/    # 미들웨어
+│   │   └── index.ts       # 서버 진입점
+│   └── package.json
 ├── src/
 │   ├── components/        # 재사용 가능한 컴포넌트
 │   │   ├── CategoryFilter/
@@ -127,14 +177,16 @@ sportContest/
 │   │   ├── EventList/
 │   │   ├── KoreaMap/
 │   │   └── ...
+│   ├── config/            # API 설정
 │   ├── context/           # React Context (전역 상태)
 │   ├── data/              # Mock 데이터 (events, regions)
 │   ├── pages/             # 페이지 컴포넌트
 │   │   ├── HomePage.tsx
-│   │   ├── SearchPage.tsx
-│   │   └── EventDetailPage.tsx
+│   │   ├── LoginPage.tsx
+│   │   ├── SignupPage.tsx
+│   │   └── ...
 │   ├── router/            # 라우팅 설정
-│   ├── services/          # 비즈니스 로직
+│   ├── services/          # 비즈니스 로직 (API 호출)
 │   ├── types/             # TypeScript 타입 정의
 │   ├── ui/                # 레이아웃 컴포넌트
 │   └── utils/             # 유틸리티 함수
@@ -174,6 +226,28 @@ sportContest/
 ### 새로운 지역 추가
 
 `src/data/regions.ts`에서 지역 메타데이터를 관리합니다.
+
+## 🚀 배포하기
+
+### NHN 클라우드 Ubuntu 서버 배포
+
+**빠른 배포 (5분):**
+```bash
+# 자동 배포 스크립트 사용
+./deploy.sh <서버IP>
+```
+
+**상세 가이드:**
+- 📘 [상세 배포 가이드](./DEPLOYMENT.md) - NHN 클라우드 완전 설정 가이드
+- ⚡ [빠른 배포 가이드](./QUICK_DEPLOY.md) - 5분 안에 배포하기
+
+### 주요 배포 단계
+1. 서버에 Node.js + Nginx 설치
+2. 프로젝트 빌드 (`npm run build`)
+3. dist 폴더를 서버에 업로드
+4. Nginx 설정 및 재시작
+
+자세한 내용은 배포 가이드 문서를 참고하세요!
 
 ## 📄 라이선스
 
