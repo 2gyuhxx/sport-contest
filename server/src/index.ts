@@ -4,6 +4,8 @@ import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import googleAuthRoutes from './routes/googleAuth.js'
 import kakaoAuthRoutes from './routes/kakaoAuth.js'
+import eventRoutes from './routes/events.js'
+import listRoutes from './routes/lists.js'
 
 dotenv.config()
 
@@ -37,6 +39,10 @@ app.use('/auth', googleAuthRoutes) // Google Cloud Console에 /auth/google/callb
 // 카카오 OAuth 라우트 - /api/auth와 /auth 모두 지원
 app.use('/api/auth', kakaoAuthRoutes)
 app.use('/auth', kakaoAuthRoutes) // 카카오 개발자 콘솔에 /auth/kakao/callback로 등록된 경우
+// 행사 라우트
+app.use('/api/events', eventRoutes)
+// 목록 라우트 (스포츠 종목, 지역, 시군구)
+app.use('/api/lists', listRoutes)
 
 // Health check
 app.get('/health', (req, res) => {

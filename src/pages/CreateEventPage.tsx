@@ -1,66 +1,97 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
-import type { Category } from '../types/events'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert } from 'lucide-react'
+import { EventService } from '../services/EventService'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle } from 'lucide-react'
 
 type FormData = {
   title: string
   organizer: string
-  category: Category | ''
-  date: string
+  sport: string
+  start_at: string
+  end_at: string
   region: string
-  city: string
+  sub_region: string
   address: string
   summary: string
-  description: string
   link: string
   image: string
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
 
-const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
-  { value: 'football', label: '축구' },
-  { value: 'basketball', label: '농구' },
-  { value: 'baseball', label: '야구' },
-  { value: 'marathon', label: '마라톤' },
-  { value: 'volleyball', label: '배구' },
-  { value: 'esports', label: 'e스포츠' },
-  { value: 'fitness', label: '피트니스' },
-]
-
 export function CreateEventPage() {
   const navigate = useNavigate()
-  const { state } = useEventContext()
   const { state: authState } = useAuthContext()
   const { user, isAuthenticated } = authState
   
   const [formData, setFormData] = useState<FormData>({
     title: '',
     organizer: '',
-    category: '',
-    date: '',
+    sport: '',
+    start_at: '',
+    end_at: '',
     region: '',
-    city: '',
+    sub_region: '',
     address: '',
     summary: '',
-    description: '',
     link: '',
     image: '',
   })
   
   const [errors, setErrors] = useState<FormErrors>({})
   const [imagePreview, setImagePreview] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  // DB에서 가져온 데이터
+  const [sportCategories, setSportCategories] = useState<string[]>([])
+  const [regions, setRegions] = useState<string[]>([])
+  const [subRegions, setSubRegions] = useState<string[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
 
-  // 지역 옵션 생성
-  const regionOptions = useMemo(() => {
-    return state.regions.map(region => ({
-      value: region.id,
-      label: region.name,
-    }))
-  }, [state.regions])
+  // 컴포넌트 마운트 시 스포츠 종목과 지역 목록 가져오기
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoadingData(true)
+        const [sports, regionsData] = await Promise.all([
+          EventService.getSportCategories(),
+          EventService.getRegions(),
+        ])
+        setSportCategories(sports)
+        setRegions(regionsData)
+      } catch (err) {
+        console.error('데이터 로딩 오류:', err)
+        setError('데이터를 불러오는데 실패했습니다')
+      } finally {
+        setIsLoadingData(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  // region 선택 시 sub_region 목록 가져오기
+  useEffect(() => {
+    const loadSubRegions = async () => {
+      if (!formData.region) {
+        setSubRegions([])
+        setFormData(prev => ({ ...prev, sub_region: '' }))
+        return
+      }
+
+      try {
+        const subRegionsData = await EventService.getSubRegions(formData.region)
+        setSubRegions(subRegionsData)
+        // region이 변경되면 sub_region 초기화
+        setFormData(prev => ({ ...prev, sub_region: '' }))
+      } catch (err) {
+        console.error('시군구 목록 로딩 오류:', err)
+        setSubRegions([])
+      }
+    }
+    loadSubRegions()
+  }, [formData.region])
 
   // 필드 변경 핸들러
   const handleChange = (
@@ -94,17 +125,23 @@ export function CreateEventPage() {
     if (!formData.organizer.trim()) {
       newErrors.organizer = '개최사를 입력해주세요.'
     }
-    if (!formData.category) {
-      newErrors.category = '스포츠 종류를 선택해주세요.'
+    if (!formData.sport) {
+      newErrors.sport = '스포츠 종류를 선택해주세요.'
     }
-    if (!formData.date) {
-      newErrors.date = '개최 날짜를 선택해주세요.'
+    if (!formData.start_at) {
+      newErrors.start_at = '시작 날짜를 선택해주세요.'
+    }
+    if (!formData.end_at) {
+      newErrors.end_at = '종료 날짜를 선택해주세요.'
+    }
+    if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
+      newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
     }
     if (!formData.region) {
       newErrors.region = '지역을 선택해주세요.'
     }
-    if (!formData.city.trim()) {
-      newErrors.city = '시/군/구를 입력해주세요.'
+    if (!formData.sub_region) {
+      newErrors.sub_region = '시/군/구를 선택해주세요.'
     }
     if (!formData.summary.trim()) {
       newErrors.summary = '간단 요약을 입력해주세요.'
@@ -115,33 +152,52 @@ export function CreateEventPage() {
   }
 
   // 폼 제출
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     
     if (!validateForm()) {
       return
     }
 
-    // TODO: 실제로는 API 호출하여 서버에 저장
-    const newEvent = {
-      id: `event-${Date.now()}`,
-      title: formData.title,
-      organizer: formData.organizer,
-      category: formData.category as Category,
-      date: formData.date,
-      region: formData.region,
-      city: formData.city,
-      address: formData.address,
-      summary: formData.summary,
-      description: formData.description,
-      link: formData.link,
-      image: formData.image || 'https://via.placeholder.com/400x300',
-      views: 0,
+    if (!user) {
+      setError('로그인이 필요합니다.')
+      return
     }
 
-    console.log('새 행사 등록:', newEvent)
-    alert('행사가 성공적으로 등록되었습니다!')
-    navigate('/search')
+    setIsLoading(true)
+
+    try {
+      await EventService.createEvent({
+        title: formData.title,
+        description: formData.summary, // 간단 요약을 description으로 사용
+        sport: formData.sport,
+        region: formData.region, // 광역자치단체
+        sub_region: formData.sub_region, // 기초자치단체
+        venue: formData.address || null, // 상세 주소
+        start_at: formData.start_at,
+        end_at: formData.end_at,
+        website: formData.link || null,
+        organizer_user_name: formData.organizer, // 개최사
+      })
+
+      alert('행사 등록이 접수되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
+      navigate('/')
+    } catch (err) {
+      console.error('행사 등록 오류:', err)
+      const errorMessage = err instanceof Error ? err.message : '행사 등록에 실패했습니다'
+      
+      // 스팸으로 분류된 경우 특별 처리
+      if (errorMessage.includes('스팸으로 분류')) {
+        alert('해당 행사는 스팸으로 분류되어 등록할 수 없습니다!')
+        navigate('/')
+        return
+      }
+      
+      setError(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // 폼 초기화
@@ -149,18 +205,20 @@ export function CreateEventPage() {
     setFormData({
       title: '',
       organizer: '',
-      category: '',
-      date: '',
+      sport: '',
+      start_at: '',
+      end_at: '',
       region: '',
-      city: '',
+      sub_region: '',
       address: '',
       summary: '',
-      description: '',
       link: '',
       image: '',
     })
     setImagePreview('')
     setErrors({})
+    setError(null)
+    setSubRegions([])
   }
 
   // 권한 체크: 행사 관리자만 접근 가능
@@ -217,6 +275,13 @@ export function CreateEventPage() {
       {/* 폼 */}
       <section className="mx-auto max-w-3xl">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* 에러 메시지 */}
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           {/* 기본 정보 섹션 */}
           <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
             <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-900">
@@ -272,21 +337,22 @@ export function CreateEventPage() {
                   스포츠 종류 <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={formData.category}
-                  onChange={(e) => handleChange('category', e.target.value)}
+                  value={formData.sport}
+                  onChange={(e) => handleChange('sport', e.target.value)}
+                  disabled={isLoadingData}
                   className={`w-full rounded-xl border ${
-                    errors.category ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                    errors.sport ? 'border-red-300' : 'border-slate-300'
+                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
                 >
-                  <option value="">선택해주세요</option>
-                  {CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
+                  {sportCategories.map((sport) => (
+                    <option key={sport} value={sport}>
+                      {sport}
                     </option>
                   ))}
                 </select>
-                {errors.category && (
-                  <p className="mt-1 text-xs text-red-600">{errors.category}</p>
+                {errors.sport && (
+                  <p className="mt-1 text-xs text-red-600">{errors.sport}</p>
                 )}
               </div>
             </div>
@@ -300,43 +366,66 @@ export function CreateEventPage() {
             </h2>
             
             <div className="space-y-5">
-              {/* 개최 날짜 */}
+              {/* 시작 날짜 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  개최 날짜 <span className="text-red-500">*</span>
+                  시작 날짜 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
                     type="date"
-                    value={formData.date}
-                    onChange={(e) => handleChange('date', e.target.value)}
+                    value={formData.start_at}
+                    onChange={(e) => handleChange('start_at', e.target.value)}
                     className={`w-full rounded-xl border ${
-                      errors.date ? 'border-red-300' : 'border-slate-300'
+                      errors.start_at ? 'border-red-300' : 'border-slate-300'
                     } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
                   />
                 </div>
-                {errors.date && (
-                  <p className="mt-1 text-xs text-red-600">{errors.date}</p>
+                {errors.start_at && (
+                  <p className="mt-1 text-xs text-red-600">{errors.start_at}</p>
                 )}
               </div>
 
-              {/* 지역 */}
+              {/* 종료 날짜 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  지역 <span className="text-red-500">*</span>
+                  종료 날짜 <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="date"
+                    value={formData.end_at}
+                    onChange={(e) => handleChange('end_at', e.target.value)}
+                    min={formData.start_at || undefined}
+                    className={`w-full rounded-xl border ${
+                      errors.end_at ? 'border-red-300' : 'border-slate-300'
+                    } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                  />
+                </div>
+                {errors.end_at && (
+                  <p className="mt-1 text-xs text-red-600">{errors.end_at}</p>
+                )}
+              </div>
+
+              {/* 광역자치단체 */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  광역자치단체 <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.region}
                   onChange={(e) => handleChange('region', e.target.value)}
+                  disabled={isLoadingData}
                   className={`w-full rounded-xl border ${
                     errors.region ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
                 >
-                  <option value="">선택해주세요</option>
-                  {regionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
+                  {regions.map((region) => (
+                    <option key={region} value={region}>
+                      {region}
                     </option>
                   ))}
                 </select>
@@ -345,22 +434,34 @@ export function CreateEventPage() {
                 )}
               </div>
 
-              {/* 시/군/구 */}
+              {/* 기초자치단체 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  시/군/구 <span className="text-red-500">*</span>
+                  기초자치단체 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => handleChange('city', e.target.value)}
-                  placeholder="예: 강남구, 수원시"
+                <select
+                  value={formData.sub_region}
+                  onChange={(e) => handleChange('sub_region', e.target.value)}
+                  disabled={!formData.region || isLoadingData}
                   className={`w-full rounded-xl border ${
-                    errors.city ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
-                />
-                {errors.city && (
-                  <p className="mt-1 text-xs text-red-600">{errors.city}</p>
+                    errors.sub_region ? 'border-red-300' : 'border-slate-300'
+                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                >
+                  <option value="">
+                    {!formData.region 
+                      ? '먼저 지역을 선택해주세요' 
+                      : isLoadingData 
+                        ? '로딩 중...' 
+                        : '선택해주세요'}
+                  </option>
+                  {subRegions.map((subRegion) => (
+                    <option key={subRegion} value={subRegion}>
+                      {subRegion}
+                    </option>
+                  ))}
+                </select>
+                {errors.sub_region && (
+                  <p className="mt-1 text-xs text-red-600">{errors.sub_region}</p>
                 )}
               </div>
 
@@ -454,19 +555,6 @@ export function CreateEventPage() {
                 </div>
               </div>
 
-              {/* 상세 내용 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  상세 내용
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  placeholder="행사에 대한 상세한 설명을 입력해주세요"
-                  rows={6}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-                />
-              </div>
             </div>
           </div>
 
@@ -474,9 +562,10 @@ export function CreateEventPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              className="flex-1 rounded-full bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+              disabled={isLoading}
+              className="flex-1 rounded-full bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
             >
-              행사 등록
+              {isLoading ? '등록 중...' : '행사 등록'}
             </button>
             <button
               type="button"

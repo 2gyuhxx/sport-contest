@@ -34,6 +34,27 @@ async function apiRequest<T>(
         error,
         url,
       })
+      
+      // 403 에러 (유효하지 않은 토큰)인 경우 토큰 갱신 시도
+      if (response.status === 403 && error.error?.includes('토큰')) {
+        const { AuthService } = await import('../services/AuthService')
+        const refreshed = await AuthService.refreshToken()
+        if (refreshed) {
+          // 토큰 갱신 성공 시 재시도
+          const newToken = localStorage.getItem('accessToken')
+          if (newToken) {
+            headers['Authorization'] = `Bearer ${newToken}`
+            const retryResponse = await fetch(url, {
+              ...options,
+              headers,
+            })
+            if (retryResponse.ok) {
+              return retryResponse.json()
+            }
+          }
+        }
+      }
+      
       throw new Error(error.error || `요청에 실패했습니다 (${response.status})`)
     }
 

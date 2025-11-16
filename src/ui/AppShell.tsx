@@ -57,10 +57,13 @@ function AppHeader() {
           <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
             {isAuthenticated && user ? (
               <>
-                <div className="flex items-center gap-2 rounded-full bg-surface px-4 py-2">
+                <Link
+                  to="/my"
+                  className="flex items-center gap-2 rounded-full bg-surface px-4 py-2 transition hover:bg-slate-100"
+                >
                   <User className="h-4 w-4 text-brand-primary" />
                   <span className="font-semibold text-slate-900">{user.name}</span>
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={handleLogout}
