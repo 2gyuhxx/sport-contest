@@ -32,11 +32,15 @@ interface UserResponse {
 
 // DB User를 프론트엔드 User 타입으로 변환
 function transformUser(dbUser: LoginResponse['user'] | UserResponse['user']): User {
+  // MySQL에서 boolean이 0/1로 반환될 수 있으므로 명시적으로 boolean으로 변환
+  const manager = Boolean(dbUser.manager)
+  
   return {
     id: dbUser.id.toString(),
     email: dbUser.email,
     name: dbUser.name || '',
-    role: dbUser.manager ? 'organizer' : 'user',
+    role: manager ? 'organizer' : 'user',
+    manager: manager, // manager 필드 직접 포함 (명시적 boolean 변환)
     interests: dbUser.sports ? (dbUser.sports.split(',') as any[]) : undefined,
     createdAt: dbUser.created_at,
   }
@@ -232,6 +236,26 @@ export const AuthService = {
         return refreshed
       }
       return null
+    }
+  },
+
+  /**
+   * 사용자 정보 업데이트 (소셜 로그인 후 추가 정보 입력용)
+   */
+  async updateUserInfo(data: { manager?: boolean; sports?: string | null }): Promise<User> {
+    try {
+      const response = await apiRequest<UserResponse>('/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+
+      // 사용자 정보 변환 및 저장
+      const user = transformUser(response.user)
+      localStorage.setItem('sportable_user', JSON.stringify(user))
+
+      return user
+    } catch (error) {
+      throw error
     }
   },
 }

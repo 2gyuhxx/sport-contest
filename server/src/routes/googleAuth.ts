@@ -138,6 +138,7 @@ router.get('/google/callback', async (req, res) => {
     // 기존 OAuth 연결 확인
     let oauthConnection = await UserOAuthModel.findByOAuthUserId(provider.id, googleId)
     let user
+    let isNewUser = false
 
     if (oauthConnection) {
       // 기존 사용자 - 로그인
@@ -150,6 +151,15 @@ router.get('/google/callback', async (req, res) => {
       await UserOAuthModel.updateLastLogin(oauthConnection.id)
     } else {
       // 새 사용자 - 회원가입 또는 기존 이메일과 연결
+      // is_verified = true인 이메일이 이미 존재하는지 확인 (중복 가입 방지)
+      if (email) {
+        const emailExists = await UserModel.isEmailExists(email)
+        if (emailExists) {
+          console.error('이미 가입된 이메일입니다:', email)
+          return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=email_already_exists`)
+        }
+      }
+      
       user = await UserModel.findByEmail(email || '')
 
       if (!user) {
@@ -191,6 +201,7 @@ router.get('/google/callback', async (req, res) => {
           if (!user) {
             throw new Error('사용자 생성 후 조회 실패')
           }
+          isNewUser = true // 새 사용자 플래그 설정
         } catch (error) {
           await connection.rollback()
           connection.release()
@@ -248,10 +259,12 @@ router.get('/google/callback', async (req, res) => {
 
     // 프론트엔드로 리다이렉트 (토큰을 쿼리 파라미터로 전달)
     const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
-    console.log('프론트엔드로 리다이렉트:', frontendUrl)
-    res.redirect(
-      `${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}`
-    )
+    let redirectUrl = `${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}`
+    if (isNewUser) {
+      redirectUrl += '&isNewUser=true'
+    }
+    console.log('프론트엔드로 리다이렉트:', redirectUrl)
+    res.redirect(redirectUrl)
   } catch (error: any) {
     console.error('Google OAuth 콜백 오류:', error)
     console.error('오류 상세:', {

@@ -12,13 +12,20 @@ export function AuthCallbackPage() {
   useEffect(() => {
     const token = searchParams.get('token')
     const refreshToken = searchParams.get('refreshToken')
+    const isNewUser = searchParams.get('isNewUser') === 'true'
 
     if (token && refreshToken) {
       // 토큰 저장
       localStorage.setItem('accessToken', token)
       localStorage.setItem('refreshToken', refreshToken)
 
-      // 사용자 정보 가져오기
+      // 새 사용자인 경우 추가 정보 입력 페이지로 이동
+      if (isNewUser) {
+        navigate('/oauth/signup')
+        return
+      }
+
+      // 기존 사용자인 경우 사용자 정보 가져오기
       AuthService.getCurrentUserFromServer()
         .then((user: User | null) => {
           if (user) {

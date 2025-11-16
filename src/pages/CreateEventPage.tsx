@@ -163,8 +163,8 @@ export function CreateEventPage() {
     setErrors({})
   }
 
-  // 권한 체크: 행사 관리자만 접근 가능
-  if (!isAuthenticated || user?.role !== 'organizer') {
+  // 권한 체크: 행사 관리자만 접근 가능 (manager가 true일 때만)
+  if (!isAuthenticated || !user?.manager) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="mx-auto max-w-md text-center">

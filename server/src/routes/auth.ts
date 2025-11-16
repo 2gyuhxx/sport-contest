@@ -328,5 +328,73 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+/**
+ * 사용자 정보 업데이트 (소셜 로그인 후 추가 정보 입력용)
+ */
+router.patch('/me', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    const { manager, sports } = req.body
+
+    // 사용자 찾기
+    const user = await UserModel.findById(req.userId)
+    if (!user) {
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다' })
+    }
+
+    // manager 필드 업데이트
+    if (typeof manager === 'boolean') {
+      await pool.execute(
+        'UPDATE users SET manager = ? WHERE id = ?',
+        [manager, req.userId]
+      )
+    }
+
+    // is_verified 필드 업데이트 (소셜 로그인 후 추가 정보 입력 완료 시 true로 설정)
+    await pool.execute(
+      'UPDATE users SET is_verified = true WHERE id = ?',
+      [req.userId]
+    )
+
+    // 관심 종목 업데이트
+    if (sports !== undefined) {
+      const sportArray = sports ? sports.split(',').filter((s: string) => s.trim()) : []
+      const sport1 = sportArray[0] || null
+      const sport2 = sportArray[1] || null
+      const sport3 = sportArray[2] || null
+
+      await pool.execute(
+        'UPDATE users SET sport1 = ?, sport2 = ?, sport3 = ? WHERE id = ?',
+        [sport1, sport2, sport3, req.userId]
+      )
+    }
+
+    // 업데이트된 사용자 정보 반환
+    const updatedUser = await UserModel.findById(req.userId)
+    if (!updatedUser) {
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다' })
+    }
+
+    const userData = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      phone: updatedUser.phone,
+      sports: formatSports(updatedUser),
+      manager: updatedUser.manager,
+      is_verified: updatedUser.is_verified,
+      created_at: updatedUser.created_at,
+    }
+
+    res.json({ user: userData })
+  } catch (error) {
+    console.error('사용자 정보 업데이트 오류:', error)
+    res.status(500).json({ error: '사용자 정보 업데이트 중 오류가 발생했습니다' })
+  }
+})
+
 export default router
 
