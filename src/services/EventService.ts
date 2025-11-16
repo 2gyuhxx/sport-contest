@@ -1,6 +1,8 @@
 import { events } from '../data/events'
 import { regions } from '../data/regions'
 import type { Category, Event, EventFilters, RegionMeta } from '../types/events'
+import apiRequest from '../config/api'
+import { AuthService } from './AuthService'
 
 const toLower = (value: string) => value.toLowerCase()
 
@@ -8,40 +10,81 @@ const uniqueCategories = Array.from(
   new Set(events.map((event) => event.category)),
 ) as Category[]
 
-// localStorage에서 조회수 데이터 가져오기
-const VIEWS_STORAGE_KEY = 'sportable_event_views'
+// API 응답 타입
+interface SportCategoriesResponse {
+  categories: string[]
+}
 
-// 조회수 증가 중복 실행 방지를 위한 전역 Set (React Strict Mode 대응)
-const viewIncrementLock = new Set<string>()
+interface RegionsResponse {
+  regions: string[]
+}
 
-function getStoredViews(): Record<string, number> {
-  const stored = localStorage.getItem(VIEWS_STORAGE_KEY)
-  if (!stored) return {}
-  try {
-    return JSON.parse(stored) as Record<string, number>
-  } catch {
-    return {}
+interface SubRegionsResponse {
+  subRegions: string[]
+}
+
+interface MyEventResponse {
+  events: {
+    id: number
+    organizer_user_id: number
+    organizer_user_name: string | null
+    title: string
+    description: string
+    sport: string
+    region: string
+    sub_region: string
+    venue: string | null
+    address: string | null
+    start_at: string
+    end_at: string
+    website: string | null
+    status: 'pending' | 'approved' | 'spam'
+    created_at: string
+    updated_at: string | null
+  }[]
+}
+
+// 행사 생성 요청 데이터 타입
+interface CreateEventData {
+  title: string
+  description: string
+  sport: string
+  region: string
+  sub_region: string
+  venue: string | null
+  start_at: string
+  end_at: string
+  website: string | null
+  organizer_user_name: string
+}
+
+// API 응답 타입
+interface CreateEventResponse {
+  event: {
+    id: number
+    organizer_user_id: number
+    organizer_user_name: string | null
+    title: string
+    description: string
+    sport: string
+    region: string
+    sub_region: string
+    venue: string | null
+    address: string | null
+    start_at: string
+    end_at: string
+    website: string | null
+    status: 'pending' | 'approved' | 'spam'
+    created_at: string
   }
-}
-
-function saveViews(views: Record<string, number>): void {
-  localStorage.setItem(VIEWS_STORAGE_KEY, JSON.stringify(views))
-}
-
-// 초기 조회수를 localStorage에서 불러와서 병합
-function mergeViewsWithEvents(baseEvents: Event[]): Event[] {
-  const storedViews = getStoredViews()
-  return baseEvents.map((event) => ({
-    ...event,
-    views: storedViews[event.id] ?? event.views,
-  }))
 }
 
 export const EventService = {
   getAll(): Event[] {
     return mergeViewsWithEvents(events)
   },
-  getRegions(): RegionMeta[] {
+  // 기존 정적 데이터용 메서드들 (하위 호환성 유지)
+  getRegionsStatic(): RegionMeta[] {
     return regions
   },
   getRegionById(regionId?: string | null): RegionMeta | undefined {
@@ -70,44 +113,104 @@ export const EventService = {
       return true
     })
   },
-  
+
   /**
-   * 조회수 증가
-   * @param eventId 행사 ID
-   * @returns 업데이트된 조회수
+   * 스포츠 종목 목록 가져오기 (DB에서)
    */
-  incrementView(eventId: string): number {
-    // 중복 실행 차단 (React Strict Mode 대응)
-    if (viewIncrementLock.has(eventId)) {
-      const storedViews = getStoredViews()
-      const event = events.find((e) => e.id === eventId)
-      return storedViews[eventId] ?? event?.views ?? 0
+  async getSportCategories(): Promise<string[]> {
+    try {
+      const response = await apiRequest<SportCategoriesResponse>('/lists/sport-categories')
+      return response.categories
+    } catch (error) {
+      console.error('스포츠 종목 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 광역자치단체(지역) 목록 가져오기 (DB에서)
+   */
+  async getRegions(): Promise<string[]> {
+    try {
+      const response = await apiRequest<RegionsResponse>('/lists/regions')
+      return response.regions
+    } catch (error) {
+      console.error('지역 목록 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 기초자치단체(시군구) 목록 가져오기 (DB에서)
+   * @param regionName 선택한 광역자치단체 이름
+   */
+  async getSubRegions(regionName: string): Promise<string[]> {
+    try {
+      const response = await apiRequest<SubRegionsResponse>(
+        `/lists/sub-regions?region_name=${encodeURIComponent(regionName)}`
+      )
+      return response.subRegions
+    } catch (error) {
+      console.error('시군구 목록 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 내가 등록한 행사 목록 가져오기
+   */
+  async getMyEvents(): Promise<MyEventResponse['events']> {
+    try {
+      const response = await apiRequest<MyEventResponse>('/events/my/events')
+      return response.events
+    } catch (error) {
+      console.error('내 행사 목록 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 행사 생성
+   */
+  async createEvent(data: CreateEventData): Promise<CreateEventResponse['event']> {
+    const { title, description, sport, region, sub_region, venue, start_at, end_at, website, organizer_user_name } = data
+
+    // 입력 검증
+    if (!title || !description || !sport || !region || !sub_region || !start_at || !end_at || !organizer_user_name) {
+      throw new Error('모든 필수 필드를 입력해주세요')
     }
 
-    // Lock 설정
-    viewIncrementLock.add(eventId)
-    
-    const storedViews = getStoredViews()
-    const event = events.find((e) => e.id === eventId)
-    
-    if (!event) {
-      viewIncrementLock.delete(eventId)
-      return 0
+    // 날짜 유효성 검사
+    if (start_at > end_at) {
+      throw new Error('시작 날짜는 종료 날짜보다 이전이어야 합니다')
     }
 
-    // 현재 조회수를 가져오거나 초기값 사용
-    const currentViews = storedViews[eventId] ?? event.views
-    const newViews = currentViews + 1
-    
-    // 업데이트된 조회수 저장
-    storedViews[eventId] = newViews
-    saveViews(storedViews)
-    
-    // 1초 후 Lock 해제 (다음 페이지 진입 허용)
-    setTimeout(() => {
-      viewIncrementLock.delete(eventId)
-    }, 1000)
-    
-    return newViews
+    // 현재 사용자 정보 가져오기
+    const currentUser = AuthService.getCurrentUser()
+    if (!currentUser) {
+      throw new Error('로그인이 필요합니다')
+    }
+
+    try {
+      const response = await apiRequest<CreateEventResponse>('/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          description,
+          sport,
+          region,
+          sub_region,
+          venue: venue || null,
+          start_at,
+          end_at,
+          website: website || null,
+          organizer_user_name,
+        }),
+      })
+
+      return response.event
+    } catch (error) {
+      throw error
+    }
   },
 }

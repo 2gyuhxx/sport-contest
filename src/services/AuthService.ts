@@ -1,61 +1,49 @@
 import type { LoginCredentials, SignupData, User } from '../types/auth'
+import apiRequest from '../config/api'
 
-// Mock 사용자 데이터베이스 (실제 프로젝트에서는 백엔드 API 호출)
-const MOCK_USERS_KEY = 'sportable_mock_users'
+// API 응답 타입
+interface LoginResponse {
+  user: {
+    id: number
+    email: string
+    name: string | null
+    phone: string | null
+    sports: string | null
+    manager: boolean
+    is_verified: boolean
+    created_at: string
+  }
+  accessToken: string
+  refreshToken: string
+}
 
-// Mock 사용자 목록 가져오기
-function getMockUsers(): User[] {
-  const stored = localStorage.getItem(MOCK_USERS_KEY)
-  if (!stored) return []
-  try {
-    return JSON.parse(stored) as User[]
-  } catch {
-    return []
+interface UserResponse {
+  user: {
+    id: number
+    email: string
+    name: string | null
+    phone: string | null
+    sports: string | null
+    manager: boolean
+    is_verified: boolean
+    created_at: string
   }
 }
 
-// Mock 사용자 목록 저장
-function saveMockUsers(users: User[]): void {
-  localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users))
-}
-
-// 비밀번호 저장 (Mock용 - 실제로는 해싱 필요)
-function getPasswordStore(): Record<string, string> {
-  const stored = localStorage.getItem('sportable_passwords')
-  if (!stored) return {}
-  try {
-    return JSON.parse(stored) as Record<string, string>
-  } catch {
-    return {}
+// DB User를 프론트엔드 User 타입으로 변환
+function transformUser(dbUser: LoginResponse['user'] | UserResponse['user']): User {
+  // MySQL에서 boolean이 0/1로 반환될 수 있으므로 명시적으로 boolean으로 변환
+  const manager = Boolean(dbUser.manager)
+  
+  return {
+    id: dbUser.id.toString(),
+    email: dbUser.email,
+    name: dbUser.name || '',
+    role: manager ? 'organizer' : 'user',
+    manager: manager, // manager 필드 직접 포함 (명시적 boolean 변환)
+    interests: dbUser.sports ? (dbUser.sports.split(',') as any[]) : undefined,
+    createdAt: dbUser.created_at,
   }
-}
-
-function savePassword(userId: string, password: string): void {
-  const store = getPasswordStore()
-  store[userId] = password
-  localStorage.setItem('sportable_passwords', JSON.stringify(store))
-}
-
-function verifyPassword(userId: string, password: string): boolean {
-  const store = getPasswordStore()
-  return store[userId] === password
-}
-
-// 이메일 중복 검사
-function isEmailExists(email: string): boolean {
-  const users = getMockUsers()
-  return users.some((user) => user.email === email)
-}
-
-// 이메일 유효성 검사
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-// 비밀번호 유효성 검사 (최소 6자)
-function isValidPassword(password: string): boolean {
-  return password.length >= 6
 }
 
 export const AuthService = {
@@ -63,9 +51,6 @@ export const AuthService = {
    * 로그인
    */
   async login(credentials: LoginCredentials): Promise<User> {
-    // 네트워크 지연 시뮬레이션
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
     const { email, password } = credentials
 
     // 입력 검증
@@ -73,32 +58,30 @@ export const AuthService = {
       throw new Error('이메일과 비밀번호를 입력해주세요')
     }
 
-    // 사용자 찾기
-    const users = getMockUsers()
-    const user = users.find((u) => u.email === email)
+    try {
+      const response = await apiRequest<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (!user) {
-      throw new Error('등록되지 않은 이메일입니다')
+      // 토큰 저장
+      localStorage.setItem('accessToken', response.accessToken)
+      localStorage.setItem('refreshToken', response.refreshToken)
+
+      // 사용자 정보 변환 및 저장
+      const user = transformUser(response.user)
+      localStorage.setItem('sportable_user', JSON.stringify(user))
+
+      return user
+    } catch (error) {
+      throw error
     }
-
-    // 비밀번호 확인
-    if (!verifyPassword(user.id, password)) {
-      throw new Error('비밀번호가 일치하지 않습니다')
-    }
-
-    // 로그인 성공 - localStorage에 저장
-    localStorage.setItem('sportable_user', JSON.stringify(user))
-
-    return user
   },
 
   /**
    * 회원가입
    */
   async signup(data: SignupData): Promise<User> {
-    // 네트워크 지연 시뮬레이션
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
     const { email, password, name, role, interests } = data
 
     // 입력 검증
@@ -110,11 +93,14 @@ export const AuthService = {
       throw new Error('사용자 유형을 선택해주세요')
     }
 
-    if (!isValidEmail(email)) {
+    // 이메일 유효성 검사
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
       throw new Error('유효한 이메일 주소를 입력해주세요')
     }
 
-    if (!isValidPassword(password)) {
+    // 비밀번호 유효성 검사
+    if (password.length < 6) {
       throw new Error('비밀번호는 최소 6자 이상이어야 합니다')
     }
 
@@ -127,41 +113,65 @@ export const AuthService = {
       throw new Error('관심 있는 체육 종목을 최소 1개 이상 선택해주세요')
     }
 
-    // 이메일 중복 검사
-    if (isEmailExists(email)) {
-      throw new Error('이미 사용 중인 이메일입니다')
+    try {
+      // 회원가입 API 호출
+      const sportsValue = interests && interests.length > 0 ? interests.join(',') : null
+      
+      console.log('회원가입 요청 데이터:', {
+        email,
+        name,
+        role,
+        manager: role === 'organizer',
+        interests,
+        sports: sportsValue,
+      })
+
+      const response = await apiRequest<LoginResponse>('/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+          manager: role === 'organizer',
+          sports: sportsValue,
+        }),
+      })
+
+      // 토큰 저장
+      localStorage.setItem('accessToken', response.accessToken)
+      localStorage.setItem('refreshToken', response.refreshToken)
+
+      // 사용자 정보 변환 및 저장
+      const user = transformUser(response.user)
+      localStorage.setItem('sportable_user', JSON.stringify(user))
+
+      return user
+    } catch (error) {
+      throw error
     }
-
-    // 새 사용자 생성
-    const newUser: User = {
-      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      email,
-      name,
-      role,
-      interests: role === 'user' ? interests : undefined, // 일반 사용자만 관심 종목 저장
-      createdAt: new Date().toISOString(),
-    }
-
-    // 사용자 목록에 추가
-    const users = getMockUsers()
-    users.push(newUser)
-    saveMockUsers(users)
-
-    // 비밀번호 저장
-    savePassword(newUser.id, password)
-
-    // 자동 로그인
-    localStorage.setItem('sportable_user', JSON.stringify(newUser))
-
-    return newUser
   },
 
   /**
    * 로그아웃
    */
   async logout(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    localStorage.removeItem('sportable_user')
+    const refreshToken = localStorage.getItem('refreshToken')
+    
+    try {
+      if (refreshToken) {
+        await apiRequest('/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        })
+      }
+    } catch (error) {
+      console.error('로그아웃 API 오류:', error)
+      // API 오류가 있어도 로컬 스토리지는 정리
+    } finally {
+      localStorage.removeItem('sportable_user')
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+    }
   },
 
   /**
@@ -174,6 +184,78 @@ export const AuthService = {
       return JSON.parse(stored) as User
     } catch {
       return null
+    }
+  },
+
+  /**
+   * 토큰 갱신
+   */
+  async refreshToken(): Promise<User | null> {
+    const refreshToken = localStorage.getItem('refreshToken')
+    if (!refreshToken) {
+      return null
+    }
+
+    try {
+      const response = await apiRequest<{ user: UserResponse['user']; accessToken: string }>(
+        '/auth/refresh',
+        {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        }
+      )
+
+      // 새 토큰 저장
+      localStorage.setItem('accessToken', response.accessToken)
+
+      // 사용자 정보 변환 및 저장
+      const user = transformUser(response.user)
+      localStorage.setItem('sportable_user', JSON.stringify(user))
+
+      return user
+    } catch (error) {
+      // 리프레시 토큰이 만료된 경우 로그아웃 처리
+      this.logout()
+      return null
+    }
+  },
+
+  /**
+   * 현재 사용자 정보 서버에서 가져오기
+   */
+  async getCurrentUserFromServer(): Promise<User | null> {
+    try {
+      const response = await apiRequest<UserResponse>('/auth/me')
+      const user = transformUser(response.user)
+      localStorage.setItem('sportable_user', JSON.stringify(user))
+      return user
+    } catch (error) {
+      // 토큰이 만료된 경우 리프레시 시도
+      const refreshed = await this.refreshToken()
+      if (refreshed) {
+        return refreshed
+      }
+      return null
+    }
+  },
+
+  /**
+   * 사용자 정보 업데이트 (소셜 로그인 후 추가 정보 입력용)
+   */
+  async updateUserInfo(data: { manager?: boolean; sports?: string | null }): Promise<User> {
+    try {
+      const response = await apiRequest<UserResponse>('/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+
+      // 사용자 정보 변환 및 저장
+      const user = transformUser(response.user)
+      localStorage.setItem('sportable_user', JSON.stringify(user))
+
+      return user
+    } catch (error) {
+      throw error
     }
   },
 }
