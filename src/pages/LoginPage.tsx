@@ -22,6 +22,8 @@ export function LoginPage() {
         setError('소셜 로그인에 실패했습니다')
       } else if (errorParam === 'user_not_found') {
         setError('사용자를 찾을 수 없습니다')
+      } else if (errorParam === 'email_already_exists') {
+        setError('이미 가입된 이메일입니다. 일반 로그인을 이용해주세요.')
       } else {
         setError('로그인에 실패했습니다')
       }
@@ -30,12 +32,14 @@ export function LoginPage() {
 
   // Google 로그인 시작
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:3001/api/auth/google'
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+    window.location.href = `${apiBaseUrl}/auth/google`
   }
 
   // 카카오 로그인 시작
   const handleKakaoLogin = () => {
-    window.location.href = 'http://localhost:3001/api/auth/kakao'
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+    window.location.href = `${apiBaseUrl}/auth/kakao`
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {

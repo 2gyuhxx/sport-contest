@@ -1,5 +1,6 @@
 import { createContext, useReducer, useEffect, type ReactNode } from 'react'
 import type { User, AuthState } from '../types/auth'
+import { AuthService } from '../services/AuthService'
 
 // Action 타입 정의
 type AuthAction =
@@ -68,7 +69,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser) as User
-        dispatch({ type: 'RESTORE_USER', payload: user })
+        // manager 필드가 없는 경우 서버에서 최신 정보 가져오기
+        if (user.manager === undefined) {
+          AuthService.getCurrentUserFromServer()
+            .then((latestUser) => {
+              if (latestUser) {
+                dispatch({ type: 'RESTORE_USER', payload: latestUser })
+              } else {
+                dispatch({ type: 'RESTORE_USER', payload: null })
+              }
+            })
+            .catch(() => {
+              dispatch({ type: 'RESTORE_USER', payload: null })
+            })
+        } else {
+          dispatch({ type: 'RESTORE_USER', payload: user })
+        }
       } catch (error) {
         console.error('사용자 정보 복원 실패:', error)
         localStorage.removeItem('sportable_user')

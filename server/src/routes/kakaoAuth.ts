@@ -176,20 +176,22 @@ router.get('/kakao/callback', async (req, res) => {
 
     const userInfo = await userInfoResponse.json()
     
-    // 카카오 API 응답을 파일로 저장 (디버깅용)
-    try {
-      const fs = await import('fs')
-      const path = await import('path')
-      const debugDir = path.join(process.cwd(), 'debug')
-      if (!fs.existsSync(debugDir)) {
-        fs.mkdirSync(debugDir, { recursive: true })
-      }
-      const debugFile = path.join(debugDir, `kakao_response_${Date.now()}.json`)
-      fs.writeFileSync(debugFile, JSON.stringify(userInfo, null, 2), 'utf-8')
-      console.log(`카카오 API 응답이 저장되었습니다: ${debugFile}`)
-    } catch (err) {
-      console.error('디버그 파일 저장 실패:', err)
-    }
+    // 카카오 API 응답을 파일로 저장 (개발 환경에서만, 필요시 활성화)
+    // if (process.env.NODE_ENV === 'development' && process.env.DEBUG_KAKAO === 'true') {
+    //   try {
+    //     const fs = await import('fs')
+    //     const path = await import('path')
+    //     const debugDir = path.join(process.cwd(), 'debug')
+    //     if (!fs.existsSync(debugDir)) {
+    //       fs.mkdirSync(debugDir, { recursive: true })
+    //     }
+    //     const debugFile = path.join(debugDir, `kakao_response_${Date.now()}.json`)
+    //     fs.writeFileSync(debugFile, JSON.stringify(userInfo, null, 2), 'utf-8')
+    //     console.log(`카카오 API 응답이 저장되었습니다: ${debugFile}`)
+    //   } catch (err) {
+    //     console.error('디버그 파일 저장 실패:', err)
+    //   }
+    // }
     
     // 강제로 로그 출력
     process.stdout.write('\n=== 카카오 사용자 정보 응답 ===\n')
@@ -340,12 +342,13 @@ router.get('/kakao/callback', async (req, res) => {
     const provider = await OAuthProviderModel.findOrCreate('kakao', 'Kakao')
     console.log('OAuth Provider ID:', provider.id)
 
-    // 기존 OAuth 연결 확인
-    console.log('기존 OAuth 연결 확인 중...')
-    let oauthConnection = await UserOAuthModel.findByOAuthUserId(provider.id, kakaoId)
-    let user
+        // 기존 OAuth 연결 확인
+        console.log('기존 OAuth 연결 확인 중...')
+        let oauthConnection = await UserOAuthModel.findByOAuthUserId(provider.id, kakaoId)
+        let user
+        let isNewUser = false
 
-    if (oauthConnection) {
+        if (oauthConnection) {
       console.log('기존 OAuth 연결 발견, 사용자 ID:', oauthConnection.user_id)
       // 기존 사용자 - 로그인
       user = await UserModel.findById(oauthConnection.user_id)
@@ -385,6 +388,14 @@ router.get('/kakao/callback', async (req, res) => {
       // 새 사용자 - 회원가입 또는 기존 이메일과 연결
       // 실제 카카오 이메일이 있으면 그것으로 검색, 없으면 생성된 이메일로 검색
       const searchEmail = emailFromKakao || email
+      
+      // is_verified = true인 이메일이 이미 존재하는지 확인 (중복 가입 방지)
+      const emailExists = await UserModel.isEmailExists(searchEmail)
+      if (emailExists) {
+        console.error('이미 가입된 이메일입니다:', searchEmail)
+        return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=email_already_exists`)
+      }
+      
       user = await UserModel.findByEmail(searchEmail)
       console.log('이메일로 기존 사용자 검색:', searchEmail, user ? '발견' : '없음')
 
@@ -433,6 +444,7 @@ router.get('/kakao/callback', async (req, res) => {
           if (!user) {
             throw new Error('사용자 생성 후 조회 실패')
           }
+          isNewUser = true // 새 사용자 플래그 설정
           console.log('새 사용자 생성 및 로그인 성공')
         } catch (error) {
           await connection.rollback()
@@ -501,7 +513,10 @@ router.get('/kakao/callback', async (req, res) => {
 
     // 프론트엔드로 리다이렉트 (토큰을 쿼리 파라미터로 전달)
     const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${jwtAccessToken}&refreshToken=${refreshTokenJWT}`
+    let redirectUrl = `${frontendUrl}/auth/callback?token=${jwtAccessToken}&refreshToken=${refreshTokenJWT}`
+    if (isNewUser) {
+      redirectUrl += '&isNewUser=true'
+    }
     console.log('프론트엔드로 리다이렉트:', redirectUrl)
     res.redirect(redirectUrl)
   } catch (error: any) {

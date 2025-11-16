@@ -7,6 +7,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { SignupPage } from '../pages/SignupPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { MyPage } from '../pages/MyPage'
+import { OAuthSignupPage } from '../pages/OAuthSignupPage'
 import { AppShell } from '../ui/AppShell'
 
 export function AppRouter() {
@@ -22,6 +23,7 @@ export function AppRouter() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/oauth/signup" element={<OAuthSignupPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

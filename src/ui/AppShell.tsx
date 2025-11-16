@@ -13,31 +13,53 @@ function AppHeader() {
   const { state, dispatch } = useAuthContext()
   const { user, isAuthenticated } = state
   const [showLogoutMessage, setShowLogoutMessage] = useState(false)
+  const [logoutUserName, setLogoutUserName] = useState<string | null>(null)
 
   const handleLogout = async () => {
     try {
+      // 로그아웃 전에 사용자 이름 저장
+      const userName = user?.name || '사용자'
+      setLogoutUserName(userName)
+      
       await AuthService.logout()
       dispatch({ type: 'LOGOUT' })
       setShowLogoutMessage(true)
-      
-      // 메시지 표시 후 홈으로 이동
-      setTimeout(() => {
-        navigate('/')
-        setShowLogoutMessage(false)
-      }, 1500)
     } catch (error) {
       console.error('로그아웃 실패:', error)
     }
   }
 
+  const handleConfirmLogout = () => {
+    setShowLogoutMessage(false)
+    setLogoutUserName(null)
+    navigate('/')
+  }
+
   return (
     <>
-      {/* 로그아웃 성공 메시지 */}
-      {showLogoutMessage && (
-        <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 transition-opacity duration-300">
-          <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3 shadow-lg">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-semibold text-green-700">로그아웃 되었습니다!</span>
+      {/* 로그아웃 성공 모달 */}
+      {showLogoutMessage && logoutUserName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900">로그아웃 완료</h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                {logoutUserName}님 로그아웃 되었습니다!
+              </p>
+              <button
+                onClick={handleConfirmLogout}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -114,8 +136,8 @@ function AppHeader() {
           >
             지도 검색
           </NavLink>
-          {/* 행사 등록 메뉴는 행사 관리자만 표시 */}
-          {isAuthenticated && user?.role === 'organizer' && (
+          {/* 행사 등록 메뉴는 행사 관리자만 표시 (manager가 true일 때만) */}
+          {isAuthenticated && !!user?.manager && (
             <NavLink
               to="/admin/events/create"
               className={({ isActive }) =>

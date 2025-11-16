@@ -89,10 +89,10 @@ export class UserModel {
     try {
       await connection.beginTransaction()
 
-      // 사용자 생성
+      // 사용자 생성 (is_verified를 true로 설정 - 회원가입 완료)
       const [result] = await connection.execute(
-        `INSERT INTO users (email, name, phone, sport1, sport2, sport3, status) 
-         VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+        `INSERT INTO users (email, name, phone, sport1, sport2, sport3, status, is_verified) 
+         VALUES (?, ?, ?, ?, ?, ?, 'active', true)`,
         [email, name, phone || null, sport1 || null, sport2 || null, sport3 || null]
       )
 
@@ -124,11 +124,11 @@ export class UserModel {
   }
 
   /**
-   * 이메일 중복 확인
+   * 이메일 중복 확인 (is_verified가 true인 이메일만 체크)
    */
   static async isEmailExists(email: string): Promise<boolean> {
     const [rows] = await pool.execute<{ count: number }[]>(
-      'SELECT COUNT(*) as count FROM users WHERE email = ?',
+      'SELECT COUNT(*) as count FROM users WHERE email = ? AND is_verified = true',
       [email]
     )
     return rows[0].count > 0
