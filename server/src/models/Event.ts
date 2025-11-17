@@ -9,6 +9,7 @@ export interface EventRow {
   title: string
   description: string
   sport: string
+  sub_sport: string | null
   region: string
   sub_region: string
   venue: string | null
@@ -16,6 +17,7 @@ export interface EventRow {
   start_at: Date
   end_at: Date
   website: string | null
+  image: string | null
   status: EventStatus
   created_at: Date
   updated_at: Date | null
@@ -41,20 +43,43 @@ export class EventModel {
     title: string,
     description: string,
     sport: string,
+    subSport: string | null,
     region: string,
     subRegion: string,
     venue: string | null,
+    address: string | null,
     startAt: string,
     endAt: string,
     website: string | null,
+    image: string | null,
     organizerUserName: string,
     status: EventStatus = 'pending'
   ): Promise<EventRow> {
+    console.log('[EventModel.create] 파라미터:', {
+      organizerUserId,
+      organizerUserName,
+      title,
+      description,
+      sport,
+      subSport,
+      region,
+      subRegion,
+      venue,
+      address,
+      startAt,
+      endAt,
+      website,
+      image,
+      status
+    })
+
     const [result] = await pool.execute(
-      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, region, sub_region, venue, address, start_at, end_at, website, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [organizerUserId, organizerUserName, title, description, sport, region, subRegion, venue || null, null, startAt, endAt, website || null, status]
+      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [organizerUserId, organizerUserName, title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, status]
     )
+
+    console.log('[EventModel.create] INSERT 결과:', result)
 
     const insertResult = result as { insertId: number }
     const eventId = insertResult.insertId
@@ -98,12 +123,15 @@ export class EventModel {
     title: string,
     description: string,
     sport: string,
+    subSport: string | null,
     region: string,
     subRegion: string,
     venue: string | null,
+    address: string | null,
     startAt: string,
     endAt: string,
     website: string | null,
+    image: string | null,
     organizerUserName: string
   ): Promise<EventRow> {
     // 먼저 행사 존재 확인 및 권한 확인
@@ -118,10 +146,10 @@ export class EventModel {
 
     await pool.execute(
       `UPDATE events 
-       SET title = ?, description = ?, sport = ?, region = ?, sub_region = ?, 
-           venue = ?, start_at = ?, end_at = ?, website = ?, organizer_user_name = ?, updated_at = NOW()
+       SET title = ?, description = ?, sport = ?, sub_sport = ?, region = ?, sub_region = ?, 
+           venue = ?, address = ?, start_at = ?, end_at = ?, website = ?, image = ?, organizer_user_name = ?, updated_at = NOW()
        WHERE id = ?`,
-      [title, description, sport, region, subRegion, venue || null, startAt, endAt, website || null, organizerUserName, eventId]
+      [title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, organizerUserName, eventId]
     )
 
     // 업데이트된 행사 반환

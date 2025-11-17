@@ -59,5 +59,27 @@ router.get('/sub-regions', async (req, res) => {
   }
 })
 
+/**
+ * 스포츠 소분류 목록 가져오기
+ * category_name 쿼리 파라미터로 필터링
+ */
+router.get('/sub-sport-categories', async (req, res) => {
+  try {
+    const { category_name } = req.query
+    if (!category_name) {
+      return res.status(400).json({ error: 'category_name 파라미터가 필요합니다' })
+    }
+    const [rows] = await pool.execute<{ name: string }[]>(
+      'SELECT name FROM sub_sport_category WHERE category_name = ? ORDER BY name',
+      [category_name]
+    )
+    const subCategories = rows.map(row => row.name)
+    res.json({ subCategories })
+  } catch (error: any) {
+    console.error('스포츠 소분류 조회 오류:', error)
+    res.status(500).json({ error: '스포츠 소분류 조회 중 오류가 발생했습니다' })
+  }
+})
+
 export default router
 

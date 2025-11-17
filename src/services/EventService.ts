@@ -23,6 +23,10 @@ interface SubRegionsResponse {
   subRegions: string[]
 }
 
+interface SubSportCategoriesResponse {
+  subCategories: string[]
+}
+
 interface MyEventResponse {
   events: {
     id: number
@@ -31,6 +35,7 @@ interface MyEventResponse {
     title: string
     description: string
     sport: string
+    sub_sport: string | null
     region: string
     sub_region: string
     venue: string | null
@@ -38,6 +43,7 @@ interface MyEventResponse {
     start_at: string
     end_at: string
     website: string | null
+    image: string | null
     status: 'pending' | 'approved' | 'spam'
     created_at: string
     updated_at: string | null
@@ -49,12 +55,15 @@ interface CreateEventData {
   title: string
   description: string
   sport: string
+  sub_sport: string
   region: string
   sub_region: string
   venue: string | null
+  address: string | null
   start_at: string
   end_at: string
   website: string | null
+  image: string | null
   organizer_user_name: string
 }
 
@@ -67,6 +76,7 @@ interface CreateEventResponse {
     title: string
     description: string
     sport: string
+    sub_sport: string | null
     region: string
     sub_region: string
     venue: string | null
@@ -74,6 +84,7 @@ interface CreateEventResponse {
     start_at: string
     end_at: string
     website: string | null
+    image: string | null
     status: 'pending' | 'approved' | 'spam'
     created_at: string
   }
@@ -156,6 +167,22 @@ export const EventService = {
   },
 
   /**
+   * 스포츠 소분류 목록 가져오기 (DB에서)
+   * @param categoryName 선택한 스포츠 대분류 이름
+   */
+  async getSubSportCategories(categoryName: string): Promise<string[]> {
+    try {
+      const response = await apiRequest<SubSportCategoriesResponse>(
+        `/lists/sub-sport-categories?category_name=${encodeURIComponent(categoryName)}`
+      )
+      return response.subCategories
+    } catch (error) {
+      console.error('스포츠 소분류 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
    * 내가 등록한 행사 목록 가져오기
    */
   async getMyEvents(): Promise<MyEventResponse['events']> {
@@ -172,10 +199,10 @@ export const EventService = {
    * 행사 생성
    */
   async createEvent(data: CreateEventData): Promise<CreateEventResponse['event']> {
-    const { title, description, sport, region, sub_region, venue, start_at, end_at, website, organizer_user_name } = data
+    const { title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, organizer_user_name } = data
 
     // 입력 검증
-    if (!title || !description || !sport || !region || !sub_region || !start_at || !end_at || !organizer_user_name) {
+    if (!title || !description || !sport || !sub_sport || !region || !sub_region || !start_at || !end_at || !organizer_user_name) {
       throw new Error('모든 필수 필드를 입력해주세요')
     }
 
@@ -197,12 +224,15 @@ export const EventService = {
           title,
           description,
           sport,
+          sub_sport,
           region,
           sub_region,
           venue: venue || null,
+          address: address || null,
           start_at,
           end_at,
           website: website || null,
+          image: image || null,
           organizer_user_name,
         }),
       })
@@ -217,7 +247,7 @@ export const EventService = {
    * 행사 수정
    */
   async updateEvent(eventId: number, data: CreateEventData): Promise<CreateEventResponse['event']> {
-    const { title, description, sport, region, sub_region, venue, start_at, end_at, website, organizer_user_name } = data
+    const { title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, organizer_user_name } = data
 
     // 수정 모드에서는 부분 업데이트를 지원하므로 필수 필드 검증 제거
     // 서버에서 기존 값을 사용하도록 처리
@@ -239,12 +269,15 @@ export const EventService = {
           title,
           description,
           sport,
+          sub_sport,
           region,
           sub_region,
           venue: venue || null,
+          address: address || null,
           start_at,
           end_at,
           website: website || null,
+          image: image || null,
           organizer_user_name,
         }),
       })
@@ -264,6 +297,45 @@ export const EventService = {
       return response.event
     } catch (error) {
       console.error('행사 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 파일 업로드
+   */
+  async uploadFile(file: File, eventId?: number): Promise<string> {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (!token) {
+        throw new Error('로그인이 필요합니다')
+      }
+
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+      const uploadUrl = eventId
+        ? `${API_BASE_URL}/upload?eventId=${eventId}`
+        : `${API_BASE_URL}/upload`
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: '파일 업로드에 실패했습니다' }))
+        throw new Error(errorData.error || '파일 업로드에 실패했습니다')
+      }
+
+      const data = await response.json()
+      return data.url
+    } catch (error) {
+      console.error('파일 업로드 오류:', error)
       throw error
     }
   },
