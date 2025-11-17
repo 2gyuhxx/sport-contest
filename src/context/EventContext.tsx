@@ -6,7 +6,7 @@ import type { EventFilters } from '../types/events'
 
 const initialState: EventState = {
   events: EventService.getAll(),
-  regions: EventService.getRegions(),
+  regions: EventService.getRegionsStatic(), // 정적 데이터 사용
   categories: EventService.getCategories(),
   selectedRegion: null,
   selectedCategory: null,
