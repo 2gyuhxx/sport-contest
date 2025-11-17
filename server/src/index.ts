@@ -6,11 +6,23 @@ import googleAuthRoutes from './routes/googleAuth.js'
 import kakaoAuthRoutes from './routes/kakaoAuth.js'
 import eventRoutes from './routes/events.js'
 import listRoutes from './routes/lists.js'
+import { downloadModelFromCloud } from './utils/downloadModel.js'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+// 서버 시작 시 모델 파일 다운로드 (비동기, 서버 시작을 블로킹하지 않음)
+downloadModelFromCloud()
+  .then(() => {
+    console.log('[서버 시작] 모델 파일 다운로드 완료')
+  })
+  .catch((error) => {
+    console.error('[서버 시작] 모델 파일 다운로드 실패:', error)
+    console.warn('[서버 시작] 모델 파일이 없어도 서버는 시작되지만 스팸 체크 기능이 작동하지 않을 수 있습니다.')
+    console.warn('[서버 시작] .env 파일에 NHN Cloud Object Storage 설정을 확인해주세요.')
+  })
 
 // 미들웨어
 app.use(cors({

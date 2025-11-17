@@ -34,6 +34,13 @@ JWT_REFRESH_EXPIRES_IN=7d
 
 # CORS 설정
 CORS_ORIGIN=http://localhost:5173
+
+# NHN Cloud Object Storage 설정 (스팸 모델 다운로드용)
+NHN_CLOUD_ACCESS_KEY=your_access_key
+NHN_CLOUD_SECRET_KEY=your_secret_key
+NHN_CLOUD_ENDPOINT=https://kr1-api-objectstorage.nhncloudservice.com
+NHN_CLOUD_BUCKET_NAME=your_bucket_name
+NHN_CLOUD_MODEL_KEY=spam_model_ver1.pth
 ```
 
 ### 3. 데이터베이스 설정
