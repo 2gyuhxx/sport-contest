@@ -212,4 +212,59 @@ export const EventService = {
       throw error
     }
   },
+
+  /**
+   * 행사 수정
+   */
+  async updateEvent(eventId: number, data: CreateEventData): Promise<CreateEventResponse['event']> {
+    const { title, description, sport, region, sub_region, venue, start_at, end_at, website, organizer_user_name } = data
+
+    // 수정 모드에서는 부분 업데이트를 지원하므로 필수 필드 검증 제거
+    // 서버에서 기존 값을 사용하도록 처리
+    // 단, 날짜 유효성 검사는 수행 (두 날짜가 모두 있을 때만)
+    if (start_at && end_at && start_at > end_at) {
+      throw new Error('시작 날짜는 종료 날짜보다 이전이어야 합니다')
+    }
+
+    // 현재 사용자 정보 가져오기
+    const currentUser = AuthService.getCurrentUser()
+    if (!currentUser) {
+      throw new Error('로그인이 필요합니다')
+    }
+
+    try {
+      const response = await apiRequest<CreateEventResponse>(`/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title,
+          description,
+          sport,
+          region,
+          sub_region,
+          venue: venue || null,
+          start_at,
+          end_at,
+          website: website || null,
+          organizer_user_name,
+        }),
+      })
+
+      return response.event
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
+   * 특정 행사 가져오기
+   */
+  async getEventById(eventId: number): Promise<CreateEventResponse['event']> {
+    try {
+      const response = await apiRequest<{ event: CreateEventResponse['event'] }>(`/events/${eventId}`)
+      return response.event
+    } catch (error) {
+      console.error('행사 조회 오류:', error)
+      throw error
+    }
+  },
 }

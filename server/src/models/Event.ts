@@ -90,6 +90,53 @@ export class EventModel {
   }
 
   /**
+   * 행사 정보 업데이트
+   */
+  static async update(
+    eventId: number,
+    organizerUserId: number,
+    title: string,
+    description: string,
+    sport: string,
+    region: string,
+    subRegion: string,
+    venue: string | null,
+    startAt: string,
+    endAt: string,
+    website: string | null,
+    organizerUserName: string
+  ): Promise<EventRow> {
+    // 먼저 행사 존재 확인 및 권한 확인
+    const event = await this.findById(eventId)
+    if (!event) {
+      throw new Error('행사를 찾을 수 없습니다')
+    }
+
+    if (event.organizer_user_id !== organizerUserId) {
+      throw new Error('행사를 수정할 권한이 없습니다')
+    }
+
+    await pool.execute(
+      `UPDATE events 
+       SET title = ?, description = ?, sport = ?, region = ?, sub_region = ?, 
+           venue = ?, start_at = ?, end_at = ?, website = ?, organizer_user_name = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [title, description, sport, region, subRegion, venue || null, startAt, endAt, website || null, organizerUserName, eventId]
+    )
+
+    // 업데이트된 행사 반환
+    const updatedEvent = await this.findById(eventId)
+    if (!updatedEvent) {
+      throw new Error('행사 업데이트 후 조회 실패')
+    }
+
+    // 업데이트 시 status를 'pending'으로 변경 (재검토 필요)
+    await this.updateStatus(eventId, 'pending')
+
+    return updatedEvent
+  }
+
+  /**
    * 행사 삭제
    */
   static async delete(eventId: number): Promise<void> {

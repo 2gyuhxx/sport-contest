@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useParams } from 'react-router-dom'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventService } from '../services/EventService'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle } from 'lucide-react'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 type FormData = {
   title: string
@@ -22,6 +22,8 @@ type FormErrors = Partial<Record<keyof FormData, string>>
 
 export function CreateEventPage() {
   const navigate = useNavigate()
+  const { eventId } = useParams<{ eventId?: string }>()
+  const isEditMode = !!eventId
   const { state: authState } = useAuthContext()
   const { user, isAuthenticated } = authState
   
@@ -43,6 +45,7 @@ export function CreateEventPage() {
   const [imagePreview, setImagePreview] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false) // 성공 메시지 표시 여부
   
   // DB에서 가져온 데이터
   const [sportCategories, setSportCategories] = useState<string[]>([])
@@ -70,6 +73,52 @@ export function CreateEventPage() {
     }
     loadData()
   }, [])
+
+  // 수정 모드일 때 기존 행사 데이터 로드
+  useEffect(() => {
+    if (isEditMode && eventId) {
+      const loadEventData = async () => {
+        try {
+          setIsLoadingData(true)
+          const event = await EventService.getEventById(parseInt(eventId, 10))
+          
+          // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환)
+          const formatDate = (dateString: string) => {
+            const date = new Date(dateString)
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            return `${year}-${month}-${day}`
+          }
+
+          setFormData({
+            title: event.title || '',
+            organizer: event.organizer_user_name || '',
+            sport: event.sport || '',
+            start_at: formatDate(event.start_at),
+            end_at: formatDate(event.end_at),
+            region: event.region || '',
+            sub_region: event.sub_region || '',
+            address: event.venue || '',
+            summary: event.description || '',
+            link: event.website || '',
+            image: '',
+          })
+
+          if (event.region) {
+            const subRegionsData = await EventService.getSubRegions(event.region)
+            setSubRegions(subRegionsData)
+          }
+        } catch (err) {
+          console.error('행사 데이터 로딩 오류:', err)
+          setError('행사 데이터를 불러오는데 실패했습니다')
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
+      loadEventData()
+    }
+  }, [isEditMode, eventId])
 
   // region 선택 시 sub_region 목록 가져오기
   useEffect(() => {
@@ -119,32 +168,41 @@ export function CreateEventPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    if (!formData.title.trim()) {
-      newErrors.title = '행사명을 입력해주세요.'
-    }
-    if (!formData.organizer.trim()) {
-      newErrors.organizer = '개최사를 입력해주세요.'
-    }
-    if (!formData.sport) {
-      newErrors.sport = '스포츠 종류를 선택해주세요.'
-    }
-    if (!formData.start_at) {
-      newErrors.start_at = '시작 날짜를 선택해주세요.'
-    }
-    if (!formData.end_at) {
-      newErrors.end_at = '종료 날짜를 선택해주세요.'
-    }
-    if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
-      newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
-    }
-    if (!formData.region) {
-      newErrors.region = '지역을 선택해주세요.'
-    }
-    if (!formData.sub_region) {
-      newErrors.sub_region = '시/군/구를 선택해주세요.'
-    }
-    if (!formData.summary.trim()) {
-      newErrors.summary = '간단 요약을 입력해주세요.'
+    // 수정 모드일 때는 필수 검증 완화 (기존 값이 있으면 필수 아님)
+    if (isEditMode) {
+      // 수정 모드: 날짜 유효성 검사만 수행
+      if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
+        newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
+      }
+    } else {
+      // 생성 모드: 모든 필수 필드 검증
+      if (!formData.title.trim()) {
+        newErrors.title = '행사명을 입력해주세요.'
+      }
+      if (!formData.organizer.trim()) {
+        newErrors.organizer = '개최사를 입력해주세요.'
+      }
+      if (!formData.sport) {
+        newErrors.sport = '스포츠 종류를 선택해주세요.'
+      }
+      if (!formData.start_at) {
+        newErrors.start_at = '시작 날짜를 선택해주세요.'
+      }
+      if (!formData.end_at) {
+        newErrors.end_at = '종료 날짜를 선택해주세요.'
+      }
+      if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
+        newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
+      }
+      if (!formData.region) {
+        newErrors.region = '지역을 선택해주세요.'
+      }
+      if (!formData.sub_region) {
+        newErrors.sub_region = '시/군/구를 선택해주세요.'
+      }
+      if (!formData.summary.trim()) {
+        newErrors.summary = '간단 요약을 입력해주세요.'
+      }
     }
 
     setErrors(newErrors)
@@ -154,48 +212,85 @@ export function CreateEventPage() {
   // 폼 제출
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('[행사 수정] handleSubmit 호출됨', { isEditMode, eventId })
     setError(null)
     
-    if (!validateForm()) {
+    const isValid = validateForm()
+    console.log('[행사 수정] 폼 검증 결과:', isValid, errors)
+    if (!isValid) {
+      console.log('[행사 수정] 폼 검증 실패:', errors)
       return
     }
 
     if (!user) {
       setError('로그인이 필요합니다.')
+      console.log('[행사 수정] 사용자 없음')
       return
     }
 
     setIsLoading(true)
+    console.log('[행사 수정] 로딩 시작')
 
     try {
-      await EventService.createEvent({
-        title: formData.title,
-        description: formData.summary, // 간단 요약을 description으로 사용
-        sport: formData.sport,
-        region: formData.region, // 광역자치단체
-        sub_region: formData.sub_region, // 기초자치단체
-        venue: formData.address || null, // 상세 주소
-        start_at: formData.start_at,
-        end_at: formData.end_at,
-        website: formData.link || null,
-        organizer_user_name: formData.organizer, // 개최사
-      })
+      if (isEditMode && eventId) {
+        // 수정 모드
+        console.log('[행사 수정] 수정 시작:', { eventId, formData })
+        
+        // 수정 모드: 모든 필드를 전송 (빈 문자열이어도 전송, 서버에서 기존 값으로 처리)
+        const updateData = {
+          title: formData.title || '',
+          description: formData.summary || '',
+          sport: formData.sport || '',
+          region: formData.region || '',
+          sub_region: formData.sub_region || '',
+          venue: formData.address || null,
+          start_at: formData.start_at || '',
+          end_at: formData.end_at || '',
+          website: formData.link || null,
+          organizer_user_name: formData.organizer || '',
+        }
+        
+        console.log('[행사 수정] API 호출 데이터:', updateData)
+        
+        const result = await EventService.updateEvent(parseInt(eventId, 10), updateData)
+        console.log('[행사 수정] API 응답:', result)
 
-      alert('행사 등록이 접수되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
-      navigate('/')
+        console.log('[행사 수정] 수정 완료, 성공 메시지 표시')
+        // 성공 메시지 표시 (수정 모드일 때만)
+        setShowSuccessMessage(true)
+        setIsLoading(false) // 성공 시 로딩 상태 해제
+      } else {
+        // 생성 모드
+        await EventService.createEvent({
+          title: formData.title,
+          description: formData.summary, // 간단 요약을 description으로 사용
+          sport: formData.sport,
+          region: formData.region, // 광역자치단체
+          sub_region: formData.sub_region, // 기초자치단체
+          venue: formData.address || null, // 상세 주소
+          start_at: formData.start_at,
+          end_at: formData.end_at,
+          website: formData.link || null,
+          organizer_user_name: formData.organizer, // 개최사
+        })
+
+        alert('행사 등록이 접수되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
+        navigate('/')
+      }
     } catch (err) {
-      console.error('행사 등록 오류:', err)
-      const errorMessage = err instanceof Error ? err.message : '행사 등록에 실패했습니다'
+      console.error('행사 등록/수정 오류:', err)
+      const errorMessage = err instanceof Error ? err.message : (isEditMode ? '행사 수정에 실패했습니다' : '행사 등록에 실패했습니다')
       
       // 스팸으로 분류된 경우 특별 처리
       if (errorMessage.includes('스팸으로 분류')) {
         alert('해당 행사는 스팸으로 분류되어 등록할 수 없습니다!')
-        navigate('/')
+        if (!isEditMode) {
+          navigate('/')
+        }
         return
       }
       
       setError(errorMessage)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -219,6 +314,12 @@ export function CreateEventPage() {
     setErrors({})
     setError(null)
     setSubRegions([])
+  }
+
+  // 성공 메시지 확인 핸들러
+  const handleConfirmSuccess = () => {
+    setShowSuccessMessage(false)
+    navigate('/my')
   }
 
   // 권한 체크: 행사 관리자만 접근 가능
@@ -290,18 +391,48 @@ export function CreateEventPage() {
   }
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* 헤더 */}
-      <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
+    <>
+      {/* 행사 수정 완료 모달 */}
+      {showSuccessMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900">행사가 수정되었습니다</h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                행사 정보가 성공적으로 수정되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.
+              </p>
+              <button
+                onClick={handleConfirmSuccess}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8 pb-16">
+        {/* 헤더 */}
+        <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
         <div className="mx-auto max-w-3xl">
           <span className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
             event registration
           </span>
           <h1 className="mt-2 text-3xl font-bold md:text-4xl">
-            행사 등록
+            {isEditMode ? '행사 수정' : '행사 등록'}
           </h1>
           <p className="mt-3 text-white/90">
-            새로운 스포츠 행사 정보를 등록하여 더 많은 사람들과 공유하세요.
+            {isEditMode 
+              ? '등록한 행사 정보를 수정할 수 있습니다. 수정 후 스팸 검사를 다시 진행합니다.'
+              : '새로운 스포츠 행사 정보를 등록하여 더 많은 사람들과 공유하세요.'}
           </p>
         </div>
       </section>
@@ -596,10 +727,16 @@ export function CreateEventPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isLoadingData}
+              onClick={(e) => {
+                console.log('[행사 수정] 버튼 클릭됨', { isLoading, isLoadingData, isEditMode, eventId })
+                if (!e.isDefaultPrevented()) {
+                  // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
+                }
+              }}
               className="flex-1 rounded-full bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isLoading ? '등록 중...' : '행사 등록'}
+              {isLoading || isLoadingData ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '행사 수정' : '행사 등록')}
             </button>
             <button
               type="button"
@@ -618,7 +755,8 @@ export function CreateEventPage() {
           </div>
         </form>
       </section>
-    </div>
+      </div>
+    </>
   )
 }
 

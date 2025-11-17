@@ -43,7 +43,12 @@ async function checkSingleText(text: string): Promise<number> {
       })
 
       pythonProcess.stderr.on('data', (data) => {
-        stderr += data.toString()
+        const errorData = data.toString()
+        stderr += errorData
+        // 디버깅: stderr 출력 확인 (경고 메시지는 무시)
+        if (!errorData.includes('Some weights') && !errorData.includes('You should probably TRAIN')) {
+          console.error('[스팸 체크 스크립트 stderr]:', errorData.trim())
+        }
       })
 
       // 텍스트 정규화 및 전송

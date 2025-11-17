@@ -7,15 +7,16 @@ import type { UserRole, SportCategory } from '../types/auth'
 
 // 스포츠 카테고리 정보
 const SPORT_CATEGORIES: { value: SportCategory; label: string; emoji: string }[] = [
-  { value: 'football', label: '축구', emoji: '⚽' },
-  { value: 'basketball', label: '농구', emoji: '🏀' },
-  { value: 'cycling', label: '사이클', emoji: '🚴' },
-  { value: 'baseball', label: '야구', emoji: '⚾' },
-  { value: 'track', label: '육상', emoji: '🏃' },
-  { value: 'swimming', label: '수영', emoji: '🏊' },
-  { value: 'tabletennis', label: '탁구', emoji: '🏓' },
-  { value: 'badminton', label: '배드민턴', emoji: '🏸' },
-  { value: 'taekwondo', label: '태권도', emoji: '🥋' },
+  { value: 'team-ball', label: '구기·팀', emoji: '⚽' },
+  { value: 'racket-ball', label: '라켓·볼', emoji: '🏓' },
+  { value: 'martial-arts', label: '무도·격투', emoji: '🥋' },
+  { value: 'fitness-skill', label: '체력·기술', emoji: '🏋️' },
+  { value: 'precision', label: '정밀·기술', emoji: '🎯' },
+  { value: 'ice-snow', label: '빙상·설원', emoji: '⛷️' },
+  { value: 'water', label: '수상·해양', emoji: '🏊' },
+  { value: 'leisure', label: '레저·환경', emoji: '🚴' },
+  { value: 'mind', label: '마인드', emoji: '🧠' },
+  { value: 'other', label: '기타', emoji: '🎮' },
 ]
 
 export function SignupPage() {
@@ -202,7 +203,7 @@ export function SignupPage() {
                         type="button"
                         onClick={() => toggleInterest(sport.value)}
                         disabled={isDisabled}
-                        className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition ${
+                        className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition whitespace-nowrap ${
                           isSelected
                             ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
                             : isDisabled
@@ -210,10 +211,10 @@ export function SignupPage() {
                               : 'border-surface-subtle bg-white text-slate-700 hover:border-brand-primary/30'
                         }`}
                       >
-                        <span className="text-lg">{sport.emoji}</span>
-                        <span className="font-medium">{sport.label}</span>
+                        <span className="text-lg flex-shrink-0">{sport.emoji}</span>
+                        <span className="font-medium flex-shrink-0">{sport.label}</span>
                         {isSelected && (
-                          <span className="ml-auto text-xs font-semibold text-brand-primary">
+                          <span className="ml-auto text-xs font-semibold text-brand-primary flex-shrink-0">
                             {interests.indexOf(sport.value) + 1}
                           </span>
                         )}
