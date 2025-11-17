@@ -1,20 +1,58 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { formatDate } from '../utils/formatDate'
+import { ExternalLink } from 'lucide-react'
+import { EventService } from '../services/EventService'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
   const {
     state: { events, regions },
+    dispatch,
   } = useEventContext()
+  
+  // 조회수 증가가 한 번만 실행되도록 추적
+  const viewCountedRef = useRef(false)
 
   const event = useMemo(() => events.find((item) => item.id === eventId), [eventId, events])
   const regionLabel = useMemo(
     () => regions.find((region) => region.id === event?.region)?.name ?? event?.region,
     [event?.region, regions],
   )
+
+  // 신청하기 버튼 핸들러
+  const handleApply = () => {
+    if (event?.link) {
+      // website URL이 있으면 새 탭에서 열기
+      window.open(event.link, '_blank', 'noopener,noreferrer')
+    } else {
+      // URL이 없으면 알림 표시
+      alert('신청 URL이 등록되지 않았습니다.')
+    }
+  }
+
+  // 조회수 증가 (React Strict Mode에서도 한 번만 실행)
+  useEffect(() => {
+    if (eventId && !viewCountedRef.current) {
+      viewCountedRef.current = true
+      
+      // 1. 즉시 로컬 상태 업데이트 (화면에 바로 반영)
+      dispatch({ type: 'INCREMENT_EVENT_VIEWS', payload: eventId })
+      
+      // 2. 백그라운드에서 서버에 조회수 증가 요청
+      EventService.incrementEventViews(eventId).then(() => {
+        // 3. 서버 동기화 완료 후 최신 데이터 가져오기 (선택사항)
+        // refreshEvents() // 필요시 주석 해제
+        console.log(`[조회수] 행사 ${eventId} 서버 동기화 완료`)
+      }).catch((error) => {
+        console.error('[조회수] 서버 동기화 실패:', error)
+        // 실패 시 로컬 상태 롤백 (선택사항)
+        // dispatch({ type: 'INCREMENT_EVENT_VIEWS', payload: eventId }) 의 역연산 필요
+      })
+    }
+  }, [eventId, dispatch])
 
   if (!event) {
     return (
@@ -72,12 +110,32 @@ export function EventDetailPage() {
                   </dt>
                   <dd>{event.address}</dd>
                 </div>
-                <div className="grid gap-1">
-                  <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    문의
-                  </dt>
-                  <dd>contact@example.com · 02-1234-5678</dd>
-                </div>
+                {event.link && (
+                  <div className="grid gap-1">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      웹사이트
+                    </dt>
+                    <dd>
+                      <a
+                        href={event.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-brand-primary hover:underline"
+                      >
+                        {event.link}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {event.organizer && (
+                  <div className="grid gap-1">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      주최
+                    </dt>
+                    <dd>{event.organizer}</dd>
+                  </div>
+                )}
               </dl>
             </div>
           </div>
@@ -91,9 +149,18 @@ export function EventDetailPage() {
             </div>
             <button
               type="button"
-              className="rounded-2xl bg-brand-primary px-4 py-3 text-sm font-semibold text-white shadow hover:bg-brand-secondary"
+              onClick={handleApply}
+              disabled={!event.link}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-brand-primary px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              신청하기
+              {event.link ? (
+                <>
+                  <ExternalLink className="h-4 w-4" />
+                  신청하기
+                </>
+              ) : (
+                '신청 URL 없음'
+              )}
             </button>
             <button
               type="button"

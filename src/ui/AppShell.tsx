@@ -126,6 +126,17 @@ function AppHeader() {
             홈
           </NavLink>
           <NavLink
+            to="/events"
+            className={({ isActive }) =>
+              classNames(
+                'rounded-full px-3 py-1 transition',
+                isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
+              )
+            }
+          >
+            행사
+          </NavLink>
+          <NavLink
             to="/search"
             className={({ isActive }) =>
               classNames(

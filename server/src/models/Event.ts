@@ -1,8 +1,9 @@
 import pool from '../config/database.js'
+import type { RowDataPacket } from 'mysql2'
 
 export type EventStatus = 'pending' | 'approved' | 'spam'
 
-export interface EventRow {
+export interface EventRow extends RowDataPacket {
   id: number
   organizer_user_id: number
   organizer_user_name: string | null
@@ -16,6 +17,7 @@ export interface EventRow {
   start_at: Date
   end_at: Date
   website: string | null
+  views: number
   status: EventStatus
   created_at: Date
   updated_at: Date | null
@@ -107,6 +109,16 @@ export class EventModel {
       'SELECT * FROM events ORDER BY created_at DESC'
     )
     return rows
+  }
+
+  /**
+   * 조회수 증가
+   */
+  static async incrementViews(eventId: number): Promise<void> {
+    await pool.execute(
+      'UPDATE events SET views = views + 1, updated_at = NOW() WHERE id = ?',
+      [eventId]
+    )
   }
 }
 

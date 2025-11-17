@@ -1,13 +1,19 @@
 import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import { useEventContext } from '../context/useEventContext'
+import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, RefreshCw } from 'lucide-react'
 
 export function HomePage() {
   const {
     state: { events },
+    isLoading,
+    refreshEvents,
   } = useEventContext()
+  
+  const { state: authState } = useAuthContext()
+  const { isAuthenticated } = authState
 
   const popularEvents = useMemo(
     () => [...events].sort((a, b) => b.views - a.views),
@@ -58,6 +64,18 @@ export function HomePage() {
     }).slice(0, 8)
   }, [events])
 
+  // 로딩 중일 때 표시
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-brand-primary border-t-transparent"></div>
+          <p className="text-slate-600">행사 데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-16 pb-16">
       <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-10 text-white md:p-16">
@@ -101,9 +119,21 @@ export function HomePage() {
                 조회수가 높은 행사부터 빠르게 살펴보세요.
               </p>
             </div>
-            <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold text-brand-primary">
-              조회순
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={refreshEvents}
+                disabled={isLoading}
+                className="flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-brand-primary hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-50"
+                title="행사 목록 새로고침"
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+                새로고침
+              </button>
+              <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold text-brand-primary">
+                조회순
+              </span>
+            </div>
           </div>
           <EventList
             events={popularEvents.slice(0, 8)}
@@ -115,31 +145,58 @@ export function HomePage() {
           />
         </div>
 
-        {/* 사용자 추천 행사 */}
-        <div className="rounded-3xl border border-surface-subtle bg-gradient-to-br from-violet-50 to-purple-50 p-6 shadow-sm md:p-8">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-900 md:text-3xl">
-                <Sparkles className="h-7 w-7 text-violet-600" />
-                사용자 추천 행사
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                다양한 종목의 행사를 골고루 추천해드려요.
-              </p>
+        {/* 사용자 추천 행사 - 로그인 시만 표시 */}
+        {isAuthenticated ? (
+          <div className="rounded-3xl border border-surface-subtle bg-gradient-to-br from-violet-50 to-purple-50 p-6 shadow-sm md:p-8">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-900 md:text-3xl">
+                  <Sparkles className="h-7 w-7 text-violet-600" />
+                  사용자 추천 행사
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  다양한 종목의 행사를 골고루 추천해드려요.
+                </p>
+              </div>
+              <span className="rounded-full bg-violet-600/10 px-3 py-1 text-xs font-semibold text-violet-700">
+                AI 추천
+              </span>
             </div>
-            <span className="rounded-full bg-violet-600/10 px-3 py-1 text-xs font-semibold text-violet-700">
-              AI 추천
-            </span>
+            <EventList
+              events={recommendedEvents}
+              layout="grid"
+              columns={4}
+              cardVariant="compact"
+              emptyMessage="추천할 행사가 없습니다."
+              detailHrefBase="/events/"
+            />
           </div>
-          <EventList
-            events={recommendedEvents}
-            layout="grid"
-            columns={4}
-            cardVariant="compact"
-            emptyMessage="추천할 행사가 없습니다."
-            detailHrefBase="/events/"
-          />
-        </div>
+        ) : (
+          <div className="rounded-3xl border border-surface-subtle bg-gradient-to-br from-blue-50 to-indigo-50 p-8 text-center shadow-sm md:p-12">
+            <Sparkles className="mx-auto mb-4 h-12 w-12 text-indigo-600" />
+            <h2 className="mb-3 text-2xl font-bold text-slate-900 md:text-3xl">
+              맞춤형 행사 추천을 받아보세요
+            </h2>
+            <p className="mx-auto mb-6 max-w-xl text-slate-600">
+              로그인하시면 AI가 분석한 맞춤형 행사 추천을 받아보실 수 있습니다.
+              다양한 종목의 행사를 한눈에 확인하고 관심사에 맞는 이벤트를 빠르게 찾아보세요.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to="/login"
+                className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                로그인하기
+              </Link>
+              <Link
+                to="/signup"
+                className="rounded-full border border-indigo-600 px-6 py-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50"
+              >
+                회원가입
+              </Link>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   )

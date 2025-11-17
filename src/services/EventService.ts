@@ -23,25 +23,129 @@ interface SubRegionsResponse {
   subRegions: string[]
 }
 
+// 대분류 스포츠 카테고리 타입
+export interface SportCategory {
+  id: number
+  name: string
+  description: string | null
+  created_at: string
+}
+
+// 소분류 스포츠 카테고리 타입
+export interface SubSportCategory {
+  id: number
+  category_name: string
+  name: string
+}
+
+interface SportCategoriesResponseAPI {
+  categories: SportCategory[]
+}
+
+interface SubSportCategoriesResponse {
+  subCategories: SubSportCategory[]
+}
+
+// DB에서 가져온 행사 데이터 타입
+interface DBEvent {
+  id: number
+  organizer_user_id: number
+  organizer_user_name: string | null
+  title: string
+  description: string
+  sport: string
+  region: string
+  sub_region: string
+  venue: string | null
+  address: string | null
+  start_at: string
+  end_at: string
+  website: string | null
+  views: number
+  status: 'pending' | 'approved' | 'spam'
+  created_at: string
+  updated_at: string | null
+}
+
+interface AllEventsResponse {
+  events: DBEvent[]
+}
+
 interface MyEventResponse {
-  events: {
-    id: number
-    organizer_user_id: number
-    organizer_user_name: string | null
-    title: string
-    description: string
-    sport: string
-    region: string
-    sub_region: string
-    venue: string | null
-    address: string | null
-    start_at: string
-    end_at: string
-    website: string | null
-    status: 'pending' | 'approved' | 'spam'
-    created_at: string
-    updated_at: string | null
-  }[]
+  events: DBEvent[]
+}
+
+// DB 행사 데이터를 프론트엔드 Event 타입으로 변환
+function transformDBEventToEvent(dbEvent: DBEvent): Event {
+  // sport를 Category로 매핑 (대소문자 구분 없이)
+  const sportLower = dbEvent.sport.toLowerCase()
+  let category: Category = 'fitness' // 기본값
+  
+  const categoryMap: Record<string, Category> = {
+    '축구': 'football',
+    'football': 'football',
+    '농구': 'basketball',
+    'basketball': 'basketball',
+    '야구': 'baseball',
+    'baseball': 'baseball',
+    '마라톤': 'marathon',
+    'marathon': 'marathon',
+    '달리기': 'marathon',
+    'running': 'marathon',
+    '배구': 'volleyball',
+    'volleyball': 'volleyball',
+    'e스포츠': 'esports',
+    'esports': 'esports',
+    '피트니스': 'fitness',
+    'fitness': 'fitness',
+    '요가': 'fitness',
+    'yoga': 'fitness',
+  }
+  
+  category = categoryMap[sportLower] || categoryMap[dbEvent.sport] || 'fitness'
+  
+  // DB의 region 문자열을 프론트엔드 region id로 매핑
+  let regionId = dbEvent.region.toLowerCase() // 기본값: 소문자로 변환
+  
+  // regions.ts의 aliases를 사용하여 매핑
+  const regionMeta = regions.find((r) => 
+    r.name === dbEvent.region || 
+    r.shortName === dbEvent.region ||
+    r.aliases.includes(dbEvent.region) ||
+    r.id === dbEvent.region.toLowerCase()
+  )
+  
+  if (regionMeta) {
+    regionId = regionMeta.id
+  }
+  
+  // 기본 이미지 (카테고리별)
+  const defaultImages: Record<Category, string> = {
+    football: 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
+    basketball: 'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=900&q=60',
+    baseball: 'https://images.unsplash.com/photo-1508766206392-8bd5cf550d1c?auto=format&fit=crop&w=900&q=60',
+    marathon: 'https://images.unsplash.com/photo-1502818364360-24d9bff88ec5?auto=format&fit=crop&w=900&q=60',
+    volleyball: 'https://images.unsplash.com/photo-1508881594126-2a3e7a67db47?auto=format&fit=crop&w=900&q=60',
+    esports: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
+    fitness: 'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
+  }
+
+  return {
+    id: dbEvent.id.toString(),
+    title: dbEvent.title,
+    summary: dbEvent.description,
+    region: regionId,
+    city: dbEvent.sub_region,
+    address: dbEvent.address || dbEvent.venue || '',
+    category,
+    date: dbEvent.start_at.split('T')[0], // YYYY-MM-DD 형식으로 변환
+    image: defaultImages[category],
+    views: dbEvent.views || 0, // DB의 views 값 사용
+    organizer: dbEvent.organizer_user_name || undefined,
+    link: dbEvent.website || undefined,
+    description: dbEvent.description,
+    sport: dbEvent.sport, // DB의 스포츠 종목 (소분류 이름)
+  }
 }
 
 // 행사 생성 요청 데이터 타입
@@ -80,9 +184,28 @@ interface CreateEventResponse {
 }
 
 export const EventService = {
+  /**
+   * DB에서 모든 행사 가져오기 (승인된 행사만)
+   */
+  async getAllEventsFromDB(): Promise<Event[]> {
+    try {
+      const response = await apiRequest<AllEventsResponse>('/events')
+      // status가 'approved'인 행사만 필터링하여 반환
+      const approvedEvents = response.events.filter(event => event.status === 'approved')
+      return approvedEvents.map(transformDBEventToEvent)
+    } catch (error) {
+      console.error('행사 목록 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Mock 데이터 가져오기 (하위 호환성 유지)
+   */
   getAll(): Event[] {
     return events
   },
+  
   // 기존 정적 데이터용 메서드들 (하위 호환성 유지)
   getRegionsStatic(): RegionMeta[] {
     return regions
@@ -156,15 +279,75 @@ export const EventService = {
   },
 
   /**
-   * 내가 등록한 행사 목록 가져오기
+   * 내가 등록한 행사 목록 가져오기 (원본 DB 데이터)
    */
-  async getMyEvents(): Promise<MyEventResponse['events']> {
+  async getMyEvents(): Promise<DBEvent[]> {
     try {
       const response = await apiRequest<MyEventResponse>('/events/my/events')
       return response.events
     } catch (error) {
       console.error('내 행사 목록 조회 오류:', error)
       throw error
+    }
+  },
+
+  /**
+   * 내가 등록한 행사 목록 가져오기 (프론트엔드 타입으로 변환)
+   */
+  async getMyEventsTransformed(): Promise<Event[]> {
+    try {
+      const dbEvents = await this.getMyEvents()
+      return dbEvents.map(transformDBEventToEvent)
+    } catch (error) {
+      console.error('내 행사 목록 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 행사 조회수 증가
+   */
+  async incrementEventViews(eventId: string | number): Promise<void> {
+    try {
+      await apiRequest(`/events/${eventId}/view`, {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.error('조회수 증가 오류:', error)
+      // 조회수 증가 실패해도 에러는 던지지 않음
+    }
+  },
+
+  /**
+   * 대분류 스포츠 카테고리 목록 가져오기 (DB에서 대분류 테이블)
+   */
+  async getSportCategoriesDB(): Promise<SportCategory[]> {
+    try {
+      const response = await apiRequest<SportCategoriesResponseAPI>('/sport-categories', {
+        method: 'GET',
+      })
+      return response.categories
+    } catch (error) {
+      console.error('대분류 카테고리 조회 오류:', error)
+      throw new Error('대분류 카테고리를 불러오는데 실패했습니다')
+    }
+  },
+
+  /**
+   * 특정 대분류의 소분류 스포츠 카테고리 목록 가져오기
+   */
+  async getSubSportCategories(categoryId: number): Promise<SubSportCategory[]> {
+    try {
+      const response = await apiRequest<SubSportCategoriesResponse>(
+        `/sport-categories/${categoryId}/sub-categories`,
+        {
+          method: 'GET',
+        }
+      )
+      return response.subCategories
+    } catch (error) {
+      console.error('소분류 카테고리 조회 오류:', error)
+      throw new Error('소분류 카테고리를 불러오는데 실패했습니다')
     }
   },
 

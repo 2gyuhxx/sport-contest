@@ -6,6 +6,7 @@ import googleAuthRoutes from './routes/googleAuth.js'
 import kakaoAuthRoutes from './routes/kakaoAuth.js'
 import eventRoutes from './routes/events.js'
 import listRoutes from './routes/lists.js'
+import categoryRoutes from './routes/categories.js'
 
 dotenv.config()
 
@@ -43,6 +44,8 @@ app.use('/auth', kakaoAuthRoutes) // 카카오 개발자 콘솔에 /auth/kakao/c
 app.use('/api/events', eventRoutes)
 // 목록 라우트 (스포츠 종목, 지역, 시군구)
 app.use('/api/lists', listRoutes)
+// 카테고리 라우트 (대분류, 소분류)
+app.use('/api', categoryRoutes)
 
 // Health check
 app.get('/health', (req, res) => {
