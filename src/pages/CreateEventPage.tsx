@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle } from 'lucide-react'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 type FormData = {
   title: string
   organizer: string
-  sport_category: string
-  sub_sport: string
   sport_category_id: number | null
   sub_sport_category_id: number | null
   start_at: string
@@ -33,8 +31,6 @@ export function CreateEventPage() {
   const [formData, setFormData] = useState<FormData>({
     title: '',
     organizer: '',
-    sport_category: '',
-    sub_sport: '',
     sport_category_id: null,
     sub_sport_category_id: null,
     start_at: '',
@@ -72,8 +68,6 @@ export function CreateEventPage() {
     const loadData = async () => {
       try {
         setIsLoadingData(true)
-        const sports = await EventService.getSportCategories()
-        setSportCategories(sports)
         const [categories, regionsData] = await Promise.all([
           EventService.getSportCategoriesDB(),
           EventService.getRegions(),
@@ -110,8 +104,8 @@ export function CreateEventPage() {
           setFormData({
             title: event.title || '',
             organizer: event.organizer_user_name || '',
-            sport_category: event.sport || '',
-            sub_sport: event.sub_sport || '',
+            sport_category_id: null, // 편집 모드에서는 API 응답에 ID가 없으므로 null로 시작
+            sub_sport_category_id: null,
             start_at: formatDate(event.start_at),
             end_at: formatDate(event.end_at),
             region: event.region || '',
@@ -132,11 +126,7 @@ export function CreateEventPage() {
             setDetailAddress('') // 상세 주소는 별도 필드가 없으므로 빈 문자열로 시작
           }
 
-          // 스포츠 대분류가 있으면 소분류 목록 로드
-          if (event.sport) {
-            const subCategories = await EventService.getSubSportCategories(event.sport)
-            setSubSportCategories(subCategories)
-          }
+          // 스포츠 대분류 ID가 있으면 소분류 목록은 useEffect에서 자동으로 로드됨
         } catch (err) {
           console.error('행사 데이터 로딩 오류:', err)
           setError('행사 데이터를 불러오는데 실패했습니다')
@@ -159,7 +149,7 @@ export function CreateEventPage() {
       }
 
       try {
-        const subCategories = await EventService.getSubSportCategories(formData.sport_category_id)
+        const subCategories = await EventService.getSubSportCategoriesById(formData.sport_category_id)
         setSubSportCategories(subCategories)
         // 대분류가 변경되면 소분류 초기화
         setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
@@ -171,32 +161,11 @@ export function CreateEventPage() {
     loadSubSportCategories()
   }, [formData.sport_category_id])
 
-  // region 선택 시 sub_region 목록 가져오기
-  useEffect(() => {
-    const loadSubSportCategories = async () => {
-      if (!formData.sport_category) {
-        setSubSportCategories([])
-        setFormData(prev => ({ ...prev, sub_sport: '' }))
-        return
-      }
-
-      try {
-        const subCategories = await EventService.getSubSportCategories(formData.sport_category)
-        setSubSportCategories(subCategories)
-        // sport_category가 변경되면 sub_sport 초기화
-        setFormData(prev => ({ ...prev, sub_sport: '' }))
-      } catch (err) {
-        console.error('스포츠 소분류 목록 로딩 오류:', err)
-        setSubSportCategories([])
-      }
-    }
-    loadSubSportCategories()
-  }, [formData.sport_category])
 
   // 필드 변경 핸들러
   const handleChange = (
     field: keyof FormData,
-    value: string
+    value: string | number | null
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // 에러 제거
@@ -295,11 +264,11 @@ export function CreateEventPage() {
       if (!formData.organizer.trim()) {
         newErrors.organizer = '개최사를 입력해주세요.'
       }
-      if (!formData.sport_category) {
-        newErrors.sport_category = '스포츠 대분류를 선택해주세요.'
+      if (!formData.sport_category_id) {
+        newErrors.sport_category_id = '스포츠 대분류를 선택해주세요.'
       }
-      if (!formData.sub_sport) {
-        newErrors.sub_sport = '스포츠 소분류를 선택해주세요.'
+      if (!formData.sub_sport_category_id) {
+        newErrors.sub_sport_category_id = '스포츠 소분류를 선택해주세요.'
       }
       if (!formData.start_at) {
         newErrors.start_at = '시작 날짜를 선택해주세요.'
@@ -377,12 +346,16 @@ export function CreateEventPage() {
         // 우편번호를 5자리 고정 문자열로 변환 (앞에 0 채우기)
         const formattedPostcode = postcode ? String(postcode).padStart(5, '0') : null
 
+        // ID를 이름으로 변환
+        const sportCategory = sportCategories.find(cat => cat.id === formData.sport_category_id)
+        const subSportCategory = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
+
         // 수정 모드: 모든 필드를 전송 (빈 문자열이어도 전송, 서버에서 기존 값으로 처리)
         const updateData = {
           title: formData.title || '',
           description: formData.summary || '',
-          sport: formData.sport_category || '',
-          sub_sport: formData.sub_sport || '',
+          sport: sportCategory?.name || '',
+          sub_sport: subSportCategory?.name || '',
           region: formData.region || '',
           sub_region: formData.sub_region || '',
           venue: combinedAddress || null, // 전체 주소 + 상세 주소를 venue에 저장
@@ -412,12 +385,16 @@ export function CreateEventPage() {
         // 우편번호를 5자리 고정 문자열로 변환 (앞에 0 채우기)
         const formattedPostcode = postcode ? String(postcode).padStart(5, '0') : null
 
+        // ID를 이름으로 변환
+        const sportCategory = sportCategories.find(cat => cat.id === formData.sport_category_id)
+        const subSportCategory = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
+
         // 생성 모드: 먼저 이미지 없이 이벤트 생성
         const createdEvent = await EventService.createEvent({
           title: formData.title,
           description: formData.summary, // 간단 요약을 description으로 사용
-          sport: formData.sport_category,
-          sub_sport: formData.sub_sport,
+          sport: sportCategory?.name || '',
+          sub_sport: subSportCategory?.name || '',
           region: formData.region, // 시/도 (우편번호 검색에서 자동 설정)
           sub_region: formData.sub_region, // 시/군/구 (우편번호 검색에서 자동 설정)
           venue: combinedAddress || null, // 전체 주소 + 상세 주소
@@ -437,12 +414,16 @@ export function CreateEventPage() {
             const imageUrl = await EventService.uploadFile(imageFile, createdEvent.id)
             console.log('[행사 생성] 이미지 업로드 완료:', imageUrl)
 
+            // ID를 이름으로 변환
+            const sportCat = sportCategories.find(cat => cat.id === formData.sport_category_id)
+            const subSportCat = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
+
             // 이벤트에 이미지 URL 업데이트
             await EventService.updateEvent(createdEvent.id, {
               title: formData.title,
               description: formData.summary,
-              sport: formData.sport_category,
-              sub_sport: formData.sub_sport,
+              sport: sportCat?.name || '',
+              sub_sport: subSportCat?.name || '',
               region: formData.region,
               sub_region: formData.sub_region,
               venue: combinedAddress || null,
@@ -695,22 +676,22 @@ export function CreateEventPage() {
                   스포츠 대분류 <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={formData.sport_category}
-                  onChange={(e) => handleChange('sport_category', e.target.value)}
+                  value={formData.sport_category_id || ''}
+                  onChange={(e) => handleChange('sport_category_id', e.target.value ? Number(e.target.value) : null)}
                   disabled={isLoadingData}
                   className={`w-full rounded-xl border ${
-                    errors.sport_category ? 'border-red-300' : 'border-slate-300'
+                    errors.sport_category_id ? 'border-red-300' : 'border-slate-300'
                   } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
                 >
                   <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
                   {sportCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                    <option key={category.id} value={category.id}>
+                      {category.name}
                     </option>
                   ))}
                 </select>
-                {errors.sport_category && (
-                  <p className="mt-1 text-xs text-red-600">{errors.sport_category}</p>
+                {errors.sport_category_id && (
+                  <p className="mt-1 text-xs text-red-600">{errors.sport_category_id}</p>
                 )}
               </div>
 
@@ -720,28 +701,28 @@ export function CreateEventPage() {
                   스포츠 소분류 <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={formData.sub_sport}
-                  onChange={(e) => handleChange('sub_sport', e.target.value)}
-                  disabled={!formData.sport_category || isLoadingData}
+                  value={formData.sub_sport_category_id || ''}
+                  onChange={(e) => handleChange('sub_sport_category_id', e.target.value ? Number(e.target.value) : null)}
+                  disabled={!formData.sport_category_id || isLoadingData}
                   className={`w-full rounded-xl border ${
-                    errors.sub_sport ? 'border-red-300' : 'border-slate-300'
+                    errors.sub_sport_category_id ? 'border-red-300' : 'border-slate-300'
                   } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
                 >
                   <option value="">
-                    {!formData.sport_category 
+                    {!formData.sport_category_id 
                       ? '먼저 스포츠 대분류를 선택해주세요' 
                       : isLoadingData 
                         ? '로딩 중...' 
                         : '선택해주세요'}
                   </option>
                   {subSportCategories.map((subSport) => (
-                    <option key={subSport} value={subSport}>
-                      {subSport}
+                    <option key={subSport.id} value={subSport.id}>
+                      {subSport.name}
                     </option>
                   ))}
                 </select>
-                {errors.sub_sport && (
-                  <p className="mt-1 text-xs text-red-600">{errors.sub_sport}</p>
+                {errors.sub_sport_category_id && (
+                  <p className="mt-1 text-xs text-red-600">{errors.sub_sport_category_id}</p>
                 )}
               </div>
             </div>

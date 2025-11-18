@@ -8,7 +8,7 @@ export const events: Event[] = [
     region: 'gangwon',
     city: '춘천',
     address: '강원특별자치도 춘천시 스포츠타운길 25',
-    category: 'football',
+    category: 'team-ball',
     date: '2025-04-12',
     image:
       'https://images.unsplash.com/photo-1530629013299-6cb10e4ca6f8?auto=format&fit=crop&w=900&q=60',
@@ -22,7 +22,7 @@ export const events: Event[] = [
     region: 'gangwon',
     city: '강릉',
     address: '강원특별자치도 강릉시 창해로 17',
-    category: 'volleyball',
+    category: 'team-ball',
     date: '2025-07-19',
     image:
       'https://images.unsplash.com/photo-1508881594126-2a3e7a67db47?auto=format&fit=crop&w=900&q=60',
@@ -36,7 +36,7 @@ export const events: Event[] = [
     region: 'seoul',
     city: '서울',
     address: '서울특별시 영등포구 여의도동 2-1',
-    category: 'marathon',
+    category: 'leisure',
     date: '2025-05-04',
     image:
       'https://images.unsplash.com/photo-1502818364360-24d9bff88ec5?auto=format&fit=crop&w=900&q=60',
@@ -50,7 +50,7 @@ export const events: Event[] = [
     region: 'seoul',
     city: '서울',
     address: '서울특별시 송파구 올림픽로 25',
-    category: 'basketball',
+    category: 'team-ball',
     date: '2025-06-21',
     image:
       'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=900&q=60',
@@ -64,7 +64,7 @@ export const events: Event[] = [
     region: 'incheon',
     city: '인천',
     address: '인천광역시 연수구 컨벤시아대로 10',
-    category: 'fitness',
+    category: 'fitness-skill',
     date: '2025-09-06',
     image:
       'https://images.unsplash.com/photo-1444491741275-3747c53c99b4?auto=format&fit=crop&w=900&q=60',
@@ -78,7 +78,7 @@ export const events: Event[] = [
     region: 'gyeonggi',
     city: '수원',
     address: '경기도 수원시 팔달구 월드컵로 310',
-    category: 'football',
+    category: 'team-ball',
     date: '2025-03-22',
     image:
       'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
@@ -92,7 +92,7 @@ export const events: Event[] = [
     region: 'gyeonggi',
     city: '용인',
     address: '경기도 용인시 수지구 포은대로 499',
-    category: 'esports',
+    category: 'other',
     date: '2025-08-17',
     image:
       'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
@@ -106,7 +106,7 @@ export const events: Event[] = [
     region: 'busan',
     city: '부산',
     address: '부산광역시 동래구 사직북로 45',
-    category: 'baseball',
+    category: 'team-ball',
     date: '2025-04-27',
     image:
       'https://images.unsplash.com/photo-1508766206392-8bd5cf550d1c?auto=format&fit=crop&w=900&q=60',
@@ -120,7 +120,7 @@ export const events: Event[] = [
     region: 'daegu',
     city: '대구',
     address: '대구광역시 북구 고성로 191',
-    category: 'fitness',
+    category: 'fitness-skill',
     date: '2025-05-31',
     image:
       'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=900&q=60',
@@ -134,7 +134,7 @@ export const events: Event[] = [
     region: 'gwangju',
     city: '광주',
     address: '광주광역시 서구 금화로 240',
-    category: 'fitness',
+    category: 'martial-arts',
     date: '2025-07-27',
     image:
       'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
@@ -148,7 +148,7 @@ export const events: Event[] = [
     region: 'jeju',
     city: '제주',
     address: '제주특별자치도 제주시 애월읍 평화로 566',
-    category: 'marathon',
+    category: 'leisure',
     date: '2025-10-18',
     image:
       'https://images.unsplash.com/photo-1517832511714-78dbd997c5be?auto=format&fit=crop&w=900&q=60',
@@ -162,7 +162,7 @@ export const events: Event[] = [
     region: 'ulsan',
     city: '울산',
     address: '울산광역시 중구 태화강국가정원길 154',
-    category: 'marathon',
+    category: 'leisure',
     date: '2025-04-06',
     image:
       'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=900&q=60',

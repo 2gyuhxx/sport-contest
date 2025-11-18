@@ -3,7 +3,6 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simp
 import { Calendar, Search, X } from 'lucide-react'
 import { useEventContext } from '../context/useEventContext'
 import type { Category, Event, RegionMeta } from '../types/events'
-import type { SportCategory } from '../types/auth'
 import { formatDate } from '../utils/formatDate'
 import { feature as topojsonFeature } from 'topojson-client'
 import { geoMercator, geoPath } from 'd3-geo'
@@ -14,12 +13,12 @@ const KR_MUNICIPALITIES_TOPO = '/maps/skorea-municipalities-2018-topo.json'
 
 const BASE_VIEW = { center: [127.5, 36.2] as [number, number], zoom: 1.45 }
 
-type CategoryFilter = 'all' | SportCategory
+type CategoryFilter = 'all' | Category
 type ProvinceFeature = Feature<Geometry, { name: string }>
 type ProvinceFeatureCollection = FeatureCollection<Geometry, { name: string }>
 
 // 스포츠 카테고리 정보
-const SPORT_CATEGORIES: { value: SportCategory; label: string; emoji: string }[] = [
+const SPORT_CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: 'team-ball', label: '구기·팀', emoji: '⚽' },
   { value: 'racket-ball', label: '라켓·볼', emoji: '🏓' },
   { value: 'martial-arts', label: '무도·격투', emoji: '🥋' },
@@ -144,32 +143,9 @@ const createNameVariants = (value: string) => {
 }
 
 export function SearchPage() {
-  let contextValue
-  try {
-    contextValue = useEventContext()
-  } catch (error) {
-    console.error('EventContext 에러:', error)
-    // EventContext가 없는 경우 빈 값 반환
-    contextValue = {
-      state: {
-        events: [],
-        regions: [],
-        categories: [],
-        selectedRegion: null,
-        selectedCategory: null,
-        keyword: '',
-        activeEventId: null,
-      },
-      dispatch: () => {},
-      filteredEvents: [],
-      appliedFilters: {},
-    }
-  }
-  
-  const { state, dispatch } = contextValue
-  const { events = [], regions = [], categories = [] } = state || {}
+  // EventContext에서 상태와 디스패치 가져오기
   const { state, dispatch, isLoading } = useEventContext()
-  const { events, regions, categories } = state
+  const { events, regions } = state
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [hoverLabel, setHoverLabel] = useState<string | null>(null)

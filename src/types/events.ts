@@ -1,11 +1,15 @@
+// 스포츠 카테고리 타입 (DB의 대분류 카테고리)
 export type Category =
-  | 'football'
-  | 'basketball'
-  | 'baseball'
-  | 'marathon'
-  | 'volleyball'
-  | 'esports'
-  | 'fitness'
+  | 'team-ball'
+  | 'racket-ball'
+  | 'martial-arts'
+  | 'fitness-skill'
+  | 'precision'
+  | 'ice-snow'
+  | 'water'
+  | 'leisure'
+  | 'mind'
+  | 'other'
 
 export interface Event {
   id: string

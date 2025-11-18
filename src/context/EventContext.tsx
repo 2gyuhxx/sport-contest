@@ -44,6 +44,14 @@ function eventReducer(state: EventState, action: EventAction): EventState {
           event.id === action.payload ? { ...event, views: event.views + 1 } : event
         ),
       }
+    case 'UPDATE_EVENT_VIEWS':
+      // 서버에서 받은 정확한 조회수로 업데이트
+      return {
+        ...state,
+        events: state.events.map((event) =>
+          event.id === action.payload.eventId ? { ...event, views: action.payload.views } : event
+        ),
+      }
     default:
       return state
   }

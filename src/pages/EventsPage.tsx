@@ -61,7 +61,7 @@ export function EventsPage() {
       }
 
       try {
-        const subCategories = await EventService.getSubSportCategories(selectedSportCategoryId)
+        const subCategories = await EventService.getSubSportCategoriesById(selectedSportCategoryId)
         setSubSportCategories(subCategories)
         setSelectedSubSportCategoryId(null)
       } catch (err) {

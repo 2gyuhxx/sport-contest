@@ -38,18 +38,15 @@ export function EventDetailPage() {
     if (eventId && !viewCountedRef.current) {
       viewCountedRef.current = true
       
-      // 1. 즉시 로컬 상태 업데이트 (화면에 바로 반영)
-      dispatch({ type: 'INCREMENT_EVENT_VIEWS', payload: eventId })
-      
-      // 2. 백그라운드에서 서버에 조회수 증가 요청
-      EventService.incrementEventViews(eventId).then(() => {
-        // 3. 서버 동기화 완료 후 최신 데이터 가져오기 (선택사항)
-        // refreshEvents() // 필요시 주석 해제
-        console.log(`[조회수] 행사 ${eventId} 서버 동기화 완료`)
+      // 서버에 조회수 증가 요청 및 업데이트된 조회수로 로컬 상태 동기화
+      EventService.incrementEventViews(eventId).then((result) => {
+        if (result) {
+          // 서버에서 받은 정확한 조회수로 업데이트
+          dispatch({ type: 'UPDATE_EVENT_VIEWS', payload: { eventId, views: result.views } })
+          console.log(`[조회수] 행사 ${eventId} 서버 동기화 완료 (조회수: ${result.views})`)
+        }
       }).catch((error) => {
         console.error('[조회수] 서버 동기화 실패:', error)
-        // 실패 시 로컬 상태 롤백 (선택사항)
-        // dispatch({ type: 'INCREMENT_EVENT_VIEWS', payload: eventId }) 의 역연산 필요
       })
     }
   }, [eventId, dispatch])

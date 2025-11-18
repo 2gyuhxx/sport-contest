@@ -400,7 +400,14 @@ router.post('/:id/view', async (req, res) => {
     // 조회수 증가
     await EventModel.incrementViews(eventId)
 
-    res.json({ success: true, message: '조회수가 증가되었습니다' })
+    // 업데이트된 행사 정보 가져오기
+    const updatedEvent = await EventModel.findById(eventId)
+
+    res.json({ 
+      success: true, 
+      message: '조회수가 증가되었습니다',
+      views: updatedEvent?.views || 0
+    })
   } catch (error: any) {
     console.error('조회수 증가 오류:', error)
     res.status(500).json({ error: '조회수 증가 중 오류가 발생했습니다' })

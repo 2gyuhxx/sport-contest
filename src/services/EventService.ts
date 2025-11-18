@@ -284,10 +284,10 @@ export const EventService = {
   },
 
   /**
-   * 스포츠 소분류 목록 가져오기 (DB에서)
+   * 스포츠 소분류 목록 가져오기 (DB에서) - 이름으로 조회
    * @param categoryName 선택한 스포츠 대분류 이름
    */
-  async getSubSportCategories(categoryName: string): Promise<string[]> {
+  async getSubSportCategoriesByName(categoryName: string): Promise<SubSportCategory[]> {
     try {
       const response = await apiRequest<SubSportCategoriesResponse>(
         `/lists/sub-sport-categories?category_name=${encodeURIComponent(categoryName)}`
@@ -328,14 +328,16 @@ export const EventService = {
   /**
    * 행사 조회수 증가
    */
-  async incrementEventViews(eventId: string | number): Promise<void> {
+  async incrementEventViews(eventId: string | number): Promise<{ views: number } | null> {
     try {
-      await apiRequest(`/events/${eventId}/view`, {
+      const response = await apiRequest<{ success: boolean; message: string; views: number }>(`/events/${eventId}/view`, {
         method: 'POST',
       })
+      return { views: response.views }
     } catch (error) {
       console.error('조회수 증가 오류:', error)
       // 조회수 증가 실패해도 에러는 던지지 않음
+      return null
     }
   },
 
@@ -355,9 +357,10 @@ export const EventService = {
   },
 
   /**
-   * 특정 대분류의 소분류 스포츠 카테고리 목록 가져오기
+   * 특정 대분류의 소분류 스포츠 카테고리 목록 가져오기 - ID로 조회
+   * @param categoryId 스포츠 대분류 ID
    */
-  async getSubSportCategories(categoryId: number): Promise<SubSportCategory[]> {
+  async getSubSportCategoriesById(categoryId: number): Promise<SubSportCategory[]> {
     try {
       const response = await apiRequest<SubSportCategoriesResponse>(
         `/sport-categories/${categoryId}/sub-categories`,
