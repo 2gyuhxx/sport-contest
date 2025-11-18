@@ -133,5 +133,53 @@ export class UserModel {
     )
     return rows[0].count > 0
   }
+
+  /**
+   * 사용자 삭제 (회원탈퇴)
+   * 관련된 모든 데이터 삭제: session_tokens, user_oauth_connections, user_credentials, events
+   */
+  static async delete(userId: number): Promise<void> {
+    const connection = await pool.getConnection()
+    try {
+      await connection.beginTransaction()
+
+      // 1. 세션 토큰 삭제
+      await connection.execute(
+        'DELETE FROM session_tokens WHERE user_id = ?',
+        [userId]
+      )
+
+      // 2. OAuth 연결 삭제
+      await connection.execute(
+        'DELETE FROM user_oauth_connections WHERE user_id = ?',
+        [userId]
+      )
+
+      // 3. 비밀번호 정보 삭제
+      await connection.execute(
+        'DELETE FROM user_credentials WHERE user_id = ?',
+        [userId]
+      )
+
+      // 4. 사용자가 등록한 이벤트 삭제
+      await connection.execute(
+        'DELETE FROM events WHERE organizer_user_id = ?',
+        [userId]
+      )
+
+      // 5. 사용자 삭제
+      await connection.execute(
+        'DELETE FROM users WHERE id = ?',
+        [userId]
+      )
+
+      await connection.commit()
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+  }
 }
 

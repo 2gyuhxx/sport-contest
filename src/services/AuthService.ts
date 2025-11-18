@@ -258,5 +258,23 @@ export const AuthService = {
       throw error
     }
   },
+
+  /**
+   * 회원탈퇴
+   */
+  async deleteAccount(): Promise<void> {
+    try {
+      await apiRequest<{ message: string }>('/auth/me', {
+        method: 'DELETE',
+      })
+
+      // 로컬 스토리지 정리
+      localStorage.removeItem('sportable_user')
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+    } catch (error) {
+      throw error
+    }
+  },
 }
 

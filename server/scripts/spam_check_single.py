@@ -7,6 +7,8 @@ import sys
 import json
 import os
 import torch
+import tempfile
+import urllib.request
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
@@ -14,9 +16,13 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 MODEL_NAME = "klue/bert-base"
 MAX_LEN = 128
 
-# 스크립트 파일의 디렉토리를 기준으로 상대 경로 계산
-SCRIPT_DIR = Path(__file__).parent.absolute()
-MODEL_PATH = SCRIPT_DIR.parent / 'models' / 'spam_model_ver1.pth'
+# 클라우드 스토리지에서 모델 다운로드
+MODEL_URL = "https://kr1-api-object-storage.nhncloudservice.com/v1/AUTH_691dba506e2740d8bcfca8bca5f8ecc9/sport-contest/model/spam_model_ver1.pth"
+
+# 임시 디렉토리에 모델 캐싱
+TEMP_DIR = Path(tempfile.gettempdir()) / 'sport-contest-models'
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
+MODEL_PATH = TEMP_DIR / 'spam_model_ver1.pth'
 
 # CPU 모드 강제 (메모리 부족 방지)
 device = torch.device("cpu")
@@ -30,6 +36,22 @@ if hasattr(torch, 'set_num_interop_threads'):
 _model = None
 _tokenizer = None
 
+def download_model():
+    """클라우드 스토리지에서 모델 다운로드"""
+    try:
+        if MODEL_PATH.exists():
+            return MODEL_PATH
+        print(json.dumps({'info': '모델 다운로드 중...'}), file=sys.stderr, flush=True)
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+        if not MODEL_PATH.exists():
+            raise Exception('모델 다운로드 후 파일이 생성되지 않았습니다')
+        print(json.dumps({'info': '모델 다운로드 완료'}), file=sys.stderr, flush=True)
+        return MODEL_PATH
+    except Exception as e:
+        error_msg = f'모델 다운로드 오류: {str(e)}'
+        print(json.dumps({'error': error_msg}), file=sys.stderr, flush=True)
+        raise Exception(error_msg)
+
 def load_model_and_tokenizer():
     """모델과 토크나이저 로드"""
     global _model, _tokenizer
@@ -38,6 +60,9 @@ def load_model_and_tokenizer():
         return _model, _tokenizer
     
     try:
+        # 모델 다운로드 (캐시되어 있으면 다운로드하지 않음)
+        download_model()
+        
         # 모델 파일 경로 확인
         if not MODEL_PATH.exists():
             error_msg = f'모델 파일을 찾을 수 없습니다: {MODEL_PATH}'

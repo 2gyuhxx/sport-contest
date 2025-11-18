@@ -3,6 +3,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simp
 import { Calendar, Search, X } from 'lucide-react'
 import { useEventContext } from '../context/useEventContext'
 import type { Category, Event, RegionMeta } from '../types/events'
+import type { SportCategory } from '../types/auth'
 import { formatDate } from '../utils/formatDate'
 import { feature as topojsonFeature } from 'topojson-client'
 import { geoMercator, geoPath } from 'd3-geo'
@@ -13,19 +14,36 @@ const KR_MUNICIPALITIES_TOPO = '/maps/skorea-municipalities-2018-topo.json'
 
 const BASE_VIEW = { center: [127.5, 36.2] as [number, number], zoom: 1.45 }
 
-type CategoryFilter = 'all' | Category
+type CategoryFilter = 'all' | SportCategory
 type ProvinceFeature = Feature<Geometry, { name: string }>
 type ProvinceFeatureCollection = FeatureCollection<Geometry, { name: string }>
 
+// 스포츠 카테고리 정보
+const SPORT_CATEGORIES: { value: SportCategory; label: string; emoji: string }[] = [
+  { value: 'team-ball', label: '구기·팀', emoji: '⚽' },
+  { value: 'racket-ball', label: '라켓·볼', emoji: '🏓' },
+  { value: 'martial-arts', label: '무도·격투', emoji: '🥋' },
+  { value: 'fitness-skill', label: '체력·기술', emoji: '🏋️' },
+  { value: 'precision', label: '정밀·기술', emoji: '🎯' },
+  { value: 'ice-snow', label: '빙상·설원', emoji: '⛷️' },
+  { value: 'water', label: '수상·해양', emoji: '🏊' },
+  { value: 'leisure', label: '레저·환경', emoji: '🚴' },
+  { value: 'mind', label: '마인드', emoji: '🧠' },
+  { value: 'other', label: '기타', emoji: '🎮' },
+]
+
 const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   all: '전체',
-  football: '축구',
-  basketball: '농구',
-  baseball: '야구',
-  marathon: '마라톤',
-  volleyball: '배구',
-  esports: 'e스포츠',
-  fitness: '피트니스',
+  'team-ball': '구기·팀',
+  'racket-ball': '라켓·볼',
+  'martial-arts': '무도·격투',
+  'fitness-skill': '체력·기술',
+  'precision': '정밀·기술',
+  'ice-snow': '빙상·설원',
+  'water': '수상·해양',
+  'leisure': '레저·환경',
+  'mind': '마인드',
+  'other': '기타',
 }
 
 const REGION_COLORS: Record<
@@ -126,15 +144,39 @@ const createNameVariants = (value: string) => {
 }
 
 export function SearchPage() {
+  let contextValue
+  try {
+    contextValue = useEventContext()
+  } catch (error) {
+    console.error('EventContext 에러:', error)
+    // EventContext가 없는 경우 빈 값 반환
+    contextValue = {
+      state: {
+        events: [],
+        regions: [],
+        categories: [],
+        selectedRegion: null,
+        selectedCategory: null,
+        keyword: '',
+        activeEventId: null,
+      },
+      dispatch: () => {},
+      filteredEvents: [],
+      appliedFilters: {},
+    }
+  }
+  
+  const { state, dispatch } = contextValue
+  const { events = [], regions = [], categories = [] } = state || {}
   const { state, dispatch, isLoading } = useEventContext()
   const { events, regions, categories } = state
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [hoverLabel, setHoverLabel] = useState<string | null>(null)
 
-  const initialRegion = state.selectedRegion ?? null
-  const initialCategory = (state.selectedCategory ?? 'all') as CategoryFilter
-  const initialKeyword = state.keyword ?? ''
+  const initialRegion = state?.selectedRegion ?? null
+  const initialCategory = (state?.selectedCategory ?? 'all') as CategoryFilter
+  const initialKeyword = state?.keyword ?? ''
 
   const [selectedRegion, setSelectedRegion] = useState<string | null>(initialRegion)
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(initialCategory)
@@ -256,9 +298,9 @@ export function SearchPage() {
   }, [citiesByRegion, selectedRegion])
 
   const categoryOptions = useMemo<CategoryFilter[]>(() => {
-    const unique = Array.from(new Set(categories))
-    return ['all', ...unique]
-  }, [categories])
+    // 새로운 스포츠 카테고리 목록 사용
+    return ['all', ...SPORT_CATEGORIES.map(cat => cat.value)]
+  }, [])
 
   const filteredEvents = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -622,27 +664,34 @@ export function SearchPage() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="text-xs text-slate-500 transition hover:text-brand-primary"
+                  className="whitespace-nowrap text-xs text-slate-500 transition hover:text-brand-primary"
                 >
                   초기화
                 </button>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {categoryOptions.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => handleCategoryChange(option)}
-                  className={`rounded-full border px-3 py-1 text-xs transition ${
-                    categoryFilter === option
-                      ? 'border-brand-primary bg-brand-primary text-white'
-                      : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                  }`}
-                >
-                  {CATEGORY_LABELS[option]}
-                </button>
-              ))}
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {categoryOptions.map((option) => {
+                const categoryInfo = option === 'all' 
+                  ? { label: '전체', emoji: '🌐' }
+                  : SPORT_CATEGORIES.find(cat => cat.value === option)
+                
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => handleCategoryChange(option)}
+                    className={`flex items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs transition whitespace-nowrap ${
+                      categoryFilter === option
+                        ? 'border-brand-primary bg-brand-primary text-white'
+                        : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
+                    }`}
+                  >
+                    {categoryInfo?.emoji && <span className="text-sm flex-shrink-0">{categoryInfo.emoji}</span>}
+                    <span>{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
+                  </button>
+                )
+              })}
               {selectedRegion && (
                 <Tag
                   label={`지역: ${regionIdToMeta[selectedRegion]?.shortName ?? selectedRegion}`}

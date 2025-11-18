@@ -5,8 +5,8 @@ import type { EventAction, EventContextValue, EventState } from './types'
 import type { EventFilters } from '../types/events'
 
 const initialState: EventState = {
-  events: [], // 초기에는 빈 배열, useEffect에서 로드
-  regions: EventService.getRegionsStatic(),
+  events: EventService.getAll(),
+  regions: EventService.getRegionsStatic(), // 정적 데이터 사용
   categories: EventService.getCategories(),
   selectedRegion: null,
   selectedCategory: null,

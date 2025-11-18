@@ -32,3 +32,4 @@ debug/
 *.sw?
 server/models/*.pth
 server/models/*.pth
+.env
