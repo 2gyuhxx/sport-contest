@@ -1,5 +1,5 @@
 import express from 'express'
-import jwt from 'jsonwebtoken'
+import jwt, { SignOptions } from 'jsonwebtoken'
 import pool from '../config/database.js'
 import { UserModel } from '../models/User.js'
 import { SessionTokenModel } from '../models/SessionToken.js'
@@ -48,7 +48,7 @@ router.post('/signup', async (req, res) => {
     }
 
     // 관심 종목을 sport1, sport2, sport3로 분리 (최대 3개)
-    const sportArray = sports ? sports.split(',').filter(s => s.trim()) : []
+    const sportArray = sports ? sports.split(',').filter((s: string) => s.trim()) : []
     const sport1 = sportArray[0] || null
     const sport2 = sportArray[1] || null
     const sport3 = sportArray[2] || null
@@ -81,9 +81,11 @@ router.post('/signup', async (req, res) => {
       return res.status(500).json({ error: '서버 설정 오류' })
     }
 
-    const accessToken = jwt.sign({ userId: user.id }, jwtSecret, {
-      expiresIn: jwtExpiresIn,
-    })
+    const accessToken = jwt.sign(
+      { userId: user.id }, 
+      jwtSecret as string, 
+      { expiresIn: jwtExpiresIn } as SignOptions
+    )
 
     // 리프레시 토큰 생성 및 저장
     const deviceInfo = req.headers['user-agent'] || undefined
@@ -184,9 +186,11 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ error: '서버 설정 오류' })
     }
 
-    const accessToken = jwt.sign({ userId: user.id }, jwtSecret, {
-      expiresIn: jwtExpiresIn,
-    })
+    const accessToken = jwt.sign(
+      { userId: user.id }, 
+      jwtSecret as string, 
+      { expiresIn: jwtExpiresIn } as SignOptions
+    )
 
     // 리프레시 토큰 생성 및 저장
     const deviceInfo = req.headers['user-agent'] || undefined
@@ -249,9 +253,11 @@ router.post('/refresh', async (req, res) => {
       return res.status(500).json({ error: '서버 설정 오류' })
     }
 
-    const accessToken = jwt.sign({ userId: user.id }, jwtSecret, {
-      expiresIn: jwtExpiresIn,
-    })
+    const accessToken = jwt.sign(
+      { userId: user.id }, 
+      jwtSecret as string, 
+      { expiresIn: jwtExpiresIn } as SignOptions
+    )
 
     const userData = {
       id: user.id,

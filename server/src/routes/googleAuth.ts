@@ -1,6 +1,6 @@
 import express from 'express'
 import { OAuth2Client } from 'google-auth-library'
-import jwt from 'jsonwebtoken'
+import jwt, { SignOptions } from 'jsonwebtoken'
 import pool from '../config/database.js'
 import { UserModel } from '../models/User.js'
 import { OAuthProviderModel } from '../models/OAuthProvider.js'
@@ -246,9 +246,11 @@ router.get('/google/callback', async (req, res) => {
       return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=server_error`)
     }
 
-    const accessToken = jwt.sign({ userId: user.id }, jwtSecret, {
-      expiresIn: jwtExpiresIn,
-    })
+    const accessToken = jwt.sign(
+      { userId: user.id }, 
+      jwtSecret as string, 
+      { expiresIn: jwtExpiresIn } as SignOptions
+    )
 
     // 리프레시 토큰 생성
     const deviceInfo = req.headers['user-agent'] || undefined

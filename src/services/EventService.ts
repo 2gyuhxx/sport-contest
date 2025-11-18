@@ -79,32 +79,70 @@ interface MyEventResponse {
 
 // DB 행사 데이터를 프론트엔드 Event 타입으로 변환
 function transformDBEventToEvent(dbEvent: DBEvent): Event {
-  // sport를 Category로 매핑 (대소문자 구분 없이)
-  const sportLower = dbEvent.sport.toLowerCase()
-  let category: Category = 'fitness' // 기본값
+  // sport를 Category로 매핑 (SearchPage의 SPORT_CATEGORIES와 일치)
+  let category: Category = 'other' // 기본값
   
   const categoryMap: Record<string, Category> = {
-    '축구': 'football',
-    'football': 'football',
-    '농구': 'basketball',
-    'basketball': 'basketball',
-    '야구': 'baseball',
-    'baseball': 'baseball',
-    '마라톤': 'marathon',
-    'marathon': 'marathon',
-    '달리기': 'marathon',
-    'running': 'marathon',
-    '배구': 'volleyball',
-    'volleyball': 'volleyball',
-    'e스포츠': 'esports',
-    'esports': 'esports',
-    '피트니스': 'fitness',
-    'fitness': 'fitness',
-    '요가': 'fitness',
-    'yoga': 'fitness',
+    // 구기·팀
+    '구기·팀': 'team-ball',
+    '축구': 'team-ball',
+    '농구': 'team-ball',
+    '야구': 'team-ball',
+    '배구': 'team-ball',
+    
+    // 라켓·볼
+    '라켓·볼': 'racket-ball',
+    '테니스': 'racket-ball',
+    '배드민턴': 'racket-ball',
+    '탁구': 'racket-ball',
+    
+    // 무도·격투
+    '무도·격투': 'martial-arts',
+    '태권도': 'martial-arts',
+    '유도': 'martial-arts',
+    '검도': 'martial-arts',
+    
+    // 체력·기술
+    '체력·기술': 'fitness-skill',
+    '피트니스': 'fitness-skill',
+    '요가': 'fitness-skill',
+    '크로스핏': 'fitness-skill',
+    '헬스': 'fitness-skill',
+    
+    // 정밀·기술
+    '정밀·기술': 'precision',
+    '사격': 'precision',
+    '양궁': 'precision',
+    
+    // 빙상·설원
+    '빙상·설원': 'ice-snow',
+    '스키': 'ice-snow',
+    '스케이트': 'ice-snow',
+    
+    // 수상·해양
+    '수상·해양': 'water',
+    '수영': 'water',
+    '서핑': 'water',
+    '다이빙': 'water',
+    
+    // 레저·환경
+    '레저·환경': 'leisure',
+    '등산': 'leisure',
+    '사이클': 'leisure',
+    '골프': 'leisure',
+    '마라톤': 'leisure',
+    '달리기': 'leisure',
+    
+    // 마인드
+    '마인드': 'mind',
+    '명상': 'mind',
+    
+    // 기타
+    '기타': 'other',
+    'e스포츠': 'other',
   }
   
-  category = categoryMap[sportLower] || categoryMap[dbEvent.sport] || 'fitness'
+  category = categoryMap[dbEvent.sport] || categoryMap[dbEvent.sport.toLowerCase()] || 'other'
   
   // DB의 region 문자열을 프론트엔드 region id로 매핑
   let regionId = dbEvent.region.toLowerCase() // 기본값: 소문자로 변환
@@ -123,13 +161,16 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
   
   // 기본 이미지 (카테고리별)
   const defaultImages: Record<Category, string> = {
-    football: 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
-    basketball: 'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=900&q=60',
-    baseball: 'https://images.unsplash.com/photo-1508766206392-8bd5cf550d1c?auto=format&fit=crop&w=900&q=60',
-    marathon: 'https://images.unsplash.com/photo-1502818364360-24d9bff88ec5?auto=format&fit=crop&w=900&q=60',
-    volleyball: 'https://images.unsplash.com/photo-1508881594126-2a3e7a67db47?auto=format&fit=crop&w=900&q=60',
-    esports: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
-    fitness: 'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
+    'team-ball': 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
+    'racket-ball': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=900&q=60',
+    'martial-arts': 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=900&q=60',
+    'fitness-skill': 'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
+    'precision': 'https://images.unsplash.com/photo-1601924357840-3a7cc826a7ca?auto=format&fit=crop&w=900&q=60',
+    'ice-snow': 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=900&q=60',
+    'water': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=900&q=60',
+    'leisure': 'https://images.unsplash.com/photo-1502818364360-24d9bff88ec5?auto=format&fit=crop&w=900&q=60',
+    'mind': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=900&q=60',
+    'other': 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
   }
 
   return {
@@ -529,13 +570,12 @@ export const EventService = {
    */
   async deleteEvent(eventId: number): Promise<void> {
     try {
-      const response = await apiRequest<{ success: boolean; message: string }>(
+      await apiRequest<{ success: boolean; message: string }>(
         `/events/${eventId}`,
         {
           method: 'DELETE',
         }
       )
-      return
     } catch (error) {
       console.error('행사 삭제 오류:', error)
       throw error

@@ -3,7 +3,7 @@ import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
 import { getCategoryLabel } from '../../utils/categoryLabels'
-import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface EventCardProps {
   event: Event

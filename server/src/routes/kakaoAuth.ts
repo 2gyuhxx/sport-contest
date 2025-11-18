@@ -1,5 +1,5 @@
 import express from 'express'
-import jwt from 'jsonwebtoken'
+import jwt, { SignOptions } from 'jsonwebtoken'
 import pool from '../config/database.js'
 import { UserModel } from '../models/User.js'
 import { OAuthProviderModel } from '../models/OAuthProvider.js'
@@ -7,6 +7,34 @@ import { UserOAuthModel } from '../models/UserOAuth.js'
 import { SessionTokenModel } from '../models/SessionToken.js'
 
 const router = express.Router()
+
+// 카카오 API 응답 타입 정의
+interface KakaoTokenResponse {
+  access_token: string
+  refresh_token?: string
+  expires_in: number
+  token_type: string
+}
+
+interface KakaoUserInfo {
+  id: number
+  kakao_account?: {
+    email?: string
+    name?: string
+    profile?: {
+      nickname?: string
+      nickName?: string
+      profile_image_url?: string
+    }
+    profile_image?: string
+  }
+  properties?: {
+    nickname?: string
+    nickName?: string
+    name?: string
+    profile_image?: string
+  }
+}
 
 // 카카오 OAuth 설정 (매 요청마다 최신 환경 변수 읽기)
 const getKakaoConfig = () => {
@@ -133,7 +161,7 @@ router.get('/kakao/callback', async (req, res) => {
       return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
     }
 
-    const tokenData = await tokenResponse.json()
+    const tokenData = await tokenResponse.json() as KakaoTokenResponse
     const accessToken = tokenData.access_token
     const refreshToken = tokenData.refresh_token
     const expiresIn = tokenData.expires_in // 초 단위
@@ -174,7 +202,7 @@ router.get('/kakao/callback', async (req, res) => {
       return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
     }
 
-    const userInfo = await userInfoResponse.json()
+    const userInfo = await userInfoResponse.json() as KakaoUserInfo
     
     // 카카오 API 응답을 파일로 저장 (개발 환경에서만, 필요시 활성화)
     // if (process.env.NODE_ENV === 'development' && process.env.DEBUG_KAKAO === 'true') {
@@ -282,7 +310,7 @@ router.get('/kakao/callback', async (req, res) => {
       const profileKeys = Object.keys(profile)
       for (const key of profileKeys) {
         if (key.toLowerCase().includes('nick') || key.toLowerCase().includes('name')) {
-          const value = profile[key]
+          const value = (profile as any)[key]
           if (typeof value === 'string' && value.trim()) {
             name = value
             break
@@ -296,7 +324,7 @@ router.get('/kakao/callback', async (req, res) => {
       const propKeys = Object.keys(props)
       for (const key of propKeys) {
         if (key.toLowerCase().includes('nick') || key.toLowerCase().includes('name')) {
-          const value = props[key]
+          const value = (props as any)[key]
           if (typeof value === 'string' && value.trim()) {
             name = value
             break
@@ -497,9 +525,16 @@ router.get('/kakao/callback', async (req, res) => {
       return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=server_error`)
     }
 
-    const jwtAccessToken = jwt.sign({ userId: user.id }, jwtSecret, {
-      expiresIn: jwtExpiresIn,
-    })
+    if (!user) {
+      console.error('사용자 정보가 없습니다')
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=user_not_found`)
+    }
+
+    const jwtAccessToken = jwt.sign(
+      { userId: user.id }, 
+      jwtSecret as string, 
+      { expiresIn: jwtExpiresIn } as SignOptions
+    )
     console.log('JWT 토큰 생성 완료')
 
     // 리프레시 토큰 생성

@@ -6,10 +6,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>sportcontest</title>
     <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <!-- Kakao Maps SDK -->
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=76ed4671868b9a59aa14bd765c1dd98d&libraries=services,clusterer"></script>
     <style>
       /* 이모지가 제대로 표시되도록 폰트 설정 */
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      }
+      
+      /* 카카오맵 로드뷰, 길찾기 버튼 및 등시선 숨기기 */
+      .MapWalker,
+      .Roadview,
+      .rvMapButton,
+      .roadview,
+      .btn_mylct,
+      .btn_traffic,
+      .btn_roadview,
+      .mapTimeline,
+      .map_roadview,
+      .map_skyview,
+      .map_hybrid {
+        display: none !important;
+      }
+      
+      /* 카카오맵 로고 및 저작권 표시 최소화 */
+      .map_copyright {
+        opacity: 0.3;
+      }
+      
+      /* 카카오맵 타일 이미지 내의 텍스트 오버레이 제거 */
+      .map_tiledmap img[src*="map_label"],
+      .map_tiledmap img[src*="dist_"],
+      .kakao_map_tileset img {
+        filter: brightness(1.1) contrast(0.95);
+      }
+      
+      /* 거리/시간 표시 텍스트 레이어 숨기기 */
+      div[style*="position: absolute"][style*="pointer-events: none"] {
+        display: none !important;
+      }
+      
+      /* 카카오맵의 추가 오버레이 및 라벨 제거 */
+      .overlay_line,
+      .overlay_info,
+      .overlay_road,
+      .label_distance,
+      .label_time {
+        display: none !important;
+      }
+      
+      /* 카카오맵 레이어의 모든 텍스트 숨기기 (거리/시간 표시) */
+      .map_tiledmap > div > div {
+        filter: saturate(1.1);
       }
     </style>
   </head>

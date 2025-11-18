@@ -5,7 +5,7 @@ import type { EventAction, EventContextValue, EventState } from './types'
 import type { EventFilters } from '../types/events'
 
 const initialState: EventState = {
-  events: EventService.getAll(),
+  events: [], // DB에서 로드할 때까지 빈 배열
   regions: EventService.getRegionsStatic(), // 정적 데이터 사용
   categories: EventService.getCategories(),
   selectedRegion: null,
@@ -66,6 +66,11 @@ export function EventProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true)
       const events = await EventService.getAllEventsFromDB()
+      console.log('[EventContext] ========== DB 로드 시작 ==========')
+      console.log('[EventContext] DB에서 로드한 행사 수:', events.length)
+      console.log('[EventContext] 행사 제목 목록:', events.map(e => e.title))
+      console.log('[EventContext] 첫번째 행사 전체 데이터:', events[0])
+      console.log('[EventContext] ========== DB 로드 종료 ==========')
       dispatch({ type: 'SET_EVENTS', payload: events })
     } catch (error) {
       console.error('행사 데이터 로드 실패:', error)

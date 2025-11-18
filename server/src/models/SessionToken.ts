@@ -1,7 +1,8 @@
 import pool from '../config/database.js'
 import crypto from 'crypto'
+import { RowDataPacket } from 'mysql2'
 
-export interface SessionTokenRow {
+export interface SessionTokenRow extends RowDataPacket {
   id: number
   user_id: number
   refresh_token_hash: string

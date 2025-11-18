@@ -1,5 +1,6 @@
 import express from 'express'
 import pool from '../config/database.js'
+import { RowDataPacket } from 'mysql2'
 
 const router = express.Router()
 
@@ -8,7 +9,7 @@ const router = express.Router()
  */
 router.get('/sport-categories', async (req, res) => {
   try {
-    const [rows] = await pool.execute<{ name: string }[]>(
+    const [rows] = await pool.execute<(RowDataPacket & { name: string })[]>(
       'SELECT name FROM sport_category ORDER BY name'
     )
     const categories = rows.map(row => row.name)
@@ -24,7 +25,7 @@ router.get('/sport-categories', async (req, res) => {
  */
 router.get('/regions', async (req, res) => {
   try {
-    const [rows] = await pool.execute<{ name: string }[]>(
+    const [rows] = await pool.execute<(RowDataPacket & { name: string })[]>(
       'SELECT name FROM region_list ORDER BY name'
     )
     const regions = rows.map(row => row.name)
@@ -47,7 +48,7 @@ router.get('/sub-regions', async (req, res) => {
       return res.status(400).json({ error: 'region_name 파라미터가 필요합니다' })
     }
 
-    const [rows] = await pool.execute<{ name: string }[]>(
+    const [rows] = await pool.execute<(RowDataPacket & { name: string })[]>(
       'SELECT name FROM sub_region_list WHERE region_name = ? ORDER BY name',
       [region_name]
     )
@@ -69,7 +70,7 @@ router.get('/sub-sport-categories', async (req, res) => {
     if (!category_name) {
       return res.status(400).json({ error: 'category_name 파라미터가 필요합니다' })
     }
-    const [rows] = await pool.execute<{ name: string }[]>(
+    const [rows] = await pool.execute<(RowDataPacket & { name: string })[]>(
       'SELECT name FROM sub_sport_category WHERE category_name = ? ORDER BY name',
       [category_name]
     )

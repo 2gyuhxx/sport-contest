@@ -1,22 +1,33 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
-import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { Calendar, Search, X } from 'lucide-react'
 import { useEventContext } from '../context/useEventContext'
-import type { Category, Event, RegionMeta } from '../types/events'
+import type { Category, Event } from '../types/events'
 import { formatDate } from '../utils/formatDate'
 import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
-import { feature as topojsonFeature } from 'topojson-client'
-import { geoMercator, geoPath } from 'd3-geo'
-import type { Feature, FeatureCollection, Geometry } from 'geojson'
-
-const KR_PROVINCES_TOPO = '/maps/skorea-provinces-2018-topo.json'
-const KR_MUNICIPALITIES_TOPO = '/maps/skorea-municipalities-2018-topo.json'
-
-const BASE_VIEW = { center: [127.5, 36.2] as [number, number], zoom: 1.45 }
+import '../types/kakao.d.ts'
 
 type CategoryFilter = 'all' | Category
-type ProvinceFeature = Feature<Geometry, { name: string }>
-type ProvinceFeatureCollection = FeatureCollection<Geometry, { name: string }>
+
+// 지역별 중심 좌표 (카카오맵 기준)
+const REGION_COORDINATES: Record<string, { lat: number; lng: number; level: number }> = {
+  seoul: { lat: 37.5665, lng: 126.9780, level: 8 },
+  busan: { lat: 35.1796, lng: 129.0756, level: 8 },
+  daegu: { lat: 35.8714, lng: 128.6014, level: 8 },
+  incheon: { lat: 37.4563, lng: 126.7052, level: 8 },
+  gwangju: { lat: 35.1595, lng: 126.8526, level: 8 },
+  daejeon: { lat: 36.3504, lng: 127.3845, level: 8 },
+  ulsan: { lat: 35.5384, lng: 129.3114, level: 8 },
+  sejong: { lat: 36.4800, lng: 127.2890, level: 8 },
+  gyeonggi: { lat: 37.4138, lng: 127.5183, level: 10 },
+  gangwon: { lat: 37.8228, lng: 128.1555, level: 10 },
+  chungbuk: { lat: 36.6357, lng: 127.4914, level: 9 },
+  chungnam: { lat: 36.5184, lng: 126.8000, level: 9 },
+  jeonbuk: { lat: 35.7175, lng: 127.1530, level: 9 },
+  jeonnam: { lat: 34.8161, lng: 126.4629, level: 9 },
+  gyeongbuk: { lat: 36.4919, lng: 128.8889, level: 10 },
+  gyeongnam: { lat: 35.4606, lng: 128.2132, level: 9 },
+  jeju: { lat: 33.4890, lng: 126.4983, level: 9 },
+}
 
 // 스포츠 카테고리 정보
 const SPORT_CATEGORIES: { value: Category; label: string; emoji: string }[] = [
@@ -37,110 +48,25 @@ const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   ...CATEGORY_LABEL_MAP,
 }
 
-const REGION_COLORS: Record<
-  string,
-  { default: string; hover: string; active: string; muted: string }
-> = {
-  seoul: {
-    default: '#c7d2fe',
-    hover: '#a5b4fc',
-    active: '#818cf8',
-    muted: '#e2e8ff',
-  },
-  busan: {
-    default: '#bfdbfe',
-    hover: '#93c5fd',
-    active: '#a3bffa',
-    muted: '#dbeafe',
-  },
-  daegu: { default: '#fde7d0', hover: '#f9c9a1', active: '#f8b88b', muted: '#fff1e3' },
-  incheon: { default: '#cdfae5', hover: '#9fe9c8', active: '#8bd8b7', muted: '#e3fdf0' },
-  gwangju: { default: '#fce0f1', hover: '#f7badc', active: '#f29eca', muted: '#fdebf6' },
-  daejeon: { default: '#faecc8', hover: '#f6dba1', active: '#f1c679', muted: '#fef7e6' },
-  ulsan: { default: '#d9f0ff', hover: '#afe2ff', active: '#99d2f7', muted: '#ebf8ff' },
-  sejong: { default: '#ede4ff', hover: '#d7c9ff', active: '#c5b4f9', muted: '#f4edff' },
-  gyeonggi: { default: '#fef4cc', hover: '#fde39b', active: '#fbd977', muted: '#fff9e4' },
-  gangwon: { default: '#ffe2e0', hover: '#ffc5c0', active: '#ffb3ab', muted: '#fff0f0' },
-  chungbuk: { default: '#e6ddff', hover: '#d0c0ff', active: '#bba9ff', muted: '#f0eaff' },
-  chungnam: { default: '#f9dcff', hover: '#f1b7ff', active: '#eba0ff', muted: '#fce9ff' },
-  jeonbuk: { default: '#defee0', hover: '#baf7c1', active: '#a3ebad', muted: '#f0fff0' },
-  jeonnam: { default: '#d1f7ff', hover: '#a5e9ff', active: '#8dddf4', muted: '#e7fbff' },
-  gyeongbuk: { default: '#ffe8d5', hover: '#ffd0aa', active: '#ffbe8c', muted: '#fff3e8' },
-  gyeongnam: { default: '#fddae8', hover: '#f7b7d4', active: '#f091c0', muted: '#feeaf2' },
-  jeju: { default: '#fef0d0', hover: '#fbdca1', active: '#f7c879', muted: '#fff4de' },
-}
-
-const FALLBACK_REGION_PALETTE = {
-  default: '#e2e8f0',
-  hover: '#cbd5f5',
-  active: '#cbd5f5',
-  muted: '#e2e8f0',
-}
-
-const NAME_SUFFIXES = [
-  '특별자치도',
-  '특별자치시',
-  '특별시',
-  '광역시',
-  '자치도',
-  '자치시',
-  '광역',
-  '특별',
-  '도',
-  '시',
-] as const
-
-const PREFIX_MAP: Record<string, string> = {
-  충청: '충',
-  전라: '전',
-  경상: '경',
-}
-
 const Tag = ({ label }: { label: string }) => (
   <span className="inline-block rounded-full border border-surface-subtle bg-white px-2 py-0.5 text-xs text-slate-600">
     {label}
   </span>
 )
 
-const createNameVariants = (value: string) => {
-  const variants = new Set<string>()
-  const trimmed = value.trim()
-  if (!trimmed) return Array.from(variants)
-
-  const noSpace = trimmed.replace(/\s+/g, '')
-  variants.add(trimmed)
-  variants.add(noSpace)
-
-  NAME_SUFFIXES.forEach((suffix) => {
-    if (noSpace.endsWith(suffix)) {
-      const stripped = noSpace.slice(0, noSpace.length - suffix.length)
-      if (stripped) {
-        variants.add(stripped)
-        Object.entries(PREFIX_MAP).forEach(([full, short]) => {
-          if (stripped.startsWith(full)) {
-            variants.add(stripped.replace(full, short))
-          }
-        })
-      }
-    }
-  })
-
-  Object.entries(PREFIX_MAP).forEach(([full, short]) => {
-    if (noSpace.startsWith(full)) {
-      variants.add(noSpace.replace(full, short))
-    }
-  })
-
-  return Array.from(variants)
-}
-
 export function SearchPage() {
   // EventContext에서 상태와 디스패치 가져오기
   const { state, dispatch, isLoading } = useEventContext()
-  const { events, regions } = state
+  const { events } = state
+
+  // 카카오맵 관련 ref
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([])
+  const infowindowRef = useRef<any>(null) // 공유 InfoWindow
+  const currentMarkerRef = useRef<any>(null) // 현재 열려있는 마커
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
-  const [hoverLabel, setHoverLabel] = useState<string | null>(null)
 
   const initialRegion = state?.selectedRegion ?? null
   const initialCategory = (state?.selectedCategory ?? 'all') as CategoryFilter
@@ -150,102 +76,90 @@ export function SearchPage() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(initialCategory)
   const [searchTerm, setSearchTerm] = useState(initialKeyword)
 
-  const regionIdToMeta = useMemo(
-    () =>
-      regions.reduce<Record<string, RegionMeta>>((acc, region) => {
-        acc[region.id] = region
-        return acc
-      }, {}),
-    [regions],
-  )
+  // 카카오맵 초기화
+  useEffect(() => {
+    if (!mapContainerRef.current || !window.kakao?.maps) return
 
-  const regionNameLookup = useMemo(() => {
-    const map = new Map<string, string>()
+    const container = mapContainerRef.current
+    const options = {
+      center: new window.kakao.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
+      level: 12, // 대한민국 전체가 보이는 레벨
+    }
 
-    regions.forEach((region) => {
-      const keys = new Set<string>([region.name, region.shortName, ...region.aliases])
-      keys.forEach((key) => {
-        createNameVariants(key).forEach((variant) => {
-          if (variant && !map.has(variant)) {
-            map.set(variant, region.id)
-          }
-        })
-      })
+    const map = new window.kakao.maps.Map(container, options)
+    mapRef.current = map
+
+    // 지도 타입 컨트롤 및 줌 컨트롤 제거
+    map.setZoomable(true) // 줌은 가능하게
+    map.setDraggable(true) // 드래그 가능하게
+
+    // 마커 클러스터러는 사용하지 않음 (개별 마커만 표시)
+
+    // 지도 레벨 제한 (대한민국만 보이도록)
+    map.setMinLevel(8) // 최대 확대 레벨 (숫자가 작을수록 확대)
+    map.setMaxLevel(13) // 최대 축소 레벨 (대한민국 전체가 보이는 정도)
+
+    // 지도 이동 시 범위 체크
+    window.kakao.maps.event.addListener(map, 'dragend', () => {
+      const center = map.getCenter()
+      const lat = center.getLat()
+      const lng = center.getLng()
+
+      // 범위를 벗어나면 다시 범위 안으로 이동
+      let newLat = lat
+      let newLng = lng
+
+      if (lat < 33.0) newLat = 33.0
+      if (lat > 38.9) newLat = 38.9
+      if (lng < 124.5) newLng = 124.5
+      if (lng > 131.9) newLng = 131.9
+
+      if (newLat !== lat || newLng !== lng) {
+        map.setCenter(new window.kakao.maps.LatLng(newLat, newLng))
+      }
     })
 
-    return map
-  }, [regions])
-
-  const resolveRegionId = useCallback(
-    (rawName: string) => {
-      const variants = createNameVariants(rawName)
-      for (const variant of variants) {
-        const id = regionNameLookup.get(variant)
-        if (id) return id
+    // 줌 변경 시 범위 체크
+    window.kakao.maps.event.addListener(map, 'zoom_changed', () => {
+      const level = map.getLevel()
+      if (level > 13) {
+        map.setLevel(13)
       }
-      return undefined
-    },
-    [regionNameLookup],
-  )
+    })
 
-  const [provinceFeatureMap, setProvinceFeatureMap] = useState<
-    Record<string, ProvinceFeature>
-  >({})
-  
-  const [municipalitiesFeatures, setMunicipalitiesFeatures] = useState<ProvinceFeatureCollection | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    const loadProvinces = async () => {
-      try {
-        const response = await fetch(KR_PROVINCES_TOPO)
-        const topo = await response.json()
-        const collection = topojsonFeature(
-          topo,
-          topo.objects.skorea_provinces_2018_geo,
-        ) as unknown as ProvinceFeatureCollection
-        if (!mounted) return
-        const mapping: Record<string, ProvinceFeature> = {}
-        ;(collection.features as ProvinceFeature[]).forEach((feat) => {
-          const raw = feat.properties?.name ?? ''
-          const regionId = resolveRegionId(raw)
-          if (regionId) {
-            mapping[regionId] = feat
-          }
-        })
-        setProvinceFeatureMap(mapping)
-      } catch (error) {
-        console.error('Failed to load province shapes', error)
+    // 지도 클릭 시 InfoWindow 닫기
+    window.kakao.maps.event.addListener(map, 'click', () => {
+      if (infowindowRef.current) {
+        infowindowRef.current.close()
+        currentMarkerRef.current = null
       }
-    }
-    loadProvinces()
+    })
+
+    // 공유 InfoWindow 생성
+    infowindowRef.current = new window.kakao.maps.InfoWindow({
+      removable: false,
+    })
+
     return () => {
-      mounted = false
-    }
-  }, [resolveRegionId])
-  
-  // 시/군/구 데이터 로드
-  useEffect(() => {
-    let mounted = true
-    const loadMunicipalities = async () => {
-      try {
-        const response = await fetch(KR_MUNICIPALITIES_TOPO)
-        const topo = await response.json()
-        const collection = topojsonFeature(
-          topo,
-          topo.objects.skorea_municipalities_2018_geo,
-        ) as unknown as ProvinceFeatureCollection
-        if (!mounted) return
-        setMunicipalitiesFeatures(collection)
-      } catch (error) {
-        console.error('Failed to load municipalities', error)
+      // 클린업 - 마커 제거
+      markersRef.current.forEach(marker => marker.setMap(null))
+      if (infowindowRef.current) {
+        infowindowRef.current.close()
       }
-    }
-    loadMunicipalities()
-    return () => {
-      mounted = false
     }
   }, [])
+
+  // 지역 선택 시 지도 이동
+  useEffect(() => {
+    if (!mapRef.current || !selectedRegion) return
+
+    const coords = REGION_COORDINATES[selectedRegion]
+    if (coords) {
+      const moveLatLon = new window.kakao.maps.LatLng(coords.lat, coords.lng)
+      mapRef.current.setCenter(moveLatLon)
+      mapRef.current.setLevel(coords.level)
+    }
+  }, [selectedRegion])
 
   const citiesByRegion = useMemo(() => {
     const map = new Map<string, Set<string>>()
@@ -289,6 +203,180 @@ export function SearchPage() {
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [categoryFilter, events, searchTerm, selectedCity, selectedRegion])
 
+  const handleEventSelect = useCallback((event: Event) => {
+    dispatch({ type: 'SET_ACTIVE_EVENT', payload: event.id })
+  }, [dispatch])
+
+  // 행사 마커 표시 함수
+  useEffect(() => {
+    console.log('[마커 표시] 시작', {
+      mapExists: !!mapRef.current,
+      kakaoMapsExists: !!window.kakao?.maps,
+      filteredEventsCount: filteredEvents.length,
+      filteredEvents: filteredEvents
+    })
+
+    if (!mapRef.current || !window.kakao?.maps) {
+      console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
+      return
+    }
+
+    if (!filteredEvents.length) {
+      console.log('[마커 표시] 필터링된 행사가 없음')
+      return
+    }
+
+    // 기존 마커 제거
+    markersRef.current.forEach(marker => marker.setMap(null))
+    markersRef.current = []
+
+    const geocoder = new window.kakao.maps.services.Geocoder()
+
+    // 필터링된 행사들의 주소로 마커 생성
+    filteredEvents.forEach((event) => {
+      const address = event.address || event.venue
+      console.log('[마커 생성 시도]', {
+        title: event.title,
+        address: address,
+        venue: event.venue,
+        region: event.region,
+        city: event.city
+      })
+
+      if (!address) {
+        console.log('[마커 생성 건너뜀] 주소 없음:', event.title)
+        return
+      }
+
+      // 주소가 우편번호만 있거나 짧은 경우 지역+도시로 검색
+      let searchQuery = address
+      
+      if (address.length < 10 || /^\d{5}$/.test(address)) {
+        // 지역 ID를 한글 이름으로 변환
+        const regionName = REGION_INFO[event.region]?.name || event.region
+        searchQuery = `${regionName} ${event.city}`
+      }
+
+      console.log('[검색 쿼리]', searchQuery, '(원본 region:', event.region, ')')
+
+      // 먼저 주소로 검색
+      geocoder.addressSearch(searchQuery, (result: any[], status: string) => {
+        console.log('[주소 검색 결과]', {
+          query: searchQuery,
+          status,
+          resultCount: result?.length || 0,
+          result: result
+        })
+
+        if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
+          const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x)
+          
+          // 마커 생성
+          const marker = new window.kakao.maps.Marker({
+            map: mapRef.current, // 지도에 바로 표시
+            position: coords,
+            title: event.title,
+          })
+
+          console.log('[마커 생성 완료]', {
+            title: event.title,
+            lat: result[0].y,
+            lng: result[0].x
+          })
+
+          // 마커 클릭 이벤트 - 공유 InfoWindow 사용
+          window.kakao.maps.event.addListener(marker, 'click', () => {
+            // 같은 마커를 다시 클릭한 경우 토글 (닫기)
+            if (currentMarkerRef.current === marker) {
+              infowindowRef.current.close()
+              currentMarkerRef.current = null
+              return
+            }
+            
+            // 다른 마커를 클릭한 경우 InfoWindow 내용 업데이트
+            const content = `
+              <div style="padding:10px;min-width:200px;">
+                <a href="/events/${event.id}" style="font-weight:bold;margin-bottom:5px;color:#2563eb;text-decoration:none;display:block;cursor:pointer;">
+                  ${event.title}
+                </a>
+                <div style="font-size:12px;color:#666;">
+                  ${event.sport || ''}<br/>
+                  ${event.venue || address}
+                </div>
+              </div>
+            `
+            infowindowRef.current.setContent(content)
+            infowindowRef.current.open(mapRef.current, marker)
+            currentMarkerRef.current = marker
+            handleEventSelect(event)
+          })
+
+          markersRef.current.push(marker)
+        } else {
+          // 주소 검색 실패 시 장소 검색 시도
+          console.log('[주소 검색 실패, 장소 검색 시도]', searchQuery)
+          
+          const places = new window.kakao.maps.services.Places()
+          places.keywordSearch(searchQuery, (placeResult: any[], placeStatus: string) => {
+            console.log('[장소 검색 결과]', {
+              query: searchQuery,
+              status: placeStatus,
+              resultCount: placeResult?.length || 0
+            })
+
+            if (placeStatus === window.kakao.maps.services.Status.OK && placeResult.length > 0) {
+              const coords = new window.kakao.maps.LatLng(placeResult[0].y, placeResult[0].x)
+              
+              // 마커 생성
+              const marker = new window.kakao.maps.Marker({
+                map: mapRef.current,
+                position: coords,
+                title: event.title,
+              })
+
+              console.log('[장소 검색으로 마커 생성 완료]', {
+                title: event.title,
+                lat: placeResult[0].y,
+                lng: placeResult[0].x
+              })
+
+              // 마커 클릭 이벤트 - 공유 InfoWindow 사용
+              window.kakao.maps.event.addListener(marker, 'click', () => {
+                // 같은 마커를 다시 클릭한 경우 토글 (닫기)
+                if (currentMarkerRef.current === marker) {
+                  infowindowRef.current.close()
+                  currentMarkerRef.current = null
+                  return
+                }
+                
+                // 다른 마커를 클릭한 경우 InfoWindow 내용 업데이트
+                const content = `
+                  <div style="padding:10px;min-width:200px;">
+                    <a href="/events/${event.id}" style="font-weight:bold;margin-bottom:5px;color:#2563eb;text-decoration:none;display:block;cursor:pointer;">
+                      ${event.title}
+                    </a>
+                    <div style="font-size:12px;color:#666;">
+                      ${event.sport || ''}<br/>
+                      ${event.venue || address}
+                    </div>
+                  </div>
+                `
+                infowindowRef.current.setContent(content)
+                infowindowRef.current.open(mapRef.current, marker)
+                currentMarkerRef.current = marker
+                handleEventSelect(event)
+              })
+
+              markersRef.current.push(marker)
+            } else {
+              console.log('[마커 생성 최종 실패]', event.title, searchQuery)
+            }
+          })
+        }
+      })
+    })
+  }, [filteredEvents, handleEventSelect])
+
   useEffect(() => {
     setCategoryFilter(initialCategory)
   }, [initialCategory])
@@ -304,9 +392,32 @@ export function SearchPage() {
     setSearchTerm('')
     dispatch({ type: 'CLEAR_FILTERS' })
     dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
+    
+    // 지도를 대한민국 전체 보기로 복귀
+    if (mapRef.current) {
+      const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+      mapRef.current.setCenter(moveLatLon)
+      mapRef.current.setLevel(12)
+    }
   }
 
   const handleRegionClick = (regionId: string) => {
+    // 빈 문자열이면 전체 보기 (초기화)
+    if (regionId === '') {
+      setSelectedRegion(null)
+      setSelectedCity(null)
+      dispatch({ type: 'SELECT_REGION', payload: null })
+      dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
+      
+      // 지도를 대한민국 전체 보기로 복귀
+      if (mapRef.current && window.kakao?.maps) {
+        const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+        mapRef.current.setCenter(moveLatLon)
+        mapRef.current.setLevel(12)
+      }
+      return
+    }
+    
     const nextRegion = regionId === selectedRegion ? null : regionId
     setSelectedRegion(nextRegion)
     setSelectedCity(null)
@@ -315,6 +426,21 @@ export function SearchPage() {
       dispatch({ type: 'SELECT_REGION', payload: nextRegion })
     }
     dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
+
+    // 카카오맵 이동
+    if (nextRegion && mapRef.current && window.kakao?.maps) {
+      const coords = REGION_COORDINATES[nextRegion]
+      if (coords) {
+        const moveLatLon = new window.kakao.maps.LatLng(coords.lat, coords.lng)
+        mapRef.current.setCenter(moveLatLon)
+        mapRef.current.setLevel(coords.level)
+      }
+    } else if (mapRef.current && window.kakao?.maps) {
+      // 지역 선택 해제 시 대한민국 전체 보기로 복귀
+      const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+      mapRef.current.setCenter(moveLatLon)
+      mapRef.current.setLevel(12)
+    }
   }
 
   const handleCityClick = (city: string) => {
@@ -339,67 +465,26 @@ export function SearchPage() {
     }
   }
 
-  const handleEventSelect = (event: Event) => {
-    dispatch({ type: 'SET_ACTIVE_EVENT', payload: event.id })
+  // 지역별 간단한 정보
+  const REGION_INFO: Record<string, { name: string; shortName: string; emoji: string }> = {
+    seoul: { name: '서울특별시', shortName: '서울', emoji: '🏙️' },
+    busan: { name: '부산광역시', shortName: '부산', emoji: '🌊' },
+    daegu: { name: '대구광역시', shortName: '대구', emoji: '🏢' },
+    incheon: { name: '인천광역시', shortName: '인천', emoji: '✈️' },
+    gwangju: { name: '광주광역시', shortName: '광주', emoji: '🎨' },
+    daejeon: { name: '대전광역시', shortName: '대전', emoji: '🔬' },
+    ulsan: { name: '울산광역시', shortName: '울산', emoji: '🏭' },
+    sejong: { name: '세종특별자치시', shortName: '세종', emoji: '🏛️' },
+    gyeonggi: { name: '경기도', shortName: '경기', emoji: '🌆' },
+    gangwon: { name: '강원도', shortName: '강원', emoji: '⛰️' },
+    chungbuk: { name: '충청북도', shortName: '충북', emoji: '🏞️' },
+    chungnam: { name: '충청남도', shortName: '충남', emoji: '🌾' },
+    jeonbuk: { name: '전라북도', shortName: '전북', emoji: '🍚' },
+    jeonnam: { name: '전라남도', shortName: '전남', emoji: '🌊' },
+    gyeongbuk: { name: '경상북도', shortName: '경북', emoji: '🏔️' },
+    gyeongnam: { name: '경상남도', shortName: '경남', emoji: '⚓' },
+    jeju: { name: '제주특별자치도', shortName: '제주', emoji: '🏝️' },
   }
-
-  const heroRegionLabel = selectedRegion
-    ? regionIdToMeta[selectedRegion]?.shortName ?? selectedRegion
-    : null
-
-  const spotlightPalette =
-    selectedRegion && REGION_COLORS[selectedRegion]
-      ? REGION_COLORS[selectedRegion]
-      : FALLBACK_REGION_PALETTE
-
-  // 선택된 지역의 SVG path 생성
-  const selectedRegionSvgPath = useMemo(() => {
-    if (!selectedRegion || !provinceFeatureMap[selectedRegion]) return null
-    const feature = provinceFeatureMap[selectedRegion]
-    const projection = geoMercator().fitExtent(
-      [
-        [20, 20],
-        [380, 380],
-      ],
-      feature,
-    )
-    const pathGenerator = geoPath(projection)
-    return pathGenerator(feature) ?? null
-  }, [selectedRegion, provinceFeatureMap])
-  
-  // 선택된 지역의 시/군/구 경계들
-  const selectedMunicipalitiesPaths = useMemo(() => {
-    if (!selectedRegion || !provinceFeatureMap[selectedRegion] || !municipalitiesFeatures) {
-      return []
-    }
-    
-    const provinceFeature = provinceFeatureMap[selectedRegion]
-    const projection = geoMercator().fitExtent(
-      [
-        [20, 20],
-        [380, 380],
-      ],
-      provinceFeature,
-    )
-    const pathGenerator = geoPath(projection)
-    
-    // 선택된 지역의 시/군/구 필터링 (SIG_CD 코드 기반)
-    const prefix = regionIdToMeta[selectedRegion]?.prefix ?? ''
-    const municipalities = municipalitiesFeatures.features.filter((feat) => {
-      const props = (feat.properties ?? {}) as Record<string, string>
-      const code = props.SIG_CD ?? props.sig_cd ?? ''
-      return prefix ? code.startsWith(prefix) : false
-    })
-    
-    // 각 시/군/구의 path 생성
-    return municipalities.map((feat) => {
-      const props = (feat.properties ?? {}) as Record<string, string>
-      return {
-        path: pathGenerator(feat.geometry) ?? '',
-        name: props.name_local ?? props.SIG_KOR_NM ?? props.name ?? '',
-      }
-    })
-  }, [selectedRegion, provinceFeatureMap, municipalitiesFeatures, regionIdToMeta])
 
 
   return (
@@ -432,9 +517,9 @@ export function SearchPage() {
                   대한민국 지역 지도
                 </h2>
                 <p className="text-sm text-slate-600">
-                  {heroRegionLabel
-                    ? `${heroRegionLabel} 선택됨 · 우측에 확대 지도가 표시됩니다.`
-                    : '도/광역시를 선택하면 해당 지역이 확대됩니다.'}
+                  {selectedRegion && REGION_INFO[selectedRegion]
+                    ? `${REGION_INFO[selectedRegion].name} 선택됨`
+                    : '지도를 탐색하고 원하는 위치를 검색해보세요.'}
                 </p>
               </div>
               {(selectedRegion || selectedCity || searchTerm || categoryFilter !== 'all') && (
@@ -448,171 +533,45 @@ export function SearchPage() {
               )}
             </div>
 
-            {/* 전체 지도 */}
-            <div className={`relative overflow-hidden rounded-4xl border border-surface-subtle bg-white/70 p-4 transition-all duration-500 ease-in-out ${
-              selectedRegion ? 'md:-translate-x-8 md:scale-[0.85] md:origin-left' : ''
-            }`}>
-              <ComposableMap
-                projection="geoMercator"
-                projectionConfig={{ scale: 3600, center: BASE_VIEW.center }}
-                height={860}
-                className="w-full bg-surface"
+            {/* 카카오맵 컨테이너 */}
+            <div 
+              ref={mapContainerRef}
+              className="relative overflow-hidden rounded-4xl border border-surface-subtle"
+              style={{ width: '100%', height: '600px' }}
+            />
+
+            {/* 지역 선택 버튼 그리드 */}
+            <div className="mt-5 grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-6">
+              {/* 전체 버튼 */}
+              <button
+                type="button"
+                onClick={() => handleRegionClick('')}
+                className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
+                  !selectedRegion
+                    ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                    : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
+                }`}
               >
-                <ZoomableGroup center={BASE_VIEW.center} zoom={BASE_VIEW.zoom}>
-                  <Geographies geography={KR_PROVINCES_TOPO}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => {
-                        const props = (geo.properties ?? {}) as Record<string, string>
-                        const rawName =
-                          props.name_local ?? props.name ?? props.SIG_KOR_NM ?? ''
-                        const regionId = resolveRegionId(rawName)
-                        const isSelected = !!regionId && regionId === selectedRegion
-                        const palette =
-                          (regionId ? REGION_COLORS[regionId] : undefined) ??
-                          FALLBACK_REGION_PALETTE
-
-                        return (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            onMouseEnter={() =>
-                              setHoverLabel(
-                                regionIdToMeta[regionId ?? '']?.shortName ?? rawName,
-                              )
-                            }
-                            onMouseLeave={() => setHoverLabel(null)}
-                            onClick={() => regionId && handleRegionClick(regionId)}
-                            style={{
-                              default: {
-                                fill: isSelected ? palette.active : palette.default,
-                                stroke: '#94a3b8',
-                                strokeWidth: 0.5,
-                                outline: 'none',
-                              },
-                              hover: {
-                                fill: palette.hover,
-                                outline: 'none',
-                                cursor: regionId ? 'pointer' : 'default',
-                              },
-                              pressed: { fill: palette.active, outline: 'none' },
-                            }}
-                          />
-                        )
-                      })
-                    }
-                  </Geographies>
-
-                  {selectedRegion && (
-                    <Geographies geography={KR_MUNICIPALITIES_TOPO}>
-                      {({ geographies }) => {
-                        const prefix = regionIdToMeta[selectedRegion]?.prefix ?? ''
-                        return geographies
-                          .filter((geo) => {
-                            const props = (geo.properties ?? {}) as Record<string, string>
-                            const code = props.SIG_CD ?? props.sig_cd ?? ''
-                            return prefix ? code.startsWith(prefix) : false
-                          })
-                          .map((geo) => {
-                            const props = (geo.properties ?? {}) as Record<string, string>
-                            const name =
-                              props.name_local ?? props.SIG_KOR_NM ?? props.name ?? ''
-                            const isActive = selectedCity === name
-                            return (
-                              <Geography
-                                key={geo.rsmKey}
-                                geography={geo}
-                                onMouseEnter={() => setHoverLabel(name)}
-                                onMouseLeave={() => setHoverLabel(null)}
-                                onClick={() => handleCityClick(name)}
-                                style={{
-                                  default: {
-                                    fill: isActive
-                                      ? REGION_COLORS[selectedRegion]?.muted ?? '#fde68a'
-                                      : 'transparent',
-                                    stroke: '#64748b',
-                                    strokeWidth: 0.6,
-                                    outline: 'none',
-                                  },
-                                  hover: {
-                                    fill: REGION_COLORS[selectedRegion]?.default ?? '#fef3c7',
-                                    outline: 'none',
-                                    cursor: 'pointer',
-                                  },
-                                  pressed: { fill: '#fef08a', outline: 'none' },
-                                }}
-                              />
-                            )
-                          })
-                      }}
-                    </Geographies>
-                  )}
-                </ZoomableGroup>
-              </ComposableMap>
-
-              {hoverLabel && (
-                <div className="pointer-events-none absolute right-4 top-4 rounded-md bg-slate-900/85 px-3 py-1 text-xs text-white shadow">
-                  {hoverLabel}
-                </div>
-              )}
-
+                <span className="text-xl">🇰🇷</span>
+                <span className="text-xs font-medium">전체</span>
+              </button>
+              {Object.entries(REGION_INFO).map(([regionId, info]) => (
+                <button
+                  key={regionId}
+                  type="button"
+                  onClick={() => handleRegionClick(regionId)}
+                  className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
+                    selectedRegion === regionId
+                      ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                      : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
+                  }`}
+                >
+                  <span className="text-xl">{info.emoji}</span>
+                  <span className="text-xs font-medium">{info.shortName}</span>
+                </button>
+              ))}
             </div>
           </div>
-
-          {/* 선택된 지역 확대 오버레이 - 오른쪽 상단 */}
-          {selectedRegion && selectedRegionSvgPath && (
-            <div className="absolute right-8 top-20 w-[420px] rounded-3xl border-2 border-brand-primary/40 bg-white/98 p-6 shadow-2xl backdrop-blur transition-all duration-500 ease-in-out hidden md:block z-20 animate-in slide-in-from-right fade-in">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{regionIdToMeta[selectedRegion]?.shortName === '서울' ? '🏙️' : regionIdToMeta[selectedRegion]?.shortName === '부산' ? '🌊' : regionIdToMeta[selectedRegion]?.shortName === '제주' ? '🏝️' : '📍'}</span>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    {regionIdToMeta[selectedRegion]?.name ?? heroRegionLabel}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRegionClick(selectedRegion)}
-                  className="rounded-full p-1.5 transition hover:bg-slate-100"
-                  aria-label="닫기"
-                >
-                  <X className="h-5 w-5 text-slate-500" />
-                </button>
-              </div>
-              
-              <svg viewBox="0 0 400 400" className="h-72 w-full rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 p-5 shadow-inner">
-                {/* 전체 지역 배경 */}
-                <path
-                  d={selectedRegionSvgPath}
-                  fill={spotlightPalette.default}
-                  stroke={spotlightPalette.hover}
-                  strokeWidth={3}
-                  className="drop-shadow-xl"
-                />
-                {/* 시/군/구 경계선 */}
-                {selectedMunicipalitiesPaths.map((municipality, idx) => (
-                  <path
-                    key={idx}
-                    d={municipality.path}
-                    fill="transparent"
-                    stroke="#64748b"
-                    strokeWidth={1.2}
-                    className="pointer-events-none"
-                    opacity={0.6}
-                  />
-                ))}
-              </svg>
-              
-              <div className="mt-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-                <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">주요 도시</p>
-                <p className="text-sm font-medium text-slate-800">
-                  {regionIdToMeta[selectedRegion]?.cities.join(', ') ?? '정보 없음'}
-                </p>
-              </div>
-              
-              <p className="mt-4 text-xs text-slate-500 text-center bg-slate-50 rounded-lg py-2">
-                💡 시/군/구 경계선으로 세부 지역을 확인할 수 있습니다
-              </p>
-            </div>
-          )}
         </div>
 
         <aside className="flex flex-col gap-4 lg:gap-6">
@@ -645,24 +604,24 @@ export function SearchPage() {
                   : SPORT_CATEGORIES.find(cat => cat.value === option)
                 
                 return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleCategoryChange(option)}
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleCategoryChange(option)}
                     className={`flex items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs transition whitespace-nowrap ${
-                      categoryFilter === option
-                        ? 'border-brand-primary bg-brand-primary text-white'
-                        : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                    }`}
-                  >
+                    categoryFilter === option
+                      ? 'border-brand-primary bg-brand-primary text-white'
+                      : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
+                  }`}
+                >
                     {categoryInfo?.emoji && <span className="text-sm flex-shrink-0">{categoryInfo.emoji}</span>}
                     <span>{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
-                  </button>
+                </button>
                 )
               })}
               {selectedRegion && (
                 <Tag
-                  label={`지역: ${regionIdToMeta[selectedRegion]?.shortName ?? selectedRegion}`}
+                  label={`지역: ${REGION_INFO[selectedRegion]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? selectedRegion}`}
                 />
               )}
               {selectedCity && <Tag label={`도시: ${selectedCity}`} />}
@@ -720,22 +679,20 @@ export function SearchPage() {
                 <p className="text-sm text-slate-500">행사를 불러오는 중...</p>
               </div>
             ) : (
-              <ul className="flex flex-col divide-y divide-surface-subtle">
-                {filteredEvents.length ? (
-                  filteredEvents.map((event) => {
-                  const regionLabel =
-                    regionIdToMeta[event.region]?.shortName ?? event.region
+            <ul className="flex flex-col divide-y divide-surface-subtle">
+              {filteredEvents.length ? (
+                filteredEvents.map((event) => {
+                  const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
                   return (
                     <li key={event.id} className="py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleEventSelect(event)}
-                        className="w-full text-left"
-                      >
+                      <div className="w-full text-left">
                         <div className="flex flex-col gap-1">
-                          <span className="text-sm font-semibold text-slate-900">
+                          <a
+                            href={`/events/${event.id}`}
+                            className="text-sm font-semibold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer"
+                          >
                             {event.title}
-                          </span>
+                          </a>
                           <span className="text-xs text-slate-500">
                             {regionLabel} · {event.city} · {formatDate(event.date)}
                           </span>
@@ -744,16 +701,16 @@ export function SearchPage() {
                           </div>
                           <p className="text-xs text-slate-500">{event.summary}</p>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   )
                 })
-                ) : (
-                  <li className="py-6 text-center text-sm text-slate-500">
-                    조건에 맞는 행사가 없습니다.
-                  </li>
-                )}
-              </ul>
+              ) : (
+                <li className="py-6 text-center text-sm text-slate-500">
+                  조건에 맞는 행사가 없습니다.
+                </li>
+              )}
+            </ul>
             )}
           </div>
         </aside>

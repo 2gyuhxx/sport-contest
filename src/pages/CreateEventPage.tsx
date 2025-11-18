@@ -54,8 +54,6 @@ export function CreateEventPage() {
   // 컴포넌트 마운트 시 스포츠 종목 목록 가져오기
   const [sportCategories, setSportCategories] = useState<SportCategory[]>([])
   const [subSportCategories, setSubSportCategories] = useState<SubSportCategory[]>([])
-  const [regions, setRegions] = useState<string[]>([])
-  const [subRegions, setSubRegions] = useState<string[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
 
   // 주소 관련 state
@@ -68,12 +66,8 @@ export function CreateEventPage() {
     const loadData = async () => {
       try {
         setIsLoadingData(true)
-        const [categories, regionsData] = await Promise.all([
-          EventService.getSportCategoriesDB(),
-          EventService.getRegions(),
-        ])
+        const categories = await EventService.getSportCategoriesDB()
         setSportCategories(categories)
-        setRegions(regionsData)
       } catch (err) {
         console.error('데이터 로딩 오류:', err)
         setError('데이터를 불러오는데 실패했습니다')
@@ -469,8 +463,8 @@ export function CreateEventPage() {
     setFormData({
       title: '',
       organizer: '',
-      sport_category: '',
-      sub_sport: '',
+      sport_category_id: null,
+      sub_sport_category_id: null,
       start_at: '',
       end_at: '',
       region: '',

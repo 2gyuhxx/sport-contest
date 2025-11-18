@@ -1,6 +1,7 @@
 import pool from '../config/database.js'
+import { RowDataPacket } from 'mysql2'
 
-export interface UserOAuthConnectionRow {
+export interface UserOAuthConnectionRow extends RowDataPacket {
   id: number
   user_id: number
   provider_id: number

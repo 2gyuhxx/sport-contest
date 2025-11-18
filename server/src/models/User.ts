@@ -1,7 +1,8 @@
 import pool from '../config/database.js'
 import bcrypt from 'bcrypt'
+import { RowDataPacket } from 'mysql2'
 
-export interface UserRow {
+export interface UserRow extends RowDataPacket {
   id: number
   email: string
   name: string | null
@@ -61,7 +62,7 @@ export class UserModel {
    * 비밀번호 검증
    */
   static async verifyPassword(userId: number, password: string): Promise<boolean> {
-    const [rows] = await pool.execute<{ password_hash: string }[]>(
+    const [rows] = await pool.execute<(RowDataPacket & { password_hash: string })[]>(
       'SELECT password_hash FROM user_credentials WHERE user_id = ?',
       [userId]
     )
@@ -127,7 +128,7 @@ export class UserModel {
    * 이메일 중복 확인 (is_verified가 true인 이메일만 체크)
    */
   static async isEmailExists(email: string): Promise<boolean> {
-    const [rows] = await pool.execute<{ count: number }[]>(
+    const [rows] = await pool.execute<(RowDataPacket & { count: number })[]>(
       'SELECT COUNT(*) as count FROM users WHERE email = ? AND is_verified = true',
       [email]
     )
