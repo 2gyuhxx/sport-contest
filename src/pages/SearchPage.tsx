@@ -4,6 +4,7 @@ import { Calendar, Search, X } from 'lucide-react'
 import { useEventContext } from '../context/useEventContext'
 import type { Category, Event, RegionMeta } from '../types/events'
 import { formatDate } from '../utils/formatDate'
+import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
 import { feature as topojsonFeature } from 'topojson-client'
 import { geoMercator, geoPath } from 'd3-geo'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
@@ -33,16 +34,7 @@ const SPORT_CATEGORIES: { value: Category; label: string; emoji: string }[] = [
 
 const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   all: '전체',
-  'team-ball': '구기·팀',
-  'racket-ball': '라켓·볼',
-  'martial-arts': '무도·격투',
-  'fitness-skill': '체력·기술',
-  'precision': '정밀·기술',
-  'ice-snow': '빙상·설원',
-  'water': '수상·해양',
-  'leisure': '레저·환경',
-  'mind': '마인드',
-  'other': '기타',
+  ...CATEGORY_LABEL_MAP,
 }
 
 const REGION_COLORS: Record<

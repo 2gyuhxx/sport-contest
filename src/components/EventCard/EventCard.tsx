@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
+import { getCategoryLabel } from '../../utils/categoryLabels'
 import { ExternalLink } from 'lucide-react'
 
 interface EventCardProps {
@@ -66,8 +67,8 @@ export function EventCard({
           )}
           loading="lazy"
         />
-        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
-          {event.category}
+        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary">
+          {event.sport || getCategoryLabel(event.category)}
         </span>
       </div>
       <div className={classNames('flex flex-1 flex-col gap-2', bodyPadding)}>
@@ -95,7 +96,7 @@ export function EventCard({
         <footer className="mt-auto flex items-center justify-between text-xs text-slate-500">
           <span className="flex items-center gap-1">
             <span aria-hidden="true">📍</span>
-            {isCompact ? event.region.toUpperCase() : event.address}
+            {isCompact ? event.region.toUpperCase() : (event.venue || event.address)}
           </span>
           <span className="flex items-center gap-1 text-slate-500">
             <span aria-hidden="true">👁</span>

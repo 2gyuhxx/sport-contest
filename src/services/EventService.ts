@@ -62,6 +62,7 @@ interface DBEvent {
   end_at: string
   website: string | null
   views: number
+  image: string | null // 오브젝트 스토리지 이미지 URL
   status: 'pending' | 'approved' | 'spam'
   created_at: string
   updated_at: string | null
@@ -136,10 +137,11 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
     summary: dbEvent.description,
     region: regionId,
     city: dbEvent.sub_region,
-    address: dbEvent.address || dbEvent.venue || '',
+    venue: dbEvent.venue || undefined, // 장소명
+    address: dbEvent.address || dbEvent.venue || '', // 주소 (없으면 장소명)
     category,
     date: dbEvent.start_at.split('T')[0], // YYYY-MM-DD 형식으로 변환
-    image: defaultImages[category],
+    image: dbEvent.image || defaultImages[category], // DB 이미지 우선, 없으면 기본 이미지
     views: dbEvent.views || 0, // DB의 views 값 사용
     organizer: dbEvent.organizer_user_name || undefined,
     link: dbEvent.website || undefined,

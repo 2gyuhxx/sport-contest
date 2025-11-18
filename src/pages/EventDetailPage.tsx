@@ -85,16 +85,22 @@ export function EventDetailPage() {
           </div>
         </header>
 
-        <section className="grid gap-8 rounded-4xl border border-surface-subtle bg-white p-6 shadow-sm md:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] md:p-10">
+        <section className="grid gap-8 rounded-4xl border border-surface-subtle bg-white p-6 shadow-sm md:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] md:p-10">
           <div className="flex flex-col gap-6">
             <div className="overflow-hidden rounded-3xl">
               <img src={event.image} alt={event.title} className="h-full w-full object-cover" />
             </div>
-            <div className="rounded-3xl bg-surface p-6 text-sm leading-relaxed text-slate-600">
+          </div>
+
+          <aside className="flex flex-col gap-4">
+            {/* 행사 설명 */}
+            <div className="rounded-3xl bg-surface p-5 text-sm leading-relaxed text-slate-600">
               {event.summary}
             </div>
-            <div className="rounded-3xl border border-surface-subtle p-6 text-sm text-slate-600">
-              <dl className="grid gap-4">
+
+            {/* 행사 정보 */}
+            <div className="rounded-3xl border border-surface-subtle p-5 shadow-sm">
+              <dl className="grid gap-4 text-sm text-slate-600">
                 <div className="grid gap-1">
                   <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     행사 일시
@@ -105,8 +111,16 @@ export function EventDetailPage() {
                   <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     장소
                   </dt>
-                  <dd>{event.address}</dd>
+                  <dd className="text-slate-900">{event.venue || event.address}</dd>
                 </div>
+                {event.organizer && (
+                  <div className="grid gap-1">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      주최
+                    </dt>
+                    <dd className="text-slate-900">{event.organizer}</dd>
+                  </div>
+                )}
                 {event.link && (
                   <div className="grid gap-1">
                     <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -119,58 +133,51 @@ export function EventDetailPage() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-brand-primary hover:underline"
                       >
-                        {event.link}
-                        <ExternalLink className="h-3 w-3" />
+                        <span className="truncate">{event.link}</span>
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
                       </a>
                     </dd>
                   </div>
                 )}
-                {event.organizer && (
-                  <div className="grid gap-1">
-                    <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      주최
-                    </dt>
-                    <dd>{event.organizer}</dd>
-                  </div>
-                )}
               </dl>
             </div>
-          </div>
 
-          <aside className="flex flex-col gap-4 rounded-3xl border border-surface-subtle p-5 shadow-sm">
-            <div className="rounded-2xl bg-surface px-4 py-3 text-sm text-slate-600">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                참여 신청
-              </p>
-              <p className="text-slate-900">{event.title}</p>
+            {/* 참여 신청 */}
+            <div className="rounded-3xl border border-surface-subtle p-5 shadow-sm">
+              <div className="mb-4 rounded-2xl bg-surface px-4 py-3 text-sm text-slate-600">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  참여 신청
+                </p>
+                <p className="text-slate-900">{event.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={!event.link}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-primary px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {event.link ? (
+                  <>
+                    <ExternalLink className="h-4 w-4" />
+                    신청하기
+                  </>
+                ) : (
+                  '신청 URL 없음'
+                )}
+              </button>
+              <button
+                type="button"
+                className="mb-3 w-full rounded-2xl border border-surface-subtle px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary"
+              >
+                공유하기
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-2xl border border-surface-subtle px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary"
+              >
+                관심 행사 등록
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleApply}
-              disabled={!event.link}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-brand-primary px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {event.link ? (
-                <>
-                  <ExternalLink className="h-4 w-4" />
-                  신청하기
-                </>
-              ) : (
-                '신청 URL 없음'
-              )}
-            </button>
-            <button
-              type="button"
-              className="rounded-2xl border border-surface-subtle px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary"
-            >
-              공유하기
-            </button>
-            <button
-              type="button"
-              className="rounded-2xl border border-surface-subtle px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary"
-            >
-              관심 행사 등록
-            </button>
           </aside>
         </section>
       </div>

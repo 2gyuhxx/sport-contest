@@ -17,6 +17,7 @@ export interface Event {
   summary: string
   region: string
   city: string
+  venue?: string // 장소명
   address: string
   category: Category
   date: string
