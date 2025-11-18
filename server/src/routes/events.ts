@@ -64,6 +64,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       end_at: event.end_at,
       website: event.website,
       status: event.status,
+      is_active: EventModel.isActive(event.end_at),
       created_at: event.created_at,
     }
 
@@ -110,7 +111,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/', async (req, res) => {
   try {
     const events = await EventModel.findAll()
-    res.json({ events })
+    // 각 행사에 is_active 필드 추가
+    const eventsWithStatus = events.map(event => ({
+      ...event,
+      is_active: EventModel.isActive(event.end_at),
+    }))
+    res.json({ events: eventsWithStatus })
   } catch (error: any) {
     console.error('행사 목록 조회 오류:', error)
     res.status(500).json({ error: '행사 목록 조회 중 오류가 발생했습니다' })
@@ -128,7 +134,12 @@ router.get('/my/events', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     const events = await EventModel.findByOrganizerId(req.userId)
-    res.json({ events })
+    // 각 행사에 is_active 필드 추가
+    const eventsWithStatus = events.map(event => ({
+      ...event,
+      is_active: EventModel.isActive(event.end_at),
+    }))
+    res.json({ events: eventsWithStatus })
   } catch (error: any) {
     console.error('내 행사 목록 조회 오류:', error)
     res.status(500).json({ error: '행사 목록 조회 중 오류가 발생했습니다' })
@@ -254,6 +265,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       end_at: event.end_at,
       website: event.website,
       status: event.status,
+      is_active: EventModel.isActive(event.end_at),
       created_at: event.created_at,
       updated_at: event.updated_at,
     }
@@ -273,6 +285,48 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * 행사 삭제
+ */
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 기존 행사 데이터 가져오기
+    const existingEvent = await EventModel.findById(eventId)
+    if (!existingEvent) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 권한 확인
+    if (existingEvent.organizer_user_id !== req.userId) {
+      return res.status(403).json({ error: '행사를 삭제할 권한이 없습니다' })
+    }
+
+    // 행사 삭제
+    await EventModel.delete(eventId)
+
+    res.json({ message: '행사가 삭제되었습니다' })
+  } catch (error: any) {
+    console.error('행사 삭제 오류:', error)
+    
+    if (error.message === '행사를 찾을 수 없습니다' || error.message === '행사를 삭제할 권한이 없습니다') {
+      return res.status(403).json({ error: error.message })
+    }
+
+    res.status(500).json({ 
+      error: error.message || '행사 삭제 중 오류가 발생했습니다'
+    })
+  }
+})
+
+/**
  * 특정 행사 가져오기
  */
 router.get('/:id', async (req, res) => {
@@ -287,7 +341,13 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
     }
 
-    res.json({ event })
+    // is_active 필드 추가
+    const eventWithStatus = {
+      ...event,
+      is_active: EventModel.isActive(event.end_at),
+    }
+
+    res.json({ event: eventWithStatus })
   } catch (error: any) {
     console.error('행사 조회 오류:', error)
     res.status(500).json({ error: '행사 조회 중 오류가 발생했습니다' })

@@ -147,6 +147,32 @@ export class EventModel {
   }
 
   /**
+   * 끝난 지 2주가 지난 행사들을 자동으로 삭제
+   */
+  static async deleteExpiredEvents(): Promise<number> {
+    // 현재 시간에서 2주 전 시간 계산
+    const twoWeeksAgo = new Date()
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+    
+    const [result] = await pool.execute(
+      'DELETE FROM events WHERE end_at < ?',
+      [twoWeeksAgo.toISOString().slice(0, 19).replace('T', ' ')]
+    )
+    
+    const deleteResult = result as { affectedRows: number }
+    return deleteResult.affectedRows || 0
+  }
+
+  /**
+   * 행사가 활성화 상태인지 확인 (end_at이 현재 시간보다 이후면 활성화)
+   */
+  static isActive(endAt: Date | string): boolean {
+    const endDate = typeof endAt === 'string' ? new Date(endAt) : endAt
+    const now = new Date()
+    return endDate >= now
+  }
+
+  /**
    * 모든 행사 가져오기
    */
   static async findAll(): Promise<EventRow[]> {

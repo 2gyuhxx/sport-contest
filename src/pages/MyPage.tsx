@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react'
 
 interface MyEvent {
@@ -41,6 +42,7 @@ export function MyPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showEvents, setShowEvents] = useState(false) // 행사 목록 표시 여부
+  const [showDeleteMessage, setShowDeleteMessage] = useState(false) // 삭제 성공 메시지
 
   // 행사 목록 로드 함수
   const loadMyEvents = async () => {
@@ -191,6 +193,35 @@ export function MyPage() {
     }
   }
 
+  const handleDeleteEvent = async (eventId: number, eventTitle: string) => {
+    // 확인 다이얼로그
+    const confirmed = window.confirm(
+      `정말 "${eventTitle}" 행사를 삭제하시겠습니까?\n\n삭제된 행사는 복구할 수 없습니다.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await EventService.deleteEvent(eventId)
+      
+      // 성공 메시지 표시
+      setShowDeleteMessage(true)
+      
+      // 행사 목록 새로고침
+      await loadMyEvents()
+    } catch (error) {
+      console.error('행사 삭제 오류:', error)
+      const errorMessage = error instanceof Error ? error.message : '행사 삭제 중 오류가 발생했습니다'
+      alert(errorMessage)
+    }
+  }
+
+  const handleConfirmDeleteMessage = () => {
+    setShowDeleteMessage(false)
+  }
+
   return (
     <div className="space-y-8 pb-16">
       {/* 헤더 */}
@@ -221,6 +252,26 @@ export function MyPage() {
 
       {/* 역할별 메인 섹션 */}
       <section className="mx-auto max-w-3xl space-y-8">
+        {/* 삭제 성공 메시지 모달 */}
+        {showDeleteMessage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="mx-4 w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
+              <div className="text-center">
+                <CheckCircle2 className="mx-auto h-16 w-16 text-green-600" />
+                <h2 className="mt-4 text-2xl font-semibold text-slate-900">행사가 삭제되었습니다</h2>
+                <p className="mt-2 text-slate-600">행사가 성공적으로 삭제되었습니다.</p>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteMessage}
+                  className="mt-6 rounded-lg bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 공통: 계정 관리 카드 */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">
@@ -326,8 +377,8 @@ export function MyPage() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          {/* 수정 버튼 */}
-                          <div className="mb-3 flex justify-end">
+                          {/* 수정 및 삭제 버튼 */}
+                          <div className="mb-3 flex justify-end gap-2">
                             <Link
                               to={`/admin/events/edit/${event.id}`}
                               className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
@@ -335,6 +386,14 @@ export function MyPage() {
                               <Edit className="h-4 w-4" />
                               수정
                             </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(event.id, event.title)}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              삭제
+                            </button>
                           </div>
                           {/* 제목과 상태 */}
                           <div className="mb-3 flex items-start justify-between gap-4">

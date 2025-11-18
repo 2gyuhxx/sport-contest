@@ -6,6 +6,7 @@ export type Category =
   | 'volleyball'
   | 'esports'
   | 'fitness'
+  | 'tennis'
 
 export interface Event {
   id: string

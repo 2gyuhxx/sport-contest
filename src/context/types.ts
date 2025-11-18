@@ -16,6 +16,7 @@ export type EventAction =
   | { type: 'SET_KEYWORD'; payload: string }
   | { type: 'CLEAR_FILTERS' }
   | { type: 'SET_ACTIVE_EVENT'; payload: string | null }
+  | { type: 'SET_EVENTS'; payload: Event[] }
 
 export interface EventContextValue {
   state: EventState

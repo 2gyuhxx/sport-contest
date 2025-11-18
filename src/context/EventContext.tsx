@@ -1,11 +1,11 @@
-import { useMemo, useReducer, type ReactNode } from 'react'
+import { useEffect, useMemo, useReducer, type ReactNode } from 'react'
 import { EventService } from '../services/EventService'
 import { EventContext } from './EventContextObject'
 import type { EventAction, EventContextValue, EventState } from './types'
 import type { EventFilters } from '../types/events'
 
 const initialState: EventState = {
-  events: EventService.getAll(),
+  events: [], // 초기값은 빈 배열, DB에서 로드
   regions: EventService.getRegionsStatic(), // 정적 데이터 사용
   categories: EventService.getCategories(),
   selectedRegion: null,
@@ -34,6 +34,8 @@ function eventReducer(state: EventState, action: EventAction): EventState {
       return { ...state, selectedRegion: null, selectedCategory: null, keyword: '' }
     case 'SET_ACTIVE_EVENT':
       return { ...state, activeEventId: action.payload }
+    case 'SET_EVENTS':
+      return { ...state, events: action.payload }
     default:
       return state
   }
@@ -41,6 +43,22 @@ function eventReducer(state: EventState, action: EventAction): EventState {
 
 export function EventProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(eventReducer, initialState)
+
+  // 컴포넌트 마운트 시 DB에서 행사 데이터 로드
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const dbEvents = await EventService.getAllEventsFromDB()
+        dispatch({ type: 'SET_EVENTS', payload: dbEvents })
+      } catch (error) {
+        console.error('행사 데이터 로드 오류:', error)
+        // 오류 발생 시 빈 배열 유지
+        dispatch({ type: 'SET_EVENTS', payload: [] })
+      }
+    }
+
+    loadEvents()
+  }, [])
 
   const appliedFilters: EventFilters = useMemo(
     () => ({

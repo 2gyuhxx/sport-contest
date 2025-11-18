@@ -39,6 +39,29 @@ interface MyEventResponse {
     end_at: string
     website: string | null
     status: 'pending' | 'approved' | 'spam'
+    is_active?: boolean
+    created_at: string
+    updated_at: string | null
+  }[]
+}
+
+interface AllEventsResponse {
+  events: {
+    id: number
+    organizer_user_id: number
+    organizer_user_name: string | null
+    title: string
+    description: string
+    sport: string
+    region: string
+    sub_region: string
+    venue: string | null
+    address: string | null
+    start_at: string
+    end_at: string
+    website: string | null
+    status: 'pending' | 'approved' | 'spam'
+    is_active?: boolean
     created_at: string
     updated_at: string | null
   }[]
@@ -265,6 +288,94 @@ export const EventService = {
     } catch (error) {
       console.error('행사 조회 오류:', error)
       throw error
+    }
+  },
+
+  /**
+   * 행사 삭제
+   */
+  async deleteEvent(eventId: number): Promise<void> {
+    try {
+      await apiRequest<{ message: string }>(`/events/${eventId}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.error('행사 삭제 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 모든 행사 가져오기 (DB에서)
+   */
+  async getAllEventsFromDB(): Promise<Event[]> {
+    try {
+      const response = await apiRequest<AllEventsResponse>('/events')
+      // status가 'approved'이고 is_active가 true인 행사만 필터링
+      const approvedEvents = response.events.filter(
+        (e) => e.status === 'approved' && (e.is_active === undefined || e.is_active === true)
+      )
+
+      // DB 형식을 Event 형식으로 변환
+      return approvedEvents.map((e) => {
+        // sport를 category로 매핑 (DB의 sport 값 -> Event 타입의 category)
+        const sportToCategory: Record<string, Category> = {
+          'team-ball': 'football',
+          'racket-ball': 'tennis',
+          'martial-arts': 'fitness',
+          'fitness-skill': 'fitness',
+          'precision-skill': 'fitness',
+          'ice-snow': 'fitness',
+          'water-sea': 'fitness',
+          'leisure-environment': 'fitness',
+          'mind': 'fitness',
+          'other': 'fitness',
+          // 기존 카테고리 매핑 (하위 호환성)
+          'football': 'football',
+          'basketball': 'basketball',
+          'baseball': 'baseball',
+          'marathon': 'marathon',
+          'volleyball': 'volleyball',
+          'esports': 'esports',
+          'fitness': 'fitness',
+        }
+
+        // 기본 이미지 URL (랜덤 스포츠 이미지)
+        const defaultImages: Record<string, string> = {
+          'team-ball': 'https://images.unsplash.com/photo-1530629013299-6cb10e4ca6f8?auto=format&fit=crop&w=900&q=60',
+          'racket-ball': 'https://images.unsplash.com/photo-1508817628294-5a453fa0b8fb?auto=format&fit=crop&w=900&q=60',
+          'martial-arts': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=900&q=60',
+          'fitness-skill': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=60',
+          'precision-skill': 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=900&q=60',
+          'ice-snow': 'https://images.unsplash.com/photo-1551524164-6cf77f63edb6?auto=format&fit=crop&w=900&q=60',
+          'water-sea': 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=900&q=60',
+          'leisure-environment': 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=900&q=60',
+          'mind': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=60',
+          'other': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=60',
+        }
+
+        const category = sportToCategory[e.sport] || 'fitness'
+        const image = defaultImages[e.sport] || defaultImages['other']
+
+        return {
+          id: String(e.id),
+          title: e.title,
+          summary: e.description.length > 100 ? e.description.substring(0, 100) + '...' : e.description,
+          region: e.region,
+          city: e.sub_region || e.region,
+          address: e.address || e.venue || `${e.region} ${e.sub_region || ''}`,
+          category,
+          date: e.start_at.split('T')[0], // ISO 날짜에서 날짜 부분만 추출
+          image,
+          views: 0, // DB에 views 필드가 없으므로 기본값 0
+          organizer: e.organizer_user_name || undefined,
+          link: e.website || undefined,
+          description: e.description,
+        }
+      })
+    } catch (error) {
+      console.error('행사 목록 조회 오류:', error)
+      return [] // 오류 발생 시 빈 배열 반환
     }
   },
 }

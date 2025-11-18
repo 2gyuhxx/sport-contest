@@ -7,6 +7,7 @@ import kakaoAuthRoutes from './routes/kakaoAuth.js'
 import eventRoutes from './routes/events.js'
 import listRoutes from './routes/lists.js'
 import { downloadModelFromCloud } from './utils/downloadModel.js'
+import { EventModel } from './models/Event.js'
 
 dotenv.config()
 
@@ -23,6 +24,27 @@ downloadModelFromCloud()
     console.warn('[서버 시작] 모델 파일이 없어도 서버는 시작되지만 스팸 체크 기능이 작동하지 않을 수 있습니다.')
     console.warn('[서버 시작] .env 파일에 NHN Cloud Object Storage 설정을 확인해주세요.')
   })
+
+// 끝난 지 2주가 지난 행사를 자동으로 삭제하는 스케줄러 (매일 새벽 3시에 실행)
+function scheduleExpiredEventsCleanup() {
+  const cleanup = async () => {
+    try {
+      const deletedCount = await EventModel.deleteExpiredEvents()
+      if (deletedCount > 0) {
+        console.log(`[자동 삭제] 끝난 지 2주가 지난 행사 ${deletedCount}개를 삭제했습니다.`)
+      }
+    } catch (error) {
+      console.error('[자동 삭제] 오류:', error)
+    }
+  }
+
+  // 서버 시작 시 즉시 한 번 실행
+  cleanup()
+
+  // 매 24시간마다 실행 (24시간 = 86400000ms)
+  setInterval(cleanup, 24 * 60 * 60 * 1000)
+  console.log('[자동 삭제] 스케줄러 시작: 매 24시간마다 끝난 지 2주가 지난 행사를 삭제합니다.')
+}
 
 // 미들웨어
 app.use(cors({
@@ -74,5 +96,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`)
+  // 자동 삭제 스케줄러 시작
+  scheduleExpiredEventsCleanup()
 })
 

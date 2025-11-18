@@ -10,7 +10,18 @@ export function HomePage() {
   } = useEventContext()
 
   const popularEvents = useMemo(
-    () => [...events].sort((a, b) => b.views - a.views),
+    () => {
+      // views가 모두 0이면 최신순(날짜순)으로 정렬
+      const sorted = [...events].sort((a, b) => {
+        // views가 있으면 views 기준으로 정렬
+        if (b.views !== a.views && (b.views > 0 || a.views > 0)) {
+          return b.views - a.views
+        }
+        // views가 같거나 모두 0이면 날짜순 (가까운 날짜 우선)
+        return a.date.localeCompare(b.date)
+      })
+      return sorted
+    },
     [events],
   )
 
