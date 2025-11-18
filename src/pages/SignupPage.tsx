@@ -1,23 +1,30 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus, Mail, Lock, User as UserIcon, AlertCircle, CheckCircle2, Users, Briefcase } from 'lucide-react'
 import { useAuthContext } from '../context/useAuthContext'
 import { AuthService } from '../services/AuthService'
-import type { UserRole, SportCategory } from '../types/auth'
+import { EventService, type SportCategory as DBSportCategory } from '../services/EventService'
+import type { UserRole } from '../types/auth'
 
-// 스포츠 카테고리 정보
-const SPORT_CATEGORIES: { value: SportCategory; label: string; emoji: string }[] = [
-  { value: 'team-ball', label: '구기·팀', emoji: '⚽' },
-  { value: 'racket-ball', label: '라켓·볼', emoji: '🏓' },
-  { value: 'martial-arts', label: '무도·격투', emoji: '🥋' },
-  { value: 'fitness-skill', label: '체력·기술', emoji: '🏋️' },
-  { value: 'precision', label: '정밀·기술', emoji: '🎯' },
-  { value: 'ice-snow', label: '빙상·설원', emoji: '⛷️' },
-  { value: 'water', label: '수상·해양', emoji: '🏊' },
-  { value: 'leisure', label: '레저·환경', emoji: '🚴' },
-  { value: 'mind', label: '마인드', emoji: '🧠' },
-  { value: 'other', label: '기타', emoji: '🎮' },
-]
+// 이모지 매핑 (DB의 실제 카테고리 이름에 따라)
+const EMOJI_MAP: Record<string, string> = {
+  '구기·팀': '⚽',
+  '라켓·볼': '🏸',
+  '레저·환경': '⛺',
+  '마인드': '🧘',
+  '무도·격투': '🥋',
+  '빙상·생활': '🏃',
+  '수상·해양': '🏊',
+  '정밀·기술': '🎯',
+  '체력·기술': '💪',
+  '기타': '🏅',
+}
+
+// 이모지가 제대로 표시되지 않을 경우 대체 텍스트
+const getCategoryDisplay = (name: string): string => {
+  const emoji = EMOJI_MAP[name]
+  return emoji || '🏆'
+}
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -28,22 +35,43 @@ export function SignupPage() {
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [role, setRole] = useState<UserRole | ''>('') // 사용자 역할
-  const [interests, setInterests] = useState<SportCategory[]>([]) // 관심 종목
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]) // 선택된 카테고리 ID
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  
+  // DB에서 가져온 스포츠 카테고리
+  const [sportCategories, setSportCategories] = useState<DBSportCategory[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+
+  // 컴포넌트 마운트 시 스포츠 카테고리 로드
+  useEffect(() => {
+    const loadSportCategories = async () => {
+      try {
+        setIsLoadingCategories(true)
+        const categories = await EventService.getSportCategoriesDB()
+        setSportCategories(categories)
+      } catch (err) {
+        console.error('스포츠 카테고리 로드 오류:', err)
+        setError('스포츠 종목을 불러오는데 실패했습니다')
+      } finally {
+        setIsLoadingCategories(false)
+      }
+    }
+    loadSportCategories()
+  }, [])
 
   // 관심 종목 토글 (최대 3개만 선택 가능)
-  const toggleInterest = (category: SportCategory) => {
-    setInterests((prev) => {
-      if (prev.includes(category)) {
+  const toggleInterest = (categoryId: number) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(categoryId)) {
         // 이미 선택된 경우 제거
-        return prev.filter((c) => c !== category)
+        return prev.filter((id) => id !== categoryId)
       } else {
         // 최대 3개까지만 선택 가능
         if (prev.length >= 3) {
           return prev
         }
-        return [...prev, category]
+        return [...prev, categoryId]
       }
     })
   }
@@ -65,7 +93,7 @@ export function SignupPage() {
     }
 
     // 일반 사용자인 경우 관심 종목 필수
-    if (role === 'user' && interests.length === 0) {
+    if (role === 'user' && selectedCategoryIds.length === 0) {
       setError('관심 있는 체육 종목을 최소 1개 이상 선택해주세요')
       return
     }
@@ -73,13 +101,18 @@ export function SignupPage() {
     setIsLoading(true)
 
     try {
-      // 회원가입 시도
+      // 선택된 카테고리 이름 배열로 변환
+      const selectedCategoryNames = selectedCategoryIds
+        .map(id => sportCategories.find(cat => cat.id === id)?.name)
+        .filter((name): name is string => name !== undefined)
+
+      // 회원가입 시도 (카테고리 이름을 interests로 전달)
       const user = await AuthService.signup({
         email,
         password,
         name,
         role,
-        interests: role === 'user' ? interests : undefined,
+        interests: role === 'user' ? selectedCategoryNames as any : undefined,
       })
 
       // Context에 사용자 정보 저장 (자동 로그인)
@@ -97,7 +130,7 @@ export function SignupPage() {
         email,
         name,
         role,
-        interests,
+        selectedCategoryIds,
       })
     } finally {
       setIsLoading(false)
@@ -193,41 +226,55 @@ export function SignupPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   관심 있는 체육 종목 <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {SPORT_CATEGORIES.map((sport) => {
-                    const isSelected = interests.includes(sport.value)
-                    const isDisabled = !isSelected && interests.length >= 3
-                    return (
-                      <button
-                        key={sport.value}
-                        type="button"
-                        onClick={() => toggleInterest(sport.value)}
-                        disabled={isDisabled}
-                        className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition whitespace-nowrap ${
-                          isSelected
-                            ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
-                            : isDisabled
-                              ? 'border-surface-subtle bg-slate-50 text-slate-400 cursor-not-allowed opacity-50'
-                              : 'border-surface-subtle bg-white text-slate-700 hover:border-brand-primary/30'
-                        }`}
-                      >
-                        <span className="text-lg flex-shrink-0">{sport.emoji}</span>
-                        <span className="font-medium flex-shrink-0">{sport.label}</span>
-                        {isSelected && (
-                          <span className="ml-auto text-xs font-semibold text-brand-primary flex-shrink-0">
-                            {interests.indexOf(sport.value) + 1}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-                <p className="mt-1.5 text-xs text-slate-500">
-                  선택한 종목: {interests.length > 0 ? `${interests.length}개` : '없음'} (최대 3개)
-                  {interests.length >= 3 && (
-                    <span className="ml-2 text-amber-600 font-semibold">• 최대 개수에 도달했습니다</span>
-                  )}
-                </p>
+                {isLoadingCategories ? (
+                  <div className="flex items-center justify-center rounded-lg border border-surface-subtle bg-surface py-8">
+                    <div className="text-center">
+                      <div className="mb-2 inline-block h-6 w-6 animate-spin rounded-full border-2 border-brand-primary border-t-transparent"></div>
+                      <p className="text-sm text-slate-500">종목 로딩 중...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {sportCategories.map((category) => {
+                        const isSelected = selectedCategoryIds.includes(category.id)
+                        const isDisabled = !isSelected && selectedCategoryIds.length >= 3
+                        const emoji = getCategoryDisplay(category.name)
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            onClick={() => toggleInterest(category.id)}
+                            disabled={isDisabled}
+                            className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition ${
+                              isSelected
+                                ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
+                                : isDisabled
+                                  ? 'border-surface-subtle bg-slate-50 text-slate-400 cursor-not-allowed opacity-50'
+                                  : 'border-surface-subtle bg-white text-slate-700 hover:border-brand-primary/30'
+                            }`}
+                          >
+                            <span className="text-xl" role="img" aria-label={category.name}>
+                              {emoji}
+                            </span>
+                            <span className="font-medium">{category.name}</span>
+                            {isSelected && (
+                              <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+                                {selectedCategoryIds.indexOf(category.id) + 1}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      선택한 종목: {selectedCategoryIds.length > 0 ? `${selectedCategoryIds.length}개` : '없음'} (최대 3개)
+                      {selectedCategoryIds.length >= 3 && (
+                        <span className="ml-2 text-amber-600 font-semibold">• 최대 개수에 도달했습니다</span>
+                      )}
+                    </p>
+                  </>
+                )}
               </div>
             )}
 

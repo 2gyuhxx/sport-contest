@@ -168,6 +168,8 @@ export function SearchPage() {
   
   const { state, dispatch } = contextValue
   const { events = [], regions = [], categories = [] } = state || {}
+  const { state, dispatch, isLoading } = useEventContext()
+  const { events, regions, categories } = state
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [hoverLabel, setHoverLabel] = useState<string | null>(null)
@@ -744,9 +746,15 @@ export function SearchPage() {
               </h2>
               <span className="text-xs text-slate-500">{filteredEvents.length}건</span>
             </div>
-            <ul className="flex flex-col divide-y divide-surface-subtle">
-              {filteredEvents.length ? (
-                filteredEvents.map((event) => {
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-brand-primary border-t-transparent"></div>
+                <p className="text-sm text-slate-500">행사를 불러오는 중...</p>
+              </div>
+            ) : (
+              <ul className="flex flex-col divide-y divide-surface-subtle">
+                {filteredEvents.length ? (
+                  filteredEvents.map((event) => {
                   const regionLabel =
                     regionIdToMeta[event.region]?.shortName ?? event.region
                   return (
@@ -772,12 +780,13 @@ export function SearchPage() {
                     </li>
                   )
                 })
-              ) : (
-                <li className="py-6 text-center text-sm text-slate-500">
-                  조건에 맞는 행사가 없습니다.
-                </li>
-              )}
-            </ul>
+                ) : (
+                  <li className="py-6 text-center text-sm text-slate-500">
+                    조건에 맞는 행사가 없습니다.
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
         </aside>
       </section>

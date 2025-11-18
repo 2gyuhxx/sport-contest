@@ -7,6 +7,7 @@ import kakaoAuthRoutes from './routes/kakaoAuth.js'
 import eventRoutes from './routes/events.js'
 import listRoutes from './routes/lists.js'
 import uploadRoutes from './routes/upload.js'
+import categoryRoutes from './routes/categories.js'
 
 dotenv.config()
 
@@ -46,6 +47,8 @@ app.use('/api/events', eventRoutes)
 app.use('/api/lists', listRoutes)
 // 파일 업로드 라우트
 app.use('/api/upload', uploadRoutes)
+// 카테고리 라우트 (대분류, 소분류)
+app.use('/api', categoryRoutes)
 
 // Health check
 app.get('/health', (req, res) => {

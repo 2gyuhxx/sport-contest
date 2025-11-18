@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { useAuthContext } from '../context/useAuthContext'
-import { EventService } from '../services/EventService'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle } from 'lucide-react'
 
 type FormData = {
   title: string
   organizer: string
   sport_category: string
   sub_sport: string
+  sport_category_id: number | null
+  sub_sport_category_id: number | null
   start_at: string
   end_at: string
   region: string
@@ -33,6 +35,8 @@ export function CreateEventPage() {
     organizer: '',
     sport_category: '',
     sub_sport: '',
+    sport_category_id: null,
+    sub_sport_category_id: null,
     start_at: '',
     end_at: '',
     region: '',
@@ -51,9 +55,11 @@ export function CreateEventPage() {
   const [error, setError] = useState<string | null>(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false) // 성공 메시지 표시 여부
   
-  // DB에서 가져온 데이터
-  const [sportCategories, setSportCategories] = useState<string[]>([])
-  const [subSportCategories, setSubSportCategories] = useState<string[]>([])
+  // 컴포넌트 마운트 시 스포츠 종목 목록 가져오기
+  const [sportCategories, setSportCategories] = useState<SportCategory[]>([])
+  const [subSportCategories, setSubSportCategories] = useState<SubSportCategory[]>([])
+  const [regions, setRegions] = useState<string[]>([])
+  const [subRegions, setSubRegions] = useState<string[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
 
   // 주소 관련 state
@@ -61,13 +67,19 @@ export function CreateEventPage() {
   const [fullAddress, setFullAddress] = useState<string>('')
   const [detailAddress, setDetailAddress] = useState<string>('')
 
-  // 컴포넌트 마운트 시 스포츠 종목 목록 가져오기
+  // 컴포넌트 마운트 시 대분류 스포츠 종목과 지역 목록 가져오기
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoadingData(true)
         const sports = await EventService.getSportCategories()
         setSportCategories(sports)
+        const [categories, regionsData] = await Promise.all([
+          EventService.getSportCategoriesDB(),
+          EventService.getRegions(),
+        ])
+        setSportCategories(categories)
+        setRegions(regionsData)
       } catch (err) {
         console.error('데이터 로딩 오류:', err)
         setError('데이터를 불러오는데 실패했습니다')
@@ -137,6 +149,29 @@ export function CreateEventPage() {
   }, [isEditMode, eventId])
 
   // sport_category 선택 시 sub_sport 목록 가져오기
+  // sport_category_id 선택 시 소분류 목록 가져오기
+  useEffect(() => {
+    const loadSubSportCategories = async () => {
+      if (!formData.sport_category_id) {
+        setSubSportCategories([])
+        setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        return
+      }
+
+      try {
+        const subCategories = await EventService.getSubSportCategories(formData.sport_category_id)
+        setSubSportCategories(subCategories)
+        // 대분류가 변경되면 소분류 초기화
+        setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+      } catch (err) {
+        console.error('소분류 카테고리 로딩 오류:', err)
+        setSubSportCategories([])
+      }
+    }
+    loadSubSportCategories()
+  }, [formData.sport_category_id])
+
+  // region 선택 시 sub_region 목록 가져오기
   useEffect(() => {
     const loadSubSportCategories = async () => {
       if (!formData.sport_category) {

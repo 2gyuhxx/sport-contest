@@ -22,6 +22,7 @@ export interface Event {
   organizer?: string // 개최사
   link?: string // 관련 링크
   description?: string // 상세 내용
+  sport?: string // DB의 스포츠 종목 (소분류 이름)
 }
 
 export interface RegionMeta {

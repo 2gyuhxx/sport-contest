@@ -381,5 +381,31 @@ router.get('/:id', async (req, res) => {
   }
 })
 
+/**
+ * 행사 조회수 증가 (명시적 API)
+ */
+router.post('/:id/view', async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    // 행사 존재 확인
+    const event = await EventModel.findById(eventId)
+    if (!event) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 조회수 증가
+    await EventModel.incrementViews(eventId)
+
+    res.json({ success: true, message: '조회수가 증가되었습니다' })
+  } catch (error: any) {
+    console.error('조회수 증가 오류:', error)
+    res.status(500).json({ error: '조회수 증가 중 오류가 발생했습니다' })
+  }
+})
+
 export default router
 
