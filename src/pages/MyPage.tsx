@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react'
 
 interface MyEvent {
@@ -28,6 +29,7 @@ interface MyEvent {
   start_at: string
   end_at: string
   status: 'pending' | 'approved' | 'spam'
+  eraser: 'active' | 'inactive' | null
   created_at: string
   updated_at: string | null
 }
@@ -41,6 +43,7 @@ export function MyPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showEvents, setShowEvents] = useState(false) // 행사 목록 표시 여부
+  const [deletingEventId, setDeletingEventId] = useState<number | null>(null) // 삭제 중인 행사 ID
 
   // 행사 목록 로드 함수
   const loadMyEvents = async () => {
@@ -126,6 +129,36 @@ export function MyPage() {
     }
   }
 
+  // eraser 상태에 따른 배지 스타일
+  const getEraserBadge = (eraser: MyEvent['eraser']) => {
+    // null, undefined인 경우 null 반환
+    if (eraser === null || eraser === undefined) {
+      return null
+    }
+    
+    // 문자열로 정규화 (공백 제거 및 소문자 변환)
+    const normalizedEraser = String(eraser).trim().toLowerCase()
+    
+    switch (normalizedEraser) {
+      case 'active':
+        return {
+          icon: CheckCircle2,
+          text: '진행',
+          color: 'bg-green-100 text-green-800 border-green-300',
+          iconColor: 'text-green-600',
+        }
+      case 'inactive':
+        return {
+          icon: XCircle,
+          text: '종료',
+          color: 'bg-gray-100 text-gray-800 border-gray-300',
+          iconColor: 'text-gray-600',
+        }
+      default:
+        return null
+    }
+  }
+
   // 날짜 포맷팅
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -188,6 +221,34 @@ export function MyPage() {
       console.error('회원탈퇴 오류:', error)
       const errorMessage = error instanceof Error ? error.message : '회원탈퇴 중 오류가 발생했습니다'
       alert(errorMessage)
+    }
+  }
+
+  // 행사 삭제 핸들러
+  const handleDeleteEvent = async (eventId: number, eventTitle: string) => {
+    // 확인 다이얼로그
+    const confirmed = window.confirm(
+      `정말 "${eventTitle}" 행사를 삭제하시겠습니까?\n\n삭제된 행사는 복구할 수 없습니다.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setDeletingEventId(eventId)
+      await EventService.deleteEvent(eventId)
+      
+      // 삭제 성공 시 행사 목록에서 제거
+      setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId))
+      
+      alert('행사가 삭제되었습니다.')
+    } catch (error) {
+      console.error('행사 삭제 오류:', error)
+      const errorMessage = error instanceof Error ? error.message : '행사 삭제 중 오류가 발생했습니다'
+      alert(errorMessage)
+    } finally {
+      setDeletingEventId(null)
     }
   }
 
@@ -318,6 +379,8 @@ export function MyPage() {
                 {events.map((event) => {
                   const statusBadge = getStatusBadge(event.status)
                   const StatusIcon = statusBadge.icon
+                  const eraserBadge = getEraserBadge(event.eraser)
+                  const EraserIcon = eraserBadge?.icon
 
                   return (
                     <div
@@ -326,8 +389,8 @@ export function MyPage() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          {/* 수정 버튼 */}
-                          <div className="mb-3 flex justify-end">
+                          {/* 수정/삭제 버튼 */}
+                          <div className="mb-3 flex justify-end gap-2">
                             <Link
                               to={`/admin/events/edit/${event.id}`}
                               className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
@@ -335,15 +398,39 @@ export function MyPage() {
                               <Edit className="h-4 w-4" />
                               수정
                             </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(event.id, event.title)}
+                              disabled={deletingEventId === event.id}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {deletingEventId === event.id ? '삭제 중...' : '삭제'}
+                            </button>
                           </div>
                           {/* 제목과 상태 */}
                           <div className="mb-3 flex items-start justify-between gap-4">
-                            <h3 className="text-xl font-bold text-slate-900">{event.title}</h3>
-                            <div
-                              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge.color}`}
+                            <Link
+                              to={`/events/${event.id}`}
+                              className="text-xl font-bold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer"
                             >
-                              <StatusIcon className={`h-3.5 w-3.5 ${statusBadge.iconColor}`} />
-                              <span>{statusBadge.text}</span>
+                              {event.title}
+                            </Link>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge.color}`}
+                              >
+                                <StatusIcon className={`h-3.5 w-3.5 ${statusBadge.iconColor}`} />
+                                <span>{statusBadge.text}</span>
+                              </div>
+                              {eraserBadge && EraserIcon && (
+                                <div
+                                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${eraserBadge.color}`}
+                                >
+                                  <EraserIcon className={`h-3.5 w-3.5 ${eraserBadge.iconColor}`} />
+                                  <span>{eraserBadge.text}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
 

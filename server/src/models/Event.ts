@@ -2,6 +2,7 @@ import pool from '../config/database.js'
 import type { RowDataPacket } from 'mysql2'
 
 export type EventStatus = 'pending' | 'approved' | 'spam'
+export type EventLifecycleStatus = 'active' | 'inactive'
 
 export interface EventRow extends RowDataPacket {
   id: number
@@ -21,6 +22,7 @@ export interface EventRow extends RowDataPacket {
   image: string | null
   views: number
   status: EventStatus
+  eraser: EventLifecycleStatus | null
   created_at: Date
   updated_at: Date | null
 }
@@ -75,10 +77,23 @@ export class EventModel {
       status
     })
 
+    // 종료일 기준으로 eraser 상태 설정
+    const now = new Date()
+    const endDate = new Date(endAt)
+    // 종료일이 현재보다 늦으면 active, 지났으면 inactive
+    const eraser: EventLifecycleStatus = endDate.getTime() > now.getTime() ? 'active' : 'inactive'
+
+    console.log('[EventModel.create] eraser 상태 설정:', {
+      now: now.toISOString(),
+      endAt,
+      endDate: endDate.toISOString(),
+      eraser
+    })
+
     const [result] = await pool.execute(
-      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [organizerUserId, organizerUserName, title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, status]
+      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, status, eraser)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [organizerUserId, organizerUserName, title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, status, eraser]
     )
 
     console.log('[EventModel.create] INSERT 결과:', result)
@@ -146,12 +161,17 @@ export class EventModel {
       throw new Error('행사를 수정할 권한이 없습니다')
     }
 
+    // 종료일 기준으로 eraser 상태 재설정
+    const now = new Date()
+    const endDate = new Date(endAt)
+    const eraser: EventLifecycleStatus = endDate.getTime() > now.getTime() ? 'active' : 'inactive'
+
     await pool.execute(
       `UPDATE events 
        SET title = ?, description = ?, sport = ?, sub_sport = ?, region = ?, sub_region = ?, 
-           venue = ?, address = ?, start_at = ?, end_at = ?, website = ?, image = ?, organizer_user_name = ?, updated_at = NOW()
+           venue = ?, address = ?, start_at = ?, end_at = ?, website = ?, image = ?, organizer_user_name = ?, eraser = ?, updated_at = NOW()
        WHERE id = ?`,
-      [title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, organizerUserName, eventId]
+      [title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, organizerUserName, eraser, eventId]
     )
 
     // 업데이트된 행사 반환
@@ -195,5 +215,68 @@ export class EventModel {
       [eventId]
     )
   }
+
+  /**
+   * 종료된 행사를 inactive로 변경
+   */
+  static async updateExpiredToInactive(): Promise<number> {
+    // MySQL의 NOW()를 직접 사용하여 타임존 문제 방지
+    const now = new Date()
+    const nowStr = now.toISOString().slice(0, 19).replace('T', ' ')
+    
+    console.log('[updateExpiredToInactive] 날짜 비교 시작:', {
+      now: now.toISOString(),
+      nowStr,
+      criteria: `end_at < NOW()`
+    })
+    
+    // 종료된 행사 조회 (디버깅용) - MySQL NOW() 사용
+    const [expiredRows] = await pool.execute<EventRow[]>(
+      `SELECT id, title, end_at, eraser FROM events 
+       WHERE end_at < NOW()
+       AND (eraser IS NULL OR eraser = 'active')`,
+    )
+    
+    console.log('[updateExpiredToInactive] 종료된 행사 (업데이트 대상):', expiredRows.map(e => ({
+      id: e.id,
+      title: e.title,
+      end_at: e.end_at,
+      eraser: e.eraser,
+      end_at_type: typeof e.end_at,
+      end_at_value: String(e.end_at)
+    })))
+    
+    // MySQL NOW()를 직접 사용하여 타임존 문제 방지
+    const [result] = await pool.execute(
+      `UPDATE events 
+       SET eraser = 'inactive', updated_at = NOW() 
+       WHERE end_at < NOW()
+       AND (eraser IS NULL OR eraser = 'active')`,
+    )
+    
+    const updateResult = result as { affectedRows: number }
+    console.log('[updateExpiredToInactive] 업데이트 결과:', {
+      affectedRows: updateResult.affectedRows || 0,
+      updatedRows: updateResult.affectedRows || 0
+    })
+    
+    // 업데이트된 행사 확인
+    if (updateResult.affectedRows && updateResult.affectedRows > 0) {
+      const [updatedEvents] = await pool.execute<EventRow[]>(
+        `SELECT id, title, end_at, eraser FROM events 
+         WHERE eraser = 'inactive' 
+         AND updated_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)`
+      )
+      console.log('[updateExpiredToInactive] inactive로 변경된 행사:', updatedEvents.map(e => ({
+        id: e.id,
+        title: e.title,
+        end_at: e.end_at,
+        eraser: e.eraser
+      })))
+    }
+    
+    return updateResult.affectedRows || 0
+  }
+
 }
 

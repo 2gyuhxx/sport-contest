@@ -3,7 +3,7 @@ import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
 import { getCategoryLabel } from '../../utils/categoryLabels'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
 
 interface EventCardProps {
   event: Event
@@ -70,6 +70,26 @@ export function EventCard({
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary">
           {event.sport || getCategoryLabel(event.category)}
         </span>
+        {/* 진행/종료 상태 배지 */}
+        {event.event_status && (
+          <div className={`absolute right-3 top-3 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+            event.event_status === 'active'
+              ? 'bg-green-100 text-green-800 border-green-300'
+              : 'bg-gray-100 text-gray-800 border-gray-300'
+          }`}>
+            {event.event_status === 'active' ? (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                <span>진행</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-3 w-3" />
+                <span>종료</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <div className={classNames('flex flex-1 flex-col gap-2', bodyPadding)}>
         <header className="flex flex-col gap-2">

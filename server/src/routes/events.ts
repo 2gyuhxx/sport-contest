@@ -7,6 +7,30 @@ import { checkSpamAsync } from '../utils/spamCheckerAsync.js'
 const router = express.Router()
 
 /**
+ * 종료 날짜 포맷팅: 시간이 없거나 00:00:00이면 23:59:59로 설정
+ */
+const formatEndAt = (dateStr: string): string => {
+  if (!dateStr) return dateStr
+  
+  // 이미 시간이 포함되어 있는지 확인
+  const hasTime = dateStr.includes(' ') || dateStr.includes('T')
+  
+  if (!hasTime) {
+    // 날짜만 있으면 23:59:59 추가
+    return `${dateStr} 23:59:59`
+  }
+  
+  // 시간이 포함되어 있으면
+  // 00:00:00을 23:59:59로 변경
+  if (dateStr.includes(' 00:00:00') || dateStr.endsWith('T00:00:00')) {
+    return dateStr.replace(/ 00:00:00$/, ' 23:59:59').replace(/T00:00:00$/, 'T23:59:59')
+  }
+  
+  // 이미 다른 시간이 있으면 그대로 반환
+  return dateStr
+}
+
+/**
  * 행사 생성
  */
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
@@ -48,6 +72,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       ? String(address).padStart(5, '0') 
       : null
 
+    // 종료일 포맷팅: 시간이 없거나 00:00:00이면 23:59:59로 설정
+    const formattedEndAt = formatEndAt(end_at)
+
     console.log('[행사 생성 API] EventModel.create 호출:', {
       organizerUserId: req.userId,
       title,
@@ -59,7 +86,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       venue: venue || null,
       address: formattedAddress,
       startAt: start_at,
-      endAt: end_at,
+      endAt: formattedEndAt,
       website: website || null,
       image: image || null,
       organizerUserName: organizer_user_name,
@@ -78,7 +105,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       venue || null,
       formattedAddress,
       start_at,
-      end_at,
+      formattedEndAt,
       website || null,
       image || null,
       organizer_user_name,
@@ -273,7 +300,9 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       ? (address ? String(address).padStart(5, '0') : null)
       : (existingEvent.address ? String(existingEvent.address).padStart(5, '0') : null)
     const finalStartAt = hasValue(start_at) ? normalizeDateString(start_at) : formatDate(existingEvent.start_at)
-    const finalEndAt = hasValue(end_at) ? normalizeDateString(end_at) : formatDate(existingEvent.end_at)
+    const finalEndAtRaw = hasValue(end_at) ? normalizeDateString(end_at) : formatDate(existingEvent.end_at)
+    // 종료일 포맷팅: 시간이 없거나 00:00:00이면 23:59:59로 설정
+    const finalEndAt = formatEndAt(finalEndAtRaw)
     const finalWebsite = website !== undefined ? (website || null) : existingEvent.website
     const finalImage = image !== undefined ? (image && image.trim() ? image.trim() : null) : (existingEvent.image || null)
     const finalOrganizerName = hasValue(organizer_user_name) ? String(organizer_user_name).trim() : (existingEvent.organizer_user_name || '')
@@ -411,6 +440,51 @@ router.post('/:id/view', async (req, res) => {
   } catch (error: any) {
     console.error('조회수 증가 오류:', error)
     res.status(500).json({ error: '조회수 증가 중 오류가 발생했습니다' })
+  }
+})
+
+/**
+ * 행사 삭제
+ */
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 행사 존재 확인
+    const event = await EventModel.findById(eventId)
+    if (!event) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 권한 확인 (행사 주최자만 삭제 가능)
+    if (event.organizer_user_id !== req.userId) {
+      return res.status(403).json({ error: '행사를 삭제할 권한이 없습니다' })
+    }
+
+    // 행사 삭제
+    await EventModel.delete(eventId)
+
+    res.json({ 
+      success: true, 
+      message: '행사가 삭제되었습니다'
+    })
+  } catch (error: any) {
+    console.error('행사 삭제 오류:', error)
+    
+    if (error.message === '행사를 찾을 수 없습니다' || error.message === '행사를 삭제할 권한이 없습니다') {
+      return res.status(403).json({ error: error.message })
+    }
+
+    res.status(500).json({ 
+      error: error.message || '행사 삭제 중 오류가 발생했습니다'
+    })
   }
 })
 

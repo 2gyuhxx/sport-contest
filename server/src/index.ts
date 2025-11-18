@@ -8,6 +8,8 @@ import eventRoutes from './routes/events.js'
 import listRoutes from './routes/lists.js'
 import uploadRoutes from './routes/upload.js'
 import categoryRoutes from './routes/categories.js'
+import { EventModel } from './models/Event.js'
+import { EventScheduler } from './models/EventScheduler.js'
 
 dotenv.config()
 
@@ -69,4 +71,38 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`)
 })
+
+// MySQL 이벤트 스케줄러 설정 (서버가 꺼져있어도 작동)
+EventScheduler.setupAllEvents().then(() => {
+  EventScheduler.listEvents()
+}).catch((error) => {
+  console.error('[이벤트 스케줄러] 설정 중 오류:', error)
+  console.log('[이벤트 스케줄러] MySQL 이벤트 스케줄러를 사용할 수 없습니다. Node.js 스케줄러를 사용합니다.')
+  
+  // MySQL 이벤트 스케줄러가 작동하지 않으면 Node.js 스케줄러 사용
+  scheduleEventStatusUpdateWithNode()
+})
+
+// Node.js 스케줄러 (MySQL 이벤트 스케줄러가 작동하지 않을 때 사용)
+function scheduleEventStatusUpdateWithNode() {
+  const updateStatus = async () => {
+    try {
+      // 행사 종료 시 inactive로 변경
+      const inactiveCount = await EventModel.updateExpiredToInactive()
+      if (inactiveCount > 0) {
+        console.log(`[상태 업데이트] 종료된 행사 ${inactiveCount}개를 inactive로 변경했습니다.`)
+      }
+    } catch (error) {
+      console.error('[상태 업데이트] 오류:', error)
+    }
+  }
+
+  // 서버 시작 시 즉시 한 번 실행
+  updateStatus()
+
+  // 매 1시간마다 실행 (1시간 = 3600000ms)
+  setInterval(updateStatus, 60 * 60 * 1000)
+  console.log('[상태 업데이트] Node.js 스케줄러 시작: 매 1시간마다 행사 상태를 업데이트합니다.')
+}
+
 

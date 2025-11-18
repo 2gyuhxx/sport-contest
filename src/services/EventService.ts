@@ -64,6 +64,7 @@ interface DBEvent {
   views: number
   image: string | null // 오브젝트 스토리지 이미지 URL
   status: 'pending' | 'approved' | 'spam'
+  eraser: 'active' | 'inactive' | null
   created_at: string
   updated_at: string | null
 }
@@ -147,6 +148,7 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
     link: dbEvent.website || undefined,
     description: dbEvent.description,
     sport: dbEvent.sport, // DB의 스포츠 종목 (소분류 이름)
+    event_status: (dbEvent.eraser === 'active' || dbEvent.eraser === 'inactive') ? dbEvent.eraser : undefined, // eraser를 event_status로 변환
   }
 }
 
@@ -518,6 +520,24 @@ export const EventService = {
       return data.url
     } catch (error) {
       console.error('파일 업로드 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 행사 삭제
+   */
+  async deleteEvent(eventId: number): Promise<void> {
+    try {
+      const response = await apiRequest<{ success: boolean; message: string }>(
+        `/events/${eventId}`,
+        {
+          method: 'DELETE',
+        }
+      )
+      return
+    } catch (error) {
+      console.error('행사 삭제 오류:', error)
       throw error
     }
   },
