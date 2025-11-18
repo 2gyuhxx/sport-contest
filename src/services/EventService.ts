@@ -81,30 +81,30 @@ interface MyEventResponse {
 function transformDBEventToEvent(dbEvent: DBEvent): Event {
   // sport를 Category로 매핑 (대소문자 구분 없이)
   const sportLower = dbEvent.sport.toLowerCase()
-  let category: Category = 'fitness' // 기본값
+  let category: Category = 'fitness-skill' // 기본값
   
   const categoryMap: Record<string, Category> = {
-    '축구': 'football',
-    'football': 'football',
-    '농구': 'basketball',
-    'basketball': 'basketball',
-    '야구': 'baseball',
-    'baseball': 'baseball',
-    '마라톤': 'marathon',
-    'marathon': 'marathon',
-    '달리기': 'marathon',
-    'running': 'marathon',
-    '배구': 'volleyball',
-    'volleyball': 'volleyball',
-    'e스포츠': 'esports',
-    'esports': 'esports',
-    '피트니스': 'fitness',
-    'fitness': 'fitness',
-    '요가': 'fitness',
-    'yoga': 'fitness',
+    '축구': 'team-ball',
+    'football': 'team-ball',
+    '농구': 'team-ball',
+    'basketball': 'team-ball',
+    '야구': 'team-ball',
+    'baseball': 'team-ball',
+    '배구': 'team-ball',
+    'volleyball': 'team-ball',
+    '마라톤': 'fitness-skill',
+    'marathon': 'fitness-skill',
+    '달리기': 'fitness-skill',
+    'running': 'fitness-skill',
+    'e스포츠': 'other',
+    'esports': 'other',
+    '피트니스': 'fitness-skill',
+    'fitness': 'fitness-skill',
+    '요가': 'fitness-skill',
+    'yoga': 'fitness-skill',
   }
   
-  category = categoryMap[sportLower] || categoryMap[dbEvent.sport] || 'fitness'
+  category = categoryMap[sportLower] || categoryMap[dbEvent.sport] || 'fitness-skill'
   
   // DB의 region 문자열을 프론트엔드 region id로 매핑
   let regionId = dbEvent.region.toLowerCase() // 기본값: 소문자로 변환
@@ -123,13 +123,16 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
   
   // 기본 이미지 (카테고리별)
   const defaultImages: Record<Category, string> = {
-    football: 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
-    basketball: 'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=900&q=60',
-    baseball: 'https://images.unsplash.com/photo-1508766206392-8bd5cf550d1c?auto=format&fit=crop&w=900&q=60',
-    marathon: 'https://images.unsplash.com/photo-1502818364360-24d9bff88ec5?auto=format&fit=crop&w=900&q=60',
-    volleyball: 'https://images.unsplash.com/photo-1508881594126-2a3e7a67db47?auto=format&fit=crop&w=900&q=60',
-    esports: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
-    fitness: 'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
+    'team-ball': 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
+    'racket-ball': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=900&q=60',
+    'martial-arts': 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=900&q=60',
+    'fitness-skill': 'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
+    'precision': 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=900&q=60',
+    'ice-snow': 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=900&q=60',
+    'water': 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=900&q=60',
+    'leisure': 'https://images.unsplash.com/photo-1464207687429-7505649dae38?auto=format&fit=crop&w=900&q=60',
+    'mind': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=900&q=60',
+    'other': 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
   }
 
   return {
@@ -529,7 +532,7 @@ export const EventService = {
    */
   async deleteEvent(eventId: number): Promise<void> {
     try {
-      const response = await apiRequest<{ success: boolean; message: string }>(
+      await apiRequest<{ success: boolean; message: string }>(
         `/events/${eventId}`,
         {
           method: 'DELETE',

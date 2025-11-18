@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "echo 'Build skipped - using tsx for production'",
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "axios": "^1.13.2",
