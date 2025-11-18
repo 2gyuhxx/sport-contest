@@ -66,9 +66,11 @@ export function EventCard({
           )}
           loading="lazy"
         />
-        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
-          {event.category}
-        </span>
+        {event.sport && (
+          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary">
+            {event.sport}
+          </span>
+        )}
       </div>
       <div className={classNames('flex flex-1 flex-col gap-2', bodyPadding)}>
         <header className="flex flex-col gap-2">

@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import { useEventContext } from '../context/useEventContext'
-import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList'
-import { Sparkles, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 
 export function HomePage() {
   const {
@@ -11,58 +10,11 @@ export function HomePage() {
     isLoading,
     refreshEvents,
   } = useEventContext()
-  
-  const { state: authState } = useAuthContext()
-  const { isAuthenticated } = authState
 
   const popularEvents = useMemo(
     () => [...events].sort((a, b) => b.views - a.views),
     [events],
   )
-
-  // 사용자 추천 행사: 다양한 카테고리에서 날짜가 가까운 행사 선택
-  const recommendedEvents = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0]
-    
-    // 카테고리별로 그룹핑
-    const byCategory = new Map<string, typeof events>()
-    events.forEach(event => {
-      if (!byCategory.has(event.category)) {
-        byCategory.set(event.category, [])
-      }
-      byCategory.get(event.category)!.push(event)
-    })
-    
-    // 각 카테고리에서 1~2개씩 선택 (날짜순, 조회수 고려)
-    const recommended: typeof events = []
-    byCategory.forEach((categoryEvents) => {
-      const sorted = [...categoryEvents].sort((a, b) => {
-        // 날짜가 오늘 이후인 행사 우선
-        const aFuture = a.date >= today ? 1 : 0
-        const bFuture = b.date >= today ? 1 : 0
-        if (aFuture !== bFuture) return bFuture - aFuture
-        
-        // 날짜가 가까운 순
-        const dateDiff = a.date.localeCompare(b.date)
-        if (dateDiff !== 0) return dateDiff
-        
-        // 조회수 높은 순
-        return b.views - a.views
-      })
-      
-      // 각 카테고리에서 상위 1개 선택
-      if (sorted.length > 0) {
-        recommended.push(sorted[0])
-      }
-    })
-    
-    // 추천 점수 기반 정렬 (날짜 가중치 + 조회수)
-    return recommended.sort((a, b) => {
-      const aScore = (a.date >= today ? 100 : 0) + Math.log(a.views + 1) * 10
-      const bScore = (b.date >= today ? 100 : 0) + Math.log(b.views + 1) * 10
-      return bScore - aScore
-    }).slice(0, 8)
-  }, [events])
 
   // 로딩 중일 때 표시
   if (isLoading) {
@@ -144,59 +96,6 @@ export function HomePage() {
             detailHrefBase="/events/"
           />
         </div>
-
-        {/* 사용자 추천 행사 - 로그인 시만 표시 */}
-        {isAuthenticated ? (
-          <div className="rounded-3xl border border-surface-subtle bg-gradient-to-br from-violet-50 to-purple-50 p-6 shadow-sm md:p-8">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-900 md:text-3xl">
-                  <Sparkles className="h-7 w-7 text-violet-600" />
-                  사용자 추천 행사
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  다양한 종목의 행사를 골고루 추천해드려요.
-                </p>
-              </div>
-              <span className="rounded-full bg-violet-600/10 px-3 py-1 text-xs font-semibold text-violet-700">
-                AI 추천
-              </span>
-            </div>
-            <EventList
-              events={recommendedEvents}
-              layout="grid"
-              columns={4}
-              cardVariant="compact"
-              emptyMessage="추천할 행사가 없습니다."
-              detailHrefBase="/events/"
-            />
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-surface-subtle bg-gradient-to-br from-blue-50 to-indigo-50 p-8 text-center shadow-sm md:p-12">
-            <Sparkles className="mx-auto mb-4 h-12 w-12 text-indigo-600" />
-            <h2 className="mb-3 text-2xl font-bold text-slate-900 md:text-3xl">
-              맞춤형 행사 추천을 받아보세요
-            </h2>
-            <p className="mx-auto mb-6 max-w-xl text-slate-600">
-              로그인하시면 AI가 분석한 맞춤형 행사 추천을 받아보실 수 있습니다.
-              다양한 종목의 행사를 한눈에 확인하고 관심사에 맞는 이벤트를 빠르게 찾아보세요.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <Link
-                to="/login"
-                className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                로그인하기
-              </Link>
-              <Link
-                to="/signup"
-                className="rounded-full border border-indigo-600 px-6 py-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50"
-              >
-                회원가입
-              </Link>
-            </div>
-          </div>
-        )}
       </section>
     </div>
   )
