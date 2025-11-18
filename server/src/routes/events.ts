@@ -18,8 +18,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '모든 필수 필드를 입력해주세요' })
     }
 
+    // 종료 날짜에 시간이 없으면 23:59:59 추가
+    const formatEndAt = (dateStr: string): string => {
+      if (!dateStr) return dateStr
+      // 이미 시간이 포함되어 있으면 그대로 사용
+      if (dateStr.includes(' ') || dateStr.includes('T')) {
+        return dateStr
+      }
+      // 날짜만 있으면 23:59:59 추가
+      return `${dateStr} 23:59:59`
+    }
+
+    const formattedEndAt = formatEndAt(end_at)
+
     // 날짜 유효성 검사
-    if (start_at > end_at) {
+    if (start_at > formattedEndAt) {
       return res.status(400).json({ error: '시작 날짜는 종료 날짜보다 이전이어야 합니다' })
     }
 
@@ -37,7 +50,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       sub_region,
       venue || null,
       start_at,
-      end_at,
+      formattedEndAt,
       website || null,
       organizer_user_name,
       'pending' // 초기 상태는 판정 중
@@ -64,6 +77,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       end_at: event.end_at,
       website: event.website,
       status: event.status,
+      event_status: event.eraser || 'active', // 생명주기 상태 (active/inactive/deleted) - DB 컬럼명: eraser
+      is_active: EventModel.isActive(event.end_at),
       created_at: event.created_at,
     }
 
@@ -110,7 +125,25 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/', async (req, res) => {
   try {
     const events = await EventModel.findAll()
-    res.json({ events })
+    // 각 행사에 is_active 필드 추가 (deleted 상태 제외)
+    const eventsWithStatus = events
+      .filter(event => event.eraser !== 'deleted') // deleted 상태 제외
+      .map(event => {
+        // eraser가 null이면 'active', 아니면 eraser 값 사용
+        const eventStatus = event.eraser ?? 'active'
+        console.log('[API /events] 행사 상태:', {
+          id: event.id,
+          title: event.title,
+          eraser: event.eraser,
+          event_status: eventStatus
+        })
+        return {
+          ...event,
+          event_status: eventStatus, // DB 컬럼명: eraser
+          is_active: EventModel.isActive(event.end_at),
+        }
+      })
+    res.json({ events: eventsWithStatus })
   } catch (error: any) {
     console.error('행사 목록 조회 오류:', error)
     res.status(500).json({ error: '행사 목록 조회 중 오류가 발생했습니다' })
@@ -128,10 +161,209 @@ router.get('/my/events', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     const events = await EventModel.findByOrganizerId(req.userId)
-    res.json({ events })
+    // 각 행사에 is_active 필드 추가
+    const eventsWithStatus = events.map(event => ({
+      ...event,
+      event_status: event.eraser || 'active', // 기본값 active - DB 컬럼명: eraser
+      is_active: EventModel.isActive(event.end_at),
+    }))
+    res.json({ events: eventsWithStatus })
   } catch (error: any) {
     console.error('내 행사 목록 조회 오류:', error)
     res.status(500).json({ error: '행사 목록 조회 중 오류가 발생했습니다' })
+  }
+})
+
+/**
+ * 행사 수정
+ */
+router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 기존 행사 데이터 가져오기
+    const existingEvent = await EventModel.findById(eventId)
+    if (!existingEvent) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 권한 확인
+    if (existingEvent.organizer_user_id !== req.userId) {
+      return res.status(403).json({ error: '행사를 수정할 권한이 없습니다' })
+    }
+
+    const { title, description, sport, region, sub_region, venue, start_at, end_at, website, organizer_user_name } = req.body
+
+    console.log('[행사 수정 API] 요청 데이터:', { 
+      eventId, 
+      title, 
+      description, 
+      sport, 
+      region, 
+      sub_region, 
+      start_at, 
+      end_at, 
+      organizer_user_name 
+    })
+
+    // 종료 날짜에 시간이 없으면 23:59:59 추가
+    const formatEndAt = (dateStr: string): string => {
+      if (!dateStr) return dateStr
+      // 이미 시간이 포함되어 있으면 그대로 사용
+      if (dateStr.includes(' ') || dateStr.includes('T')) {
+        return dateStr
+      }
+      // 날짜만 있으면 23:59:59 추가
+      return `${dateStr} 23:59:59`
+    }
+
+    // 날짜 포맷팅 함수 (기존 날짜를 YYYY-MM-DD 형식으로 변환)
+    const formatDate = (date: Date): string => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    // 헬퍼 함수: 값이 유효한지 확인 (undefined, null, 빈 문자열이면 false)
+    const hasValue = (value: any): boolean => {
+      if (value === undefined || value === null) return false
+      if (typeof value !== 'string') return false
+      return value.trim().length > 0
+    }
+
+    // 부분 업데이트: 클라이언트에서 보낸 값이 있으면 사용하고, 없으면(undefined/null/빈 문자열) 기존 값 사용
+    const finalTitle = hasValue(title) ? String(title).trim() : existingEvent.title
+    const finalDescription = hasValue(description) ? String(description).trim() : existingEvent.description
+    const finalSport = hasValue(sport) ? String(sport).trim() : existingEvent.sport
+    const finalRegion = hasValue(region) ? String(region).trim() : existingEvent.region
+    const finalSubRegion = hasValue(sub_region) ? String(sub_region).trim() : existingEvent.sub_region
+    const finalVenue = venue !== undefined ? (venue || null) : existingEvent.venue
+    const finalStartAt = hasValue(start_at) ? String(start_at).trim() : formatDate(existingEvent.start_at)
+    // 종료 날짜는 시간이 없으면 23:59:59 추가
+    const finalEndAt = hasValue(end_at) ? formatEndAt(String(end_at).trim()) : formatEndAt(formatDate(existingEvent.end_at))
+    const finalWebsite = website !== undefined ? (website || null) : existingEvent.website
+    const finalOrganizerName = hasValue(organizer_user_name) ? String(organizer_user_name).trim() : (existingEvent.organizer_user_name || '')
+
+    console.log('[행사 수정 API] 최종 업데이트 데이터:', { 
+      finalTitle, 
+      finalDescription, 
+      finalSport, 
+      finalRegion, 
+      finalSubRegion, 
+      finalStartAt, 
+      finalEndAt, 
+      finalOrganizerName 
+    })
+
+    // 날짜 유효성 검사
+    if (finalStartAt > finalEndAt) {
+      return res.status(400).json({ error: '시작 날짜는 종료 날짜보다 이전이어야 합니다' })
+    }
+
+    // 행사 업데이트
+    const event = await EventModel.update(
+      eventId,
+      req.userId,
+      finalTitle,
+      finalDescription,
+      finalSport,
+      finalRegion,
+      finalSubRegion,
+      finalVenue,
+      finalStartAt,
+      finalEndAt,
+      finalWebsite,
+      finalOrganizerName
+    )
+
+    // 수정 시 스팸 체크 재수행 (최종 값 사용)
+    checkSpamAsync(event.id, finalTitle, finalDescription).catch((error) => {
+      console.error('비동기 스팸 체크 오류:', error)
+    })
+
+    // 응답 데이터
+    const eventData = {
+      id: event.id,
+      organizer_user_id: event.organizer_user_id,
+      organizer_user_name: event.organizer_user_name,
+      title: event.title,
+      description: event.description,
+      sport: event.sport,
+      region: event.region,
+      sub_region: event.sub_region,
+      venue: event.venue,
+      address: event.address,
+      start_at: event.start_at,
+      end_at: event.end_at,
+      website: event.website,
+      status: event.status,
+      event_status: event.eraser || 'active', // 생명주기 상태 (active/inactive/deleted) - DB 컬럼명: eraser
+      is_active: EventModel.isActive(event.end_at),
+      created_at: event.created_at,
+      updated_at: event.updated_at,
+    }
+
+    res.json({ event: eventData })
+  } catch (error: any) {
+    console.error('행사 수정 오류:', error)
+    
+    if (error.message === '행사를 찾을 수 없습니다' || error.message === '행사를 수정할 권한이 없습니다') {
+      return res.status(403).json({ error: error.message })
+    }
+
+    res.status(500).json({ 
+      error: error.message || '행사 수정 중 오류가 발생했습니다'
+    })
+  }
+})
+
+/**
+ * 행사 삭제
+ */
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 기존 행사 데이터 가져오기
+    const existingEvent = await EventModel.findById(eventId)
+    if (!existingEvent) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 권한 확인
+    if (existingEvent.organizer_user_id !== req.userId) {
+      return res.status(403).json({ error: '행사를 삭제할 권한이 없습니다' })
+    }
+
+    // 행사 삭제
+    await EventModel.delete(eventId)
+
+    res.json({ message: '행사가 삭제되었습니다' })
+  } catch (error: any) {
+    console.error('행사 삭제 오류:', error)
+    
+    if (error.message === '행사를 찾을 수 없습니다' || error.message === '행사를 삭제할 권한이 없습니다') {
+      return res.status(403).json({ error: error.message })
+    }
+
+    res.status(500).json({ 
+      error: error.message || '행사 삭제 중 오류가 발생했습니다'
+    })
   }
 })
 
@@ -150,7 +382,17 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
     }
 
-    res.json({ event })
+    // deleted 상태여도 데이터는 반환 (DB에는 남아있음)
+    // 프론트엔드에서 event_status를 확인하여 필터링함
+    
+    // is_active 필드 추가
+    const eventWithStatus = {
+      ...event,
+      event_status: event.eraser ?? 'active', // 기본값 active - DB 컬럼명: eraser
+      is_active: EventModel.isActive(event.end_at),
+    }
+
+    res.json({ event: eventWithStatus })
   } catch (error: any) {
     console.error('행사 조회 오류:', error)
     res.status(500).json({ error: '행사 조회 중 오류가 발생했습니다' })

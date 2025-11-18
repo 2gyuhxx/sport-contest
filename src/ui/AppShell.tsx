@@ -79,12 +79,17 @@ function AppHeader() {
           <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
             {isAuthenticated && user ? (
               <>
-                <Link
-                  to="/my"
-                  className="flex items-center gap-2 rounded-full bg-surface px-4 py-2 transition hover:bg-slate-100"
-                >
+                {/* 사용자 이름 (클릭 불가, 살짝 왼쪽 정렬 느낌으로 단독 표시) */}
+                <div className="flex items-center gap-2 rounded-full bg-surface px-4 py-2">
                   <User className="h-4 w-4 text-brand-primary" />
                   <span className="font-semibold text-slate-900">{user.name}</span>
+                </div>
+                {/* 별도 마이페이지 버튼 */}
+                <Link
+                  to="/my"
+                  className="rounded-full border border-slate-300 px-4 py-2 text-slate-700 transition hover:border-brand-primary hover:text-brand-primary"
+                >
+                  마이페이지
                 </Link>
                 <button
                   type="button"

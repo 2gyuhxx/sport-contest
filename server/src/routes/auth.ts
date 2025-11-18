@@ -396,5 +396,33 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+/**
+ * 회원탈퇴
+ */
+router.delete('/me', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 사용자 존재 확인
+    const user = await UserModel.findById(req.userId)
+    if (!user) {
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다' })
+    }
+
+    // 사용자 및 관련 데이터 삭제
+    await UserModel.delete(req.userId)
+
+    // 모든 세션 토큰 무효화 (이미 삭제되었지만 추가 안전장치)
+    await SessionTokenModel.revokeAll(req.userId)
+
+    res.json({ message: '회원탈퇴가 완료되었습니다' })
+  } catch (error) {
+    console.error('회원탈퇴 오류:', error)
+    res.status(500).json({ error: '회원탈퇴 중 오류가 발생했습니다' })
+  }
+})
+
 export default router
 

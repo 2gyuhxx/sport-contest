@@ -6,6 +6,7 @@ export type Category =
   | 'volleyball'
   | 'esports'
   | 'fitness'
+  | 'tennis'
 
 export interface Event {
   id: string
@@ -23,6 +24,7 @@ export interface Event {
   link?: string // 관련 링크
   description?: string // 상세 내용
   sport?: string // DB의 스포츠 종목 (소분류 이름)
+  event_status?: 'active' | 'inactive' | 'deleted' // 행사 생명주기 상태
 }
 
 export interface RegionMeta {

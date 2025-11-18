@@ -5,13 +5,14 @@ import type { EventAction, EventContextValue, EventState } from './types'
 import type { EventFilters } from '../types/events'
 
 const initialState: EventState = {
-  events: [], // 초기에는 빈 배열, useEffect에서 로드
+  events: [], // 초기값은 빈 배열, DB에서 로드
   regions: EventService.getRegionsStatic(),
   categories: EventService.getCategories(),
   selectedRegion: null,
   selectedCategory: null,
   keyword: '',
   activeEventId: null,
+  isLoading: true, // 초기 로딩 상태
 }
 
 function eventReducer(state: EventState, action: EventAction): EventState {
@@ -35,7 +36,7 @@ function eventReducer(state: EventState, action: EventAction): EventState {
     case 'SET_ACTIVE_EVENT':
       return { ...state, activeEventId: action.payload }
     case 'SET_EVENTS':
-      return { ...state, events: action.payload }
+      return { ...state, events: action.payload, isLoading: false }
     case 'INCREMENT_EVENT_VIEWS':
       // 특정 이벤트의 조회수만 +1 (로컬 상태 업데이트)
       return {
@@ -44,6 +45,8 @@ function eventReducer(state: EventState, action: EventAction): EventState {
           event.id === action.payload ? { ...event, views: event.views + 1 } : event
         ),
       }
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload }
     default:
       return state
   }
@@ -71,6 +74,25 @@ export function EventProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadEvents()
   }, [loadEvents])
+
+  // 컴포넌트 마운트 시 DB에서 행사 데이터 로드
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        dispatch({ type: 'SET_LOADING', payload: true })
+        const dbEvents = await EventService.getAllEventsFromDB()
+        console.log('[EventContext] 로드된 행사 수:', dbEvents.length)
+        dispatch({ type: 'SET_EVENTS', payload: dbEvents })
+      } catch (error) {
+        console.error('행사 데이터 로드 오류:', error)
+        // 오류 발생 시 빈 배열 유지하고 로딩 상태 해제
+        dispatch({ type: 'SET_LOADING', payload: false })
+        dispatch({ type: 'SET_EVENTS', payload: [] })
+      }
+    }
+
+    loadEvents()
+  }, [])
 
   const appliedFilters: EventFilters = useMemo(
     () => ({

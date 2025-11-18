@@ -8,6 +8,7 @@ export interface EventState {
   selectedCategory: Category | null
   keyword: string
   activeEventId: string | null
+  isLoading: boolean
 }
 
 export type EventAction =
@@ -18,6 +19,7 @@ export type EventAction =
   | { type: 'SET_ACTIVE_EVENT'; payload: string | null }
   | { type: 'SET_EVENTS'; payload: Event[] }
   | { type: 'INCREMENT_EVENT_VIEWS'; payload: string }
+  | { type: 'SET_LOADING'; payload: boolean }
 
 export interface EventContextValue {
   state: EventState
