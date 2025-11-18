@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { formatDate } from '../utils/formatDate'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -10,11 +11,28 @@ export function EventDetailPage() {
     state: { events, regions },
   } = useEventContext()
 
-  const event = useMemo(() => events.find((item) => item.id === eventId), [eventId, events])
+  // deleted 상태인 행사는 제외하고 찾기
+  const event = useMemo(() => {
+    const found = events.find((item) => item.id === eventId)
+    // deleted 상태인 행사는 웹에서 보이지 않게 필터링 (DB에는 남아있음)
+    if (found && found.event_status === 'deleted') {
+      return null
+    }
+    return found
+  }, [eventId, events])
   const regionLabel = useMemo(
     () => regions.find((region) => region.id === event?.region)?.name ?? event?.region,
     [event?.region, regions],
   )
+
+  // 디버깅: event_status 확인
+  if (event) {
+    console.log('[EventDetailPage] 행사 정보:', {
+      id: event.id,
+      title: event.title,
+      event_status: event.event_status
+    })
+  }
 
   if (!event) {
     return (
@@ -47,6 +65,27 @@ export function EventDetailPage() {
             <span className="rounded-full bg-white px-3 py-1 shadow">
               조회수 {event.views.toLocaleString()}
             </span>
+            {event.event_status && event.event_status !== 'deleted' && (
+              <span
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 shadow ${
+                  event.event_status === 'active'
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-gray-50 text-gray-700'
+                }`}
+              >
+                {event.event_status === 'active' ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    활성화
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3.5 w-3.5" />
+                    비활성화
+                  </>
+                )}
+              </span>
+            )}
           </div>
         </header>
 

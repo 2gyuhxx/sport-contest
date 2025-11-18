@@ -12,6 +12,7 @@ const initialState: EventState = {
   selectedCategory: null,
   keyword: '',
   activeEventId: null,
+  isLoading: true, // 초기 로딩 상태
 }
 
 function eventReducer(state: EventState, action: EventAction): EventState {
@@ -35,7 +36,9 @@ function eventReducer(state: EventState, action: EventAction): EventState {
     case 'SET_ACTIVE_EVENT':
       return { ...state, activeEventId: action.payload }
     case 'SET_EVENTS':
-      return { ...state, events: action.payload }
+      return { ...state, events: action.payload, isLoading: false }
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload }
     default:
       return state
   }
@@ -48,11 +51,14 @@ export function EventProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadEvents = async () => {
       try {
+        dispatch({ type: 'SET_LOADING', payload: true })
         const dbEvents = await EventService.getAllEventsFromDB()
+        console.log('[EventContext] 로드된 행사 수:', dbEvents.length)
         dispatch({ type: 'SET_EVENTS', payload: dbEvents })
       } catch (error) {
         console.error('행사 데이터 로드 오류:', error)
-        // 오류 발생 시 빈 배열 유지
+        // 오류 발생 시 빈 배열 유지하고 로딩 상태 해제
+        dispatch({ type: 'SET_LOADING', payload: false })
         dispatch({ type: 'SET_EVENTS', payload: [] })
       }
     }

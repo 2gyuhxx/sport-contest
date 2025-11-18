@@ -25,25 +25,32 @@ downloadModelFromCloud()
     console.warn('[서버 시작] .env 파일에 NHN Cloud Object Storage 설정을 확인해주세요.')
   })
 
-// 끝난 지 2주가 지난 행사를 자동으로 삭제하는 스케줄러 (매일 새벽 3시에 실행)
-function scheduleExpiredEventsCleanup() {
-  const cleanup = async () => {
+// 행사 상태 업데이트 스케줄러 (매 1시간마다 실행)
+function scheduleEventStatusUpdate() {
+  const updateStatus = async () => {
     try {
-      const deletedCount = await EventModel.deleteExpiredEvents()
+      // 행사 종료 시 inactive로 변경
+      const inactiveCount = await EventModel.updateExpiredToInactive()
+      if (inactiveCount > 0) {
+        console.log(`[상태 업데이트] 종료된 행사 ${inactiveCount}개를 inactive로 변경했습니다.`)
+      }
+
+      // 종료일이 현재보다 14일 이상 지난 행사를 deleted로 변경
+      const deletedCount = await EventModel.updateExpiredToDeleted()
       if (deletedCount > 0) {
-        console.log(`[자동 삭제] 끝난 지 2주가 지난 행사 ${deletedCount}개를 삭제했습니다.`)
+        console.log(`[상태 업데이트] 종료 후 14일 이상 지난 행사 ${deletedCount}개를 deleted로 변경했습니다.`)
       }
     } catch (error) {
-      console.error('[자동 삭제] 오류:', error)
+      console.error('[상태 업데이트] 오류:', error)
     }
   }
 
   // 서버 시작 시 즉시 한 번 실행
-  cleanup()
+  updateStatus()
 
-  // 매 24시간마다 실행 (24시간 = 86400000ms)
-  setInterval(cleanup, 24 * 60 * 60 * 1000)
-  console.log('[자동 삭제] 스케줄러 시작: 매 24시간마다 끝난 지 2주가 지난 행사를 삭제합니다.')
+  // 매 1시간마다 실행 (1시간 = 3600000ms)
+  setInterval(updateStatus, 60 * 60 * 1000)
+  console.log('[상태 업데이트] 스케줄러 시작: 매 1시간마다 행사 상태를 업데이트합니다.')
 }
 
 // 미들웨어
@@ -96,7 +103,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`)
-  // 자동 삭제 스케줄러 시작
-  scheduleExpiredEventsCleanup()
+  // 행사 상태 업데이트 스케줄러 시작
+  scheduleEventStatusUpdate()
 })
 

@@ -245,7 +245,7 @@ export function CreateEventPage() {
           sub_region: formData.sub_region || '',
           venue: formData.address || null,
           start_at: formData.start_at || '',
-          end_at: formData.end_at || '',
+          end_at: formData.end_at || '', // 서버에서 23:59:59 자동 추가
           website: formData.link || null,
           organizer_user_name: formData.organizer || '',
         }
@@ -269,7 +269,7 @@ export function CreateEventPage() {
           sub_region: formData.sub_region, // 기초자치단체
           venue: formData.address || null, // 상세 주소
           start_at: formData.start_at,
-          end_at: formData.end_at,
+          end_at: formData.end_at, // 서버에서 23:59:59 자동 추가
           website: formData.link || null,
           organizer_user_name: formData.organizer, // 개최사
         })

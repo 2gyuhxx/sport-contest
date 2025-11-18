@@ -39,6 +39,7 @@ interface MyEventResponse {
     end_at: string
     website: string | null
     status: 'pending' | 'approved' | 'spam'
+    event_status?: 'active' | 'inactive' | 'deleted'
     is_active?: boolean
     created_at: string
     updated_at: string | null
@@ -61,6 +62,7 @@ interface AllEventsResponse {
     end_at: string
     website: string | null
     status: 'pending' | 'approved' | 'spam'
+    event_status?: 'active' | 'inactive' | 'deleted'
     is_active?: boolean
     created_at: string
     updated_at: string | null
@@ -311,13 +313,55 @@ export const EventService = {
   async getAllEventsFromDB(): Promise<Event[]> {
     try {
       const response = await apiRequest<AllEventsResponse>('/events')
-      // status가 'approved'이고 is_active가 true인 행사만 필터링
+      console.log('[EventService] 전체 API 응답:', {
+        totalEvents: response.events.length,
+        events: response.events.map(e => ({
+          id: e.id,
+          title: e.title,
+          status: e.status,
+          event_status: e.event_status
+        }))
+      })
+      
+      // status가 'approved'이고 event_status가 'deleted'가 아닌 행사만 필터링
+      // deleted 상태인 행사는 웹에서 보이지 않게 필터링 (DB에는 남아있음)
       const approvedEvents = response.events.filter(
-        (e) => e.status === 'approved' && (e.is_active === undefined || e.is_active === true)
+        (e) => {
+          const isApproved = e.status === 'approved'
+          // event_status가 'deleted'가 아니면 통과 (undefined나 null인 경우도 통과)
+          const isNotDeleted = e.event_status !== 'deleted'
+          const result = isApproved && isNotDeleted
+          console.log('[EventService] 필터링 체크:', {
+            id: e.id,
+            title: e.title,
+            status: e.status,
+            event_status: e.event_status,
+            isApproved,
+            isNotDeleted,
+            result
+          })
+          return result
+        }
       )
+      
+      console.log('[EventService] 필터링 후:', {
+        filteredCount: approvedEvents.length,
+        events: approvedEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          status: e.status,
+          event_status: e.event_status
+        }))
+      })
 
       // DB 형식을 Event 형식으로 변환
       return approvedEvents.map((e) => {
+        console.log('[EventService] 행사 변환:', {
+          id: e.id,
+          title: e.title,
+          event_status: e.event_status,
+          eraser: (e as any).eraser
+        })
         // sport를 category로 매핑 (DB의 sport 값 -> Event 타입의 category)
         const sportToCategory: Record<string, Category> = {
           'team-ball': 'football',
@@ -357,10 +401,13 @@ export const EventService = {
         const category = sportToCategory[e.sport] || 'fitness'
         const image = defaultImages[e.sport] || defaultImages['other']
 
+        const description = e.description || ''
+        const summary = description.length > 100 ? description.substring(0, 100) + '...' : description
+
         return {
           id: String(e.id),
           title: e.title,
-          summary: e.description.length > 100 ? e.description.substring(0, 100) + '...' : e.description,
+          summary,
           region: e.region,
           city: e.sub_region || e.region,
           address: e.address || e.venue || `${e.region} ${e.sub_region || ''}`,
@@ -370,7 +417,8 @@ export const EventService = {
           views: 0, // DB에 views 필드가 없으므로 기본값 0
           organizer: e.organizer_user_name || undefined,
           link: e.website || undefined,
-          description: e.description,
+          description,
+          event_status: e.event_status ?? 'active', // 생명주기 상태 (nullish coalescing: undefined나 null일 때만 기본값)
         }
       })
     } catch (error) {

@@ -1,6 +1,7 @@
 import pool from '../config/database.js'
 
 export type EventStatus = 'pending' | 'approved' | 'spam'
+export type EventLifecycleStatus = 'active' | 'inactive' | 'deleted'
 
 export interface EventRow {
   id: number
@@ -17,6 +18,7 @@ export interface EventRow {
   end_at: Date
   website: string | null
   status: EventStatus
+  eraser: EventLifecycleStatus | null
   created_at: Date
   updated_at: Date | null
 }
@@ -50,10 +52,26 @@ export class EventModel {
     organizerUserName: string,
     status: EventStatus = 'pending'
   ): Promise<EventRow> {
+    // 행사 생성 시 start_at이 현재 날짜보다 이전이면 'inactive', 아니면 'active'로 설정
+    const now = new Date()
+    const startDate = new Date(startAt)
+    
+    // 날짜 비교 (시간 포함)
+    const isPast = startDate.getTime() < now.getTime()
+    const eventStatus: EventLifecycleStatus = isPast ? 'inactive' : 'active'
+    
+    console.log('[행사 생성] 날짜 비교:', {
+      startAt,
+      startDate: startDate.toISOString(),
+      now: now.toISOString(),
+      isPast,
+      eventStatus
+    })
+    
     const [result] = await pool.execute(
-      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, region, sub_region, venue, address, start_at, end_at, website, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [organizerUserId, organizerUserName, title, description, sport, region, subRegion, venue || null, null, startAt, endAt, website || null, status]
+      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, region, sub_region, venue, address, start_at, end_at, website, status, eraser)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [organizerUserId, organizerUserName, title, description, sport, region, subRegion, venue || null, null, startAt, endAt, website || null, status, eventStatus]
     )
 
     const insertResult = result as { insertId: number }
@@ -147,20 +165,70 @@ export class EventModel {
   }
 
   /**
-   * 끝난 지 2주가 지난 행사들을 자동으로 삭제
+   * 행사 종료 시 inactive로 변경
    */
-  static async deleteExpiredEvents(): Promise<number> {
-    // 현재 시간에서 2주 전 시간 계산
-    const twoWeeksAgo = new Date()
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-    
+  static async updateExpiredToInactive(): Promise<number> {
+    const now = new Date()
     const [result] = await pool.execute(
-      'DELETE FROM events WHERE end_at < ?',
-      [twoWeeksAgo.toISOString().slice(0, 19).replace('T', ' ')]
+      `UPDATE events 
+       SET eraser = 'inactive', updated_at = NOW() 
+       WHERE end_at < ? 
+       AND (eraser = 'active' OR eraser IS NULL)`,
+      [now.toISOString().slice(0, 19).replace('T', ' ')]
     )
     
-    const deleteResult = result as { affectedRows: number }
-    return deleteResult.affectedRows || 0
+    const updateResult = result as { affectedRows: number }
+    return updateResult.affectedRows || 0
+  }
+
+  /**
+   * 종료일이 현재보다 14일 이상 지난 행사를 deleted로 변경 (실제 삭제는 하지 않음)
+   */
+  static async updateExpiredToDeleted(): Promise<number> {
+    // 현재 시간에서 14일 전 시간 계산
+    const now = new Date()
+    const twoWeeksAgo = new Date(now)
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+    
+    const twoWeeksAgoStr = twoWeeksAgo.toISOString().slice(0, 19).replace('T', ' ')
+    
+    console.log('[updateExpiredToDeleted] 날짜 비교:', {
+      now: now.toISOString(),
+      twoWeeksAgo: twoWeeksAgoStr,
+      criteria: `end_at < '${twoWeeksAgoStr}'`
+    })
+    
+    // 종료일이 14일 이상 지난 행사를 deleted로 변경 (eraser 상태와 무관하게)
+    const [result] = await pool.execute(
+      `UPDATE events 
+       SET eraser = 'deleted', updated_at = NOW() 
+       WHERE end_at < ? 
+       AND eraser != 'deleted'`,
+      [twoWeeksAgoStr]
+    )
+    
+    const updateResult = result as { affectedRows: number }
+    console.log('[updateExpiredToDeleted] 업데이트 결과:', {
+      affectedRows: updateResult.affectedRows || 0
+    })
+    
+    // 업데이트된 행사 확인
+    if (updateResult.affectedRows && updateResult.affectedRows > 0) {
+      const [updatedEvents] = await pool.execute(
+        `SELECT id, title, end_at, eraser FROM events WHERE eraser = 'deleted' AND updated_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)`
+      )
+      console.log('[updateExpiredToDeleted] deleted로 변경된 행사:', updatedEvents)
+    }
+    
+    return updateResult.affectedRows || 0
+  }
+
+  /**
+   * 끝난 지 2주가 지난 행사들을 자동으로 삭제 (기존 호환성 유지)
+   */
+  static async deleteExpiredEvents(): Promise<number> {
+    // deleted 상태로 변경만 하고 실제 삭제는 하지 않음
+    return await this.updateExpiredToDeleted()
   }
 
   /**

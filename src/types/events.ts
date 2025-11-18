@@ -23,6 +23,7 @@ export interface Event {
   organizer?: string // 개최사
   link?: string // 관련 링크
   description?: string // 상세 내용
+  event_status?: 'active' | 'inactive' | 'deleted' // 행사 생명주기 상태
 }
 
 export interface RegionMeta {
