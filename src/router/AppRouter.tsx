@@ -1,6 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { HomePage } from '../pages/HomePage'
-import { AllEventsPage } from '../pages/AllEventsPage'
 import { SearchPage } from '../pages/SearchPage'
 import { EventDetailPage } from '../pages/EventDetailPage'
 import { CreateEventPage } from '../pages/CreateEventPage'
@@ -18,7 +17,6 @@ export function AppRouter() {
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
-          <Route path="/events" element={<AllEventsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/admin/events/create" element={<CreateEventPage />} />
           <Route path="/admin/events/edit/:eventId" element={<CreateEventPage />} />
