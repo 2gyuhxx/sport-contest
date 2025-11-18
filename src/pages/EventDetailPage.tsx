@@ -2,7 +2,7 @@ import { useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { formatDate } from '../utils/formatDate'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
 import { EventService } from '../services/EventService'
 
 export function EventDetailPage() {
@@ -82,6 +82,26 @@ export function EventDetailPage() {
             <span className="rounded-full bg-white px-3 py-1 shadow">
               조회수 {event.views.toLocaleString()}
             </span>
+            {/* 진행/종료 상태 배지 */}
+            {event.event_status && (
+              <div className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                event.event_status === 'active'
+                  ? 'bg-green-100 text-green-800 border-green-300'
+                  : 'bg-gray-100 text-gray-800 border-gray-300'
+              }`}>
+                {event.event_status === 'active' ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>진행</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3.5 w-3.5" />
+                    <span>종료</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </header>
 

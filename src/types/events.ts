@@ -28,6 +28,7 @@ export interface Event {
   link?: string // 관련 링크
   description?: string // 상세 내용
   sport?: string // DB의 스포츠 종목 (소분류 이름)
+  event_status?: 'active' | 'inactive' // 행사 상태 (eraser 필드에서 변환)
 }
 
 export interface RegionMeta {
