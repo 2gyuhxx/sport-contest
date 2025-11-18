@@ -3,7 +3,6 @@ import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
 import { getCategoryLabel } from '../../utils/categoryLabels'
-import { ExternalLink } from 'lucide-react'
 
 interface EventCardProps {
   event: Event

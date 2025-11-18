@@ -11,9 +11,9 @@ async function apiRequest<T>(
   // 토큰 가져오기
   const token = localStorage.getItem('accessToken')
   
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...options.headers as Record<string, string>,
   }
 
   if (token) {
@@ -43,10 +43,13 @@ async function apiRequest<T>(
           // 토큰 갱신 성공 시 재시도
           const newToken = localStorage.getItem('accessToken')
           if (newToken) {
-            headers['Authorization'] = `Bearer ${newToken}`
+            const retryHeaders: Record<string, string> = {
+              ...headers,
+              'Authorization': `Bearer ${newToken}`,
+            }
             const retryResponse = await fetch(url, {
               ...options,
-              headers,
+              headers: retryHeaders,
             })
             if (retryResponse.ok) {
               return retryResponse.json()
