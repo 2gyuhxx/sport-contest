@@ -94,31 +94,31 @@ export function EventsPage() {
       case 'recommended':
         // 추천 정렬: 사용자의 관심 카테고리를 기반으로 추천
         if (user?.interests && user.interests.length > 0) {
+          const userInterests = user.interests as string[]
+          
+          // 관심사와 매칭되는 행사만 필터링
+          filtered = filtered.filter(event => {
+            return userInterests.some(interest => 
+              event.title.includes(interest) || 
+              event.description?.includes(interest) || 
+              event.sport?.includes(interest)
+            )
+          })
+          
+          // 매칭된 행사들을 날짜 가중치 + 조회수로 정렬
           filtered.sort((a, b) => {
-            // 사용자의 관심 카테고리 이름 배열
-            const userInterests = user.interests as string[]
-            
-            // 행사 설명에 관심 카테고리가 포함되어 있는지 확인 (간단한 매칭)
-            const aScore = userInterests.some(interest => 
-              a.title.includes(interest) || a.description?.includes(interest)
-            ) ? 1000 : 0
-            const bScore = userInterests.some(interest => 
-              b.title.includes(interest) || b.description?.includes(interest)
-            ) ? 1000 : 0
-            
-            // 관심 카테고리 매칭 점수 + 조회수 + 날짜 가중치
             const today = new Date().toISOString().split('T')[0]
             const aDateScore = a.date >= today ? 500 : 0
             const bDateScore = b.date >= today ? 500 : 0
             
-            const aTotal = aScore + aDateScore + Math.log(a.views + 1) * 10
-            const bTotal = bScore + bDateScore + Math.log(b.views + 1) * 10
+            const aTotal = aDateScore + Math.log(a.views + 1) * 10
+            const bTotal = bDateScore + Math.log(b.views + 1) * 10
             
             return bTotal - aTotal
           })
         } else {
-          // 로그인하지 않았거나 관심사가 없으면 인기순으로 폴백
-          filtered.sort((a, b) => b.views - a.views)
+          // 로그인하지 않았거나 관심사가 없으면 빈 배열 반환
+          filtered = []
         }
         break
       case 'latest':
@@ -390,7 +390,13 @@ export function EventsPage() {
             layout={layoutMode}
             columns={layoutMode === 'grid' ? 3 : 2}
             cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
-            emptyMessage="조건에 맞는 행사가 없습니다."
+            emptyMessage={
+              sortBy === 'recommended' && isAuthenticated
+                ? user?.interests && user.interests.length > 0
+                  ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
+                  : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
+                : '조건에 맞는 행사가 없습니다.'
+            }
             detailHrefBase="/events/"
           />
         </div>
