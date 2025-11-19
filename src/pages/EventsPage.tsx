@@ -76,11 +76,47 @@ export function EventsPage() {
   const filteredAndSortedEvents = useMemo(() => {
     let filtered = [...events]
 
-    // 소분류 카테고리 필터 (sport 필드로 정확하게 필터링)
-    if (selectedSubSportCategoryId) {
-      const selectedSubCategory = subSportCategories.find(sub => sub.id === selectedSubSportCategoryId)
-      if (selectedSubCategory) {
-        filtered = filtered.filter((event) => event.sport === selectedSubCategory.name)
+    // 대분류 또는 소분류 카테고리 필터
+    if (selectedSportCategoryId) {
+      // 대분류가 선택된 경우
+      const selectedCategory = sportCategories.find(cat => cat.id === selectedSportCategoryId)
+      
+      if (!selectedCategory) {
+        // 대분류를 찾을 수 없으면 필터링하지 않음
+        return filtered
+      }
+
+      if (selectedSubSportCategoryId) {
+        // 소분류도 선택된 경우: 해당 소분류만 필터링
+        const selectedSubCategory = subSportCategories.find(sub => sub.id === selectedSubSportCategoryId)
+        if (selectedSubCategory) {
+          filtered = filtered.filter((event) => 
+            event.sub_sport === selectedSubCategory.name || 
+            event.sport === selectedSubCategory.name
+          )
+        }
+      } else {
+        // 대분류만 선택된 경우: 해당 대분류에 속한 모든 소분류 필터링
+        if (subSportCategories.length > 0) {
+          // subSportCategories의 category_name이 선택된 대분류 이름과 일치하는지 확인
+          const validSubCategories = subSportCategories.filter(
+            sub => sub.category_name === selectedCategory.name
+          )
+          
+          if (validSubCategories.length > 0) {
+            const subCategoryNames = validSubCategories.map(sub => sub.name)
+            filtered = filtered.filter((event) => 
+              (event.sub_sport && subCategoryNames.includes(event.sub_sport)) ||
+              (!event.sub_sport && event.sport && subCategoryNames.includes(event.sport))
+            )
+          } else {
+            // category_name이 일치하는 소분류가 없으면 모든 행사 표시하지 않음
+            filtered = []
+          }
+        } else {
+          // 소분류가 없는 경우 (대분류에 소분류가 없음)
+          filtered = []
+        }
       }
     }
 
@@ -137,7 +173,7 @@ export function EventsPage() {
     }
 
     return filtered
-  }, [events, selectedSubSportCategoryId, selectedRegion, sortBy, user, subSportCategories])
+  }, [events, selectedSportCategoryId, selectedSubSportCategoryId, selectedRegion, sortBy, user, subSportCategories, sportCategories])
 
   if (isLoading) {
     return (

@@ -81,6 +81,7 @@ export class EventScheduler {
    */
   static async listEvents(): Promise<void> {
     try {
+      // MySQL 버전에 따라 컬럼명이 다를 수 있으므로 기본 컬럼만 조회
       const [rows] = await pool.execute<any[]>(`
         SELECT 
           EVENT_NAME,
@@ -88,8 +89,7 @@ export class EventScheduler {
           INTERVAL_VALUE,
           INTERVAL_FIELD,
           STATUS,
-          LAST_EXECUTED,
-          NEXT_EXECUTION_TIME
+          LAST_EXECUTED
         FROM information_schema.EVENTS
         WHERE EVENT_SCHEMA = DATABASE()
       `)
@@ -102,7 +102,9 @@ export class EventScheduler {
           console.log(`  - ${event.EVENT_NAME}: ${event.EVENT_DEFINITION}`)
           console.log(`    실행 주기: ${event.INTERVAL_VALUE} ${event.INTERVAL_FIELD}`)
           console.log(`    상태: ${event.STATUS}`)
-          console.log(`    다음 실행: ${event.NEXT_EXECUTION_TIME}`)
+          if (event.LAST_EXECUTED) {
+            console.log(`    마지막 실행: ${event.LAST_EXECUTED}`)
+          }
         })
       }
     } catch (error) {

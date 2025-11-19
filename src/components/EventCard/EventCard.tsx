@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
-import { getCategoryLabel } from '../../utils/categoryLabels'
 import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface EventCardProps {
@@ -68,7 +67,7 @@ export function EventCard({
           loading="lazy"
         />
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary">
-          {event.sport || getCategoryLabel(event.category)}
+          {event.sub_sport || event.sport || ''}
         </span>
         {/* 진행/종료 상태 배지 */}
         {event.event_status && (

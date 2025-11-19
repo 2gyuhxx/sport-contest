@@ -53,7 +53,8 @@ interface DBEvent {
   organizer_user_name: string | null
   title: string
   description: string
-  sport: string
+  sport: string // 대분류 이름
+  sub_sport: string | null // 소분류 이름
   region: string
   sub_region: string
   venue: string | null
@@ -188,7 +189,8 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
     organizer: dbEvent.organizer_user_name || undefined,
     link: dbEvent.website || undefined,
     description: dbEvent.description,
-    sport: dbEvent.sport, // DB의 스포츠 종목 (소분류 이름)
+    sport: dbEvent.sub_sport || dbEvent.sport, // 소분류가 있으면 소분류, 없으면 대분류 사용
+    sub_sport: dbEvent.sub_sport || null, // 소분류 이름 (별도 필드로 저장)
     event_status: (dbEvent.eraser === 'active' || dbEvent.eraser === 'inactive') ? dbEvent.eraser : undefined, // eraser를 event_status로 변환
   }
 }

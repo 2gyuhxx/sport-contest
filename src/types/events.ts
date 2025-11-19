@@ -27,7 +27,8 @@ export interface Event {
   organizer?: string // 개최사
   link?: string // 관련 링크
   description?: string // 상세 내용
-  sport?: string // DB의 스포츠 종목 (소분류 이름)
+  sport?: string // DB의 스포츠 종목 (소분류 우선, 없으면 대분류)
+  sub_sport?: string | null // DB의 소분류 이름
   event_status?: 'active' | 'inactive' // 행사 상태 (eraser 필드에서 변환)
 }
 
