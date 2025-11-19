@@ -5,11 +5,14 @@ declare global {
       maps: {
         Map: new (container: HTMLElement, options: any) => any
         LatLng: new (lat: number, lng: number) => any
+        LatLngBounds: new () => any
         Marker: new (options: any) => any
         InfoWindow: new (options: any) => any
         MarkerClusterer: new (options: any) => any
+        Polygon: new (options: any) => any
+        CustomOverlay: new (options: any) => any
         event: {
-          addListener: (target: any, type: string, callback: () => void) => void
+          addListener: (target: any, type: string, callback: (event?: any) => void) => void
         }
         services: {
           Geocoder: new () => {

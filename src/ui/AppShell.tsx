@@ -121,17 +121,7 @@ function AppHeader() {
         <nav className="flex flex-wrap gap-3 text-sm font-medium text-slate-600">
           <NavLink
             to="/"
-            className={({ isActive }) =>
-              classNames(
-                'rounded-full px-3 py-1 transition',
-                isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
-              )
-            }
-          >
-            홈
-          </NavLink>
-          <NavLink
-            to="/events"
+            end
             className={({ isActive }) =>
               classNames(
                 'rounded-full px-3 py-1 transition',

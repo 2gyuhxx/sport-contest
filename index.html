@@ -34,13 +34,6 @@
         opacity: 0.3;
       }
       
-      /* 카카오맵 타일 이미지 내의 텍스트 오버레이 제거 */
-      .map_tiledmap img[src*="map_label"],
-      .map_tiledmap img[src*="dist_"],
-      .kakao_map_tileset img {
-        filter: brightness(1.1) contrast(0.95);
-      }
-      
       /* 거리/시간 표시 텍스트 레이어 숨기기 */
       div[style*="position: absolute"][style*="pointer-events: none"] {
         display: none !important;
@@ -53,11 +46,6 @@
       .label_distance,
       .label_time {
         display: none !important;
-      }
-      
-      /* 카카오맵 레이어의 모든 텍스트 숨기기 (거리/시간 표시) */
-      .map_tiledmap > div > div {
-        filter: saturate(1.1);
       }
     </style>
   </head>

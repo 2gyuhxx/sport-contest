@@ -1,33 +1,35 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { Calendar, Search, X } from 'lucide-react'
+import { Calendar, X, ArrowLeft } from 'lucide-react'
 import { useEventContext } from '../context/useEventContext'
 import type { Category, Event } from '../types/events'
 import { formatDate } from '../utils/formatDate'
 import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
+import { KOREA_REGION_PATHS } from '../data/koreaRegionPaths'
 import '../types/kakao.d.ts'
 
 type CategoryFilter = 'all' | Category
 
-// 지역별 중심 좌표 (카카오맵 기준)
+// 지역별 중심 좌표 및 Polygon 경로 (카카오맵 기준)
 const REGION_COORDINATES: Record<string, { lat: number; lng: number; level: number }> = {
-  seoul: { lat: 37.5665, lng: 126.9780, level: 8 },
-  busan: { lat: 35.1796, lng: 129.0756, level: 8 },
-  daegu: { lat: 35.8714, lng: 128.6014, level: 8 },
-  incheon: { lat: 37.4563, lng: 126.7052, level: 8 },
-  gwangju: { lat: 35.1595, lng: 126.8526, level: 8 },
-  daejeon: { lat: 36.3504, lng: 127.3845, level: 8 },
-  ulsan: { lat: 35.5384, lng: 129.3114, level: 8 },
-  sejong: { lat: 36.4800, lng: 127.2890, level: 8 },
-  gyeonggi: { lat: 37.4138, lng: 127.5183, level: 10 },
-  gangwon: { lat: 37.8228, lng: 128.1555, level: 10 },
-  chungbuk: { lat: 36.6357, lng: 127.4914, level: 9 },
-  chungnam: { lat: 36.5184, lng: 126.8000, level: 9 },
-  jeonbuk: { lat: 35.7175, lng: 127.1530, level: 9 },
-  jeonnam: { lat: 34.8161, lng: 126.4629, level: 9 },
-  gyeongbuk: { lat: 36.4919, lng: 128.8889, level: 10 },
-  gyeongnam: { lat: 35.4606, lng: 128.2132, level: 9 },
-  jeju: { lat: 33.4890, lng: 126.4983, level: 9 },
+  seoul: { lat: 37.5665, lng: 126.9780, level: 9 }, // 서울은 그대로 유지
+  busan: { lat: 35.1796, lng: 129.0756, level: 10 }, // 9 → 10
+  daegu: { lat: 35.8714, lng: 128.6014, level: 10 }, // 9 → 10
+  incheon: { lat: 37.4563, lng: 126.7052, level: 10 }, // 9 → 10
+  gwangju: { lat: 35.1595, lng: 126.8526, level: 10 }, // 9 → 10
+  daejeon: { lat: 36.3504, lng: 127.3845, level: 10 }, // 9 → 10
+  ulsan: { lat: 35.5384, lng: 129.3114, level: 10 }, // 9 → 10
+  sejong: { lat: 36.4800, lng: 127.2890, level: 10 }, // 9 → 10
+  gyeonggi: { lat: 37.4138, lng: 127.5183, level: 11}, // 11 → 12 (경기도 전체가 보이도록)
+  gangwon: { lat: 37.8228, lng: 128.1555, level: 12 }, // 11 → 12 (강원도 전체가 보이도록)
+  chungbuk: { lat: 36.6357, lng: 127.4914, level: 11 }, // 10 → 11 (충청북도 전체가 보이도록)
+  chungnam: { lat: 36.5184, lng: 126.8000, level: 11 }, // 10 → 11 (충청남도 전체가 보이도록)
+  jeonbuk: { lat: 35.7175, lng: 127.1530, level: 11 }, // 10 → 11 (전북 전체가 보이도록)
+  jeonnam: { lat: 34.8161, lng: 126.4629, level: 11 }, // 10 → 11 (전남 전체가 보이도록)
+  gyeongbuk: { lat: 36.4919, lng: 128.8889, level: 12 }, // 11 → 12 (경북 전체가 보이도록)
+  gyeongnam: { lat: 35.4606, lng: 128.2132, level: 11 }, // 10 → 11 (경남 전체가 보이도록)
+  jeju: { lat: 33.4890, lng: 126.4983, level: 10 }, // 9 → 10
 }
+
 
 // 스포츠 카테고리 정보
 const SPORT_CATEGORIES: { value: Category; label: string; emoji: string }[] = [
@@ -65,8 +67,12 @@ export function SearchPage() {
   const markersRef = useRef<any[]>([])
   const infowindowRef = useRef<any>(null) // 공유 InfoWindow
   const currentMarkerRef = useRef<any>(null) // 현재 열려있는 마커
+  
+  // 시/군/구 경계선 ref
+  const detailPolygonsRef = useRef<any[]>([])
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [showDetailMap, setShowDetailMap] = useState(false)
 
   const initialRegion = state?.selectedRegion ?? null
   const initialCategory = (state?.selectedCategory ?? 'all') as CategoryFilter
@@ -76,6 +82,12 @@ export function SearchPage() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(initialCategory)
   const [searchTerm, setSearchTerm] = useState(initialKeyword)
 
+  // Polygon과 CustomOverlay ref
+  const polygonsRef = useRef<{ polygon: any; regionId: string }[]>([])
+  const customOverlayRef = useRef<any>(null) // 시/도용 CustomOverlay
+  const sigunguOverlayRef = useRef<any>(null) // 시/군/구용 CustomOverlay
+  const koreaBoundsRef = useRef<any>(null) // 대한민국 경계 저장
+
   // 카카오맵 초기화
   useEffect(() => {
     if (!mapContainerRef.current || !window.kakao?.maps) return
@@ -83,7 +95,7 @@ export function SearchPage() {
     const container = mapContainerRef.current
     const options = {
       center: new window.kakao.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
-      level: 12, // 대한민국 전체가 보이는 레벨
+      level: 13, // 대한민국 전체가 보이는 레벨
     }
 
     const map = new window.kakao.maps.Map(container, options)
@@ -92,8 +104,6 @@ export function SearchPage() {
     // 지도 타입 컨트롤 및 줌 컨트롤 제거
     map.setZoomable(true) // 줌은 가능하게
     map.setDraggable(true) // 드래그 가능하게
-
-    // 마커 클러스터러는 사용하지 않음 (개별 마커만 표시)
 
     // 지도 레벨 제한 (대한민국만 보이도록)
     map.setMinLevel(8) // 최대 확대 레벨 (숫자가 작을수록 확대)
@@ -137,14 +147,301 @@ export function SearchPage() {
 
     // 공유 InfoWindow 생성
     infowindowRef.current = new window.kakao.maps.InfoWindow({
-      removable: false,
+      removable: true,
     })
 
+    // CustomOverlay 생성 (시/도용)
+    customOverlayRef.current = new window.kakao.maps.CustomOverlay({
+      yAnchor: 1,
+    })
+    
+    // CustomOverlay 생성 (시/군/구용)
+    sigunguOverlayRef.current = new window.kakao.maps.CustomOverlay({
+      yAnchor: 1,
+    })
+
+    // 대한민국 외 모든 지역 가리기 (바다, 북한, 주변국 포함)
+    const overlayColor = '#FFF3E0'
+    
+    fetch('/korea-regions.geojson')
+      .then(response => response.json())
+      .then((geojson: any) => {
+        // 대한민국 전체 경계선을 하나의 배열로 수집
+        const koreaHoles: any[] = []
+        let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
+        
+        geojson.features.forEach((feature: any) => {
+          const geometry = feature.geometry
+          if (geometry.type === 'MultiPolygon') {
+            // MultiPolygon의 각 폴리곤마다 외곽선만 추출
+            geometry.coordinates.forEach((polygon: any) => {
+              const outerRing = polygon[0] // 첫 번째가 외곽선
+              const hole = outerRing
+                .filter((_: any, i: number) => i % 5 === 0) // 성능을 위해 간소화
+                .map((coord: any) => {
+                  // 경계 계산
+                  if (coord[1] < minLat) minLat = coord[1]
+                  if (coord[1] > maxLat) maxLat = coord[1]
+                  if (coord[0] < minLng) minLng = coord[0]
+                  if (coord[0] > maxLng) maxLng = coord[0]
+                  return new window.kakao.maps.LatLng(coord[1], coord[0])
+                })
+              koreaHoles.push(hole)
+            })
+          } else if (geometry.type === 'Polygon') {
+            const outerRing = geometry.coordinates[0]
+            const hole = outerRing
+              .filter((_: any, i: number) => i % 5 === 0)
+              .map((coord: any) => {
+                // 경계 계산
+                if (coord[1] < minLat) minLat = coord[1]
+                if (coord[1] > maxLat) maxLat = coord[1]
+                if (coord[0] < minLng) minLng = coord[0]
+                if (coord[0] > maxLng) maxLng = coord[0]
+                return new window.kakao.maps.LatLng(coord[1], coord[0])
+              })
+            koreaHoles.push(hole)
+          }
+        })
+        
+        // 대한민국 영역의 경계로 지도 영역 제한 (양옆을 7%씩 자름)
+        const latPadding = (maxLat - minLat) * 0.02  // 상하 2% 여유
+        const lngWidth = maxLng - minLng
+        
+        const sw = new window.kakao.maps.LatLng(minLat - latPadding, minLng + lngWidth * 0.07) // 왼쪽 7% 자름
+        const ne = new window.kakao.maps.LatLng(maxLat + latPadding, maxLng - lngWidth * 0.07) // 오른쪽 7% 자름
+        const koreaBounds = new window.kakao.maps.LatLngBounds()
+        koreaBounds.extend(sw)
+        koreaBounds.extend(ne)
+        
+        // ref에 저장하여 나중에 재사용
+        koreaBoundsRef.current = koreaBounds
+        
+        // 지도가 이 영역을 벗어나지 못하도록 설정
+        map.setMaxLevel(13) // 최대 축소 레벨
+        
+        // 드래그 종료 시 영역 체크
+        window.kakao.maps.event.addListener(map, 'dragend', () => {
+          const bounds = map.getBounds()
+          const mapSW = bounds.getSouthWest()
+          const mapNE = bounds.getNorthEast()
+          
+          // 현재 보이는 영역이 대한민국 경계를 벗어났는지 체크
+          if (!koreaBounds.contain(mapSW) || !koreaBounds.contain(mapNE)) {
+            // 대한민국 경계 안으로 다시 이동
+            map.setBounds(koreaBounds)
+          }
+        })
+        
+        // 초기에 대한민국 전체가 보이도록 설정
+        map.setBounds(koreaBounds)
+        
+        // 전체를 덮는 큰 박스 (외부 경로) - 화면 전체를 완전히 덮도록 확장
+        const outerBox = [
+          new window.kakao.maps.LatLng(50.0, 120.0),  // 좌상단 (더 넓게)
+          new window.kakao.maps.LatLng(50.0, 135.0),  // 우상단 (더 넓게)
+          new window.kakao.maps.LatLng(30.0, 135.0),  // 우하단 (더 넓게)
+          new window.kakao.maps.LatLng(30.0, 120.0),  // 좌하단 (더 넓게)
+        ]
+        
+        // path: [외부박스, ...대한민국구멍들]
+        const polygonPath = [outerBox, ...koreaHoles]
+        
+        new window.kakao.maps.Polygon({
+          map: map,
+          path: polygonPath,
+          strokeWeight: 0,
+          fillColor: overlayColor,
+          fillOpacity: 1.0,
+        })
+        
+        console.log('[대한민국 외 지역 가리기] 완료:', koreaHoles.length, '개 구멍')
+        console.log('[대한민국 경계]:', { minLat, maxLat, minLng, maxLng })
+      })
+      .catch(error => console.error('GeoJSON 로드 실패:', error))
+
+    // 지역별 Polygon 생성
+    const REGION_INFO: Record<string, { name: string; shortName: string; emoji: string }> = {
+      seoul: { name: '서울특별시', shortName: '서울', emoji: '🏙️' },
+      busan: { name: '부산광역시', shortName: '부산', emoji: '🌊' },
+      daegu: { name: '대구광역시', shortName: '대구', emoji: '🏢' },
+      incheon: { name: '인천광역시', shortName: '인천', emoji: '✈️' },
+      gwangju: { name: '광주광역시', shortName: '광주', emoji: '🎨' },
+      daejeon: { name: '대전광역시', shortName: '대전', emoji: '🔬' },
+      ulsan: { name: '울산광역시', shortName: '울산', emoji: '🏭' },
+      sejong: { name: '세종특별자치시', shortName: '세종', emoji: '🏛️' },
+      gyeonggi: { name: '경기도', shortName: '경기', emoji: '🌆' },
+      gangwon: { name: '강원도', shortName: '강원', emoji: '⛰️' },
+      chungbuk: { name: '충청북도', shortName: '충북', emoji: '🏞️' },
+      chungnam: { name: '충청남도', shortName: '충남', emoji: '🌾' },
+      jeonbuk: { name: '전라북도', shortName: '전북', emoji: '🍚' },
+      jeonnam: { name: '전라남도', shortName: '전남', emoji: '🌊' },
+      gyeongbuk: { name: '경상북도', shortName: '경북', emoji: '🏔️' },
+      gyeongnam: { name: '경상남도', shortName: '경남', emoji: '⚓' },
+      jeju: { name: '제주특별자치도', shortName: '제주', emoji: '🏝️' },
+    }
+
+    // 지역명을 regionId로 변환하는 헬퍼 함수
+    const getRegionIdFromName = (name: string): string => {
+      const nameToId: Record<string, string> = {
+        '서울특별시': 'seoul',
+        '부산광역시': 'busan',
+        '대구광역시': 'daegu',
+        '인천광역시': 'incheon',
+        '광주광역시': 'gwangju',
+        '대전광역시': 'daejeon',
+        '울산광역시': 'ulsan',
+        '세종특별자치시': 'sejong',
+        '경기도': 'gyeonggi',
+        '강원도': 'gangwon',
+        '충청북도': 'chungbuk',
+        '충청남도': 'chungnam',
+        '전라북도': 'jeonbuk',
+        '전라남도': 'jeonnam',
+        '경상북도': 'gyeongbuk',
+        '경상남도': 'gyeongnam',
+        '제주특별자치도': 'jeju',
+      }
+      return nameToId[name] || ''
+    }
+
+    // Polygon 생성 함수
+    const createPolygon = (regionId: string, polygonPath: any[]) => {
+      const regionInfo = REGION_INFO[regionId]
+      if (!regionInfo) return
+
+      const polygon = new window.kakao.maps.Polygon({
+        map: map,
+        path: polygonPath,
+        strokeWeight: 2,
+        strokeColor: '#4F46E5',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid',
+        fillColor: '#fff',
+        fillOpacity: 0.4,
+      })
+
+      // mouseover 이벤트
+      window.kakao.maps.event.addListener(polygon, 'mouseover', function(mouseEvent: any) {
+        polygon.setOptions({ fillColor: '#818CF8', fillOpacity: 0.7 })
+        const content = `<div style="padding: 8px 12px; background: white; border: 2px solid #4F46E5; border-radius: 8px; font-size: 14px; font-weight: bold; color: #1e293b; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap;">${regionInfo.emoji} ${regionInfo.name}</div>`
+        customOverlayRef.current.setContent(content)
+        customOverlayRef.current.setPosition(mouseEvent.latLng)
+        customOverlayRef.current.setMap(map)
+      })
+
+      // mousemove 이벤트
+      window.kakao.maps.event.addListener(polygon, 'mousemove', function(mouseEvent: any) {
+        customOverlayRef.current.setPosition(mouseEvent.latLng)
+      })
+
+      // mouseout 이벤트
+      window.kakao.maps.event.addListener(polygon, 'mouseout', function() {
+        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.4 })
+        customOverlayRef.current.setMap(null)
+      })
+
+      // click 이벤트 - 지역 확대 및 시/군/구 경계선 표시
+      window.kakao.maps.event.addListener(polygon, 'click', function() {
+        // InfoWindow와 CustomOverlay 닫기
+        infowindowRef.current.close()
+        customOverlayRef.current.setMap(null)
+        
+        // 클릭된 폴리곤의 스타일을 원래대로 복원
+        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.4 })
+        
+        // 먼저 모든 시/도 경계선을 표시하고 스타일 초기화 (이전에 숨긴 것 복원)
+        polygonsRef.current.forEach(({ polygon: p }) => {
+          p.setMap(mapRef.current)
+          p.setOptions({ fillColor: '#fff', fillOpacity: 0.4 })
+        })
+        
+        // 선택된 지역 설정
+        setSelectedRegion(regionId)
+        setShowDetailMap(true)
+        dispatch({ type: 'SELECT_REGION', payload: regionId })
+        
+        // 메인 지도 해당 지역으로 이동 및 확대
+        const coords = REGION_COORDINATES[regionId]
+        if (coords && mapRef.current) {
+          mapRef.current.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng))
+          mapRef.current.setLevel(coords.level)
+        }
+        
+        // 선택된 지역의 시/도 경계선만 숨기기
+        polygonsRef.current.forEach(({ polygon: p, regionId: rid }) => {
+          if (rid === regionId) {
+            p.setMap(null)
+          }
+        })
+      })
+
+      polygonsRef.current.push({ polygon, regionId })
+    }
+
+    // GeoJSON 로드 시도
+    fetch('/korea-regions.geojson')
+      .then(response => response.json())
+      .then((geojson: any) => {
+        console.log('GeoJSON 로드 성공')
+        geojson.features.forEach((feature: any) => {
+          const regionName = feature.properties.name
+          const regionId = getRegionIdFromName(regionName)
+          if (!regionId) return
+
+          const geometry = feature.geometry
+          
+          if (geometry.type === 'MultiPolygon') {
+            // MultiPolygon의 모든 폴리곤 처리
+            geometry.coordinates.forEach((polygon: any) => {
+              // polygon[0]이 외곽선 좌표 배열
+              const outerRing = polygon[0]
+              // 성능을 위해 좌표 간소화 (10개 중 1개만 사용)
+              const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 10 === 0)
+              
+              // [경도, 위도] -> LatLng(위도, 경도) 변환
+              const polygonPath = simplifiedCoords.map((coord: number[]) => 
+                new window.kakao.maps.LatLng(coord[1], coord[0])
+              )
+              
+              // 유효한 좌표가 있을 때만 폴리곤 생성
+              if (polygonPath.length >= 3) {
+                createPolygon(regionId, polygonPath)
+              }
+            })
+          } else if (geometry.type === 'Polygon') {
+            // 단일 Polygon 처리
+            const outerRing = geometry.coordinates[0]
+            const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 10 === 0)
+            const polygonPath = simplifiedCoords.map((coord: number[]) => 
+              new window.kakao.maps.LatLng(coord[1], coord[0])
+            )
+            
+            if (polygonPath.length >= 3) {
+              createPolygon(regionId, polygonPath)
+            }
+          }
+        })
+        console.log('GeoJSON 폴리곤 생성 완료, 총:', polygonsRef.current.length, '개')
+      })
+      .catch(error => {
+        console.error('GeoJSON 로드 실패, 기본 데이터 사용:', error)
+        // Fallback: 기본 데이터 사용
+        Object.entries(KOREA_REGION_PATHS).forEach(([regionId, path]) => {
+          const polygonPath = path.map(coord => new window.kakao.maps.LatLng(coord.lat, coord.lng))
+          createPolygon(regionId, polygonPath)
+        })
+      })
+
     return () => {
-      // 클린업 - 마커 제거
+      // 클린업 - 마커 및 Polygon 제거
       markersRef.current.forEach(marker => marker.setMap(null))
+      polygonsRef.current.forEach(({ polygon }) => polygon.setMap(null))
       if (infowindowRef.current) {
         infowindowRef.current.close()
+      }
+      if (customOverlayRef.current) {
+        customOverlayRef.current.setMap(null)
       }
     }
   }, [])
@@ -207,17 +504,28 @@ export function SearchPage() {
     dispatch({ type: 'SET_ACTIVE_EVENT', payload: event.id })
   }, [dispatch])
 
-  // 행사 마커 표시 함수
+  // 행사 마커 표시 함수 (도/광역시 선택 시에만 표시)
   useEffect(() => {
     console.log('[마커 표시] 시작', {
       mapExists: !!mapRef.current,
       kakaoMapsExists: !!window.kakao?.maps,
+      selectedRegion: selectedRegion,
       filteredEventsCount: filteredEvents.length,
       filteredEvents: filteredEvents
     })
 
+    // 기존 마커 제거
+    markersRef.current.forEach(marker => marker.setMap(null))
+    markersRef.current = []
+
     if (!mapRef.current || !window.kakao?.maps) {
       console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
+      return
+    }
+
+    // 도/광역시가 선택되지 않았으면 마커 표시 안 함
+    if (!selectedRegion) {
+      console.log('[마커 표시] 지역이 선택되지 않아 마커를 표시하지 않음')
       return
     }
 
@@ -225,10 +533,6 @@ export function SearchPage() {
       console.log('[마커 표시] 필터링된 행사가 없음')
       return
     }
-
-    // 기존 마커 제거
-    markersRef.current.forEach(marker => marker.setMap(null))
-    markersRef.current = []
 
     const geocoder = new window.kakao.maps.services.Geocoder()
 
@@ -375,7 +679,7 @@ export function SearchPage() {
         }
       })
     })
-  }, [filteredEvents, handleEventSelect])
+  }, [filteredEvents, handleEventSelect, selectedRegion])
 
   useEffect(() => {
     setCategoryFilter(initialCategory)
@@ -385,9 +689,194 @@ export function SearchPage() {
     setSearchTerm(initialKeyword)
   }, [initialKeyword])
 
+  // 시/군/구 경계선 표시 (메인 지도에)
+  useEffect(() => {
+    if (!showDetailMap || !mapRef.current || !window.kakao?.maps || !selectedRegion) {
+      return
+    }
+
+    // 이전 시/군/구 경계선 제거
+    detailPolygonsRef.current.forEach(polygon => polygon.setMap(null))
+    detailPolygonsRef.current = []
+
+    // 시/군/구 GeoJSON 로드 및 필터링
+    fetch('/korea-sigungu.geojson')
+      .then(response => response.json())
+      .then((geojson: any) => {
+        const regionName = REGION_INFO[selectedRegion]?.name
+        if (!regionName) return
+
+        // 지역별 코드 매핑 (GeoJSON의 실제 코드 체계)
+        const REGION_CODE_MAP: Record<string, string> = {
+          'seoul': '11',
+          'busan': '21',  // 부산 (16개 구/군)
+          'daegu': '22',
+          'incheon': '23',
+          'gwangju': '24',
+          'daejeon': '25',
+          'ulsan': '26',  // 울산 (5개 구/군)
+          'sejong': '29',
+          'gyeonggi': '31',
+          'gangwon': '32',
+          'chungbuk': '33',
+          'chungnam': '34',
+          'jeonbuk': '35',
+          'jeonnam': '36',
+          'gyeongbuk': '37',
+          'gyeongnam': '38',
+          'jeju': '39',
+        }
+        
+        // 해당 시/도에 속한 시/군/구만 필터링
+        console.log('[상세 지도] 선택된 지역:', regionName, '(ID:', selectedRegion, ')')
+        const regionCode = REGION_CODE_MAP[selectedRegion]
+        let matchCount = 0
+        
+        geojson.features.forEach((feature: any) => {
+          const sigunguName = feature.properties.name
+          const sigunguCode = feature.properties.code || ''
+          
+          // 코드의 앞 2자리가 지역 코드와 일치하면 해당 지역
+          const isMatch = sigunguCode.startsWith(regionCode)
+          
+          if (isMatch) {
+            matchCount++
+            console.log('[상세 지도] 매칭된 시/군/구:', sigunguName, '(코드:', sigunguCode, ')')
+            const geometry = feature.geometry
+            
+            if (geometry.type === 'MultiPolygon') {
+              geometry.coordinates.forEach((polygon: any) => {
+                const outerRing = polygon[0]
+                const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
+                
+                const polygonPath = simplifiedCoords.map((coord: number[]) => 
+                  new window.kakao.maps.LatLng(coord[1], coord[0])
+                )
+                
+                if (polygonPath.length >= 3) {
+                  const detailPolygon = new window.kakao.maps.Polygon({
+                    map: mapRef.current, // 메인 지도에 그리기
+                    path: polygonPath,
+                    strokeWeight: 2,
+                    strokeColor: '#10b981',
+                    strokeOpacity: 0.9,
+                    strokeStyle: 'solid',
+                    fillColor: '#10b981',
+                    fillOpacity: 0.05, // 매우 투명하게
+                  })
+
+                  // mouseover 이벤트
+                  window.kakao.maps.event.addListener(detailPolygon, 'mouseover', function() {
+                    detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
+                  })
+                  
+                  // mousemove 이벤트 - 지역 이름 표시
+                  window.kakao.maps.event.addListener(detailPolygon, 'mousemove', function(mouseEvent: any) {
+                    if (sigunguOverlayRef.current) {
+                      const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap;">${sigunguName}</div>`
+                      sigunguOverlayRef.current.setContent(content)
+                      sigunguOverlayRef.current.setPosition(mouseEvent.latLng)
+                      sigunguOverlayRef.current.setMap(mapRef.current)
+                    }
+                  })
+
+                  // mouseout 이벤트
+                  window.kakao.maps.event.addListener(detailPolygon, 'mouseout', function() {
+                    detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
+                    // CustomOverlay 숨기기
+                    if (sigunguOverlayRef.current) {
+                      sigunguOverlayRef.current.setMap(null)
+                    }
+                  })
+
+                  // click 이벤트 - 해당 시/군/구로 확대
+                  window.kakao.maps.event.addListener(detailPolygon, 'click', function() {
+                    // 선택된 시/군/구 저장 (오른쪽 위 라벨 업데이트)
+                    setSelectedCity(sigunguName)
+                    
+                    // 폴리곤의 경계로 지도 확대
+                    const bounds = new window.kakao.maps.LatLngBounds()
+                    polygonPath.forEach((latlng: any) => bounds.extend(latlng))
+                    mapRef.current.setBounds(bounds)
+                  })
+
+                  detailPolygonsRef.current.push(detailPolygon)
+                }
+              })
+            } else if (geometry.type === 'Polygon') {
+              const outerRing = geometry.coordinates[0]
+              const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
+              const polygonPath = simplifiedCoords.map((coord: number[]) => 
+                new window.kakao.maps.LatLng(coord[1], coord[0])
+              )
+              
+              if (polygonPath.length >= 3) {
+                const detailPolygon = new window.kakao.maps.Polygon({
+                  map: mapRef.current, // 메인 지도에 그리기
+                  path: polygonPath,
+                  strokeWeight: 2,
+                  strokeColor: '#10b981',
+                  strokeOpacity: 0.9,
+                  strokeStyle: 'solid',
+                  fillColor: '#10b981',
+                  fillOpacity: 0.05, // 매우 투명하게
+                })
+
+                window.kakao.maps.event.addListener(detailPolygon, 'mouseover', function() {
+                  detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
+                })
+                
+                // mousemove 이벤트 - 지역 이름 표시
+                window.kakao.maps.event.addListener(detailPolygon, 'mousemove', function(mouseEvent: any) {
+                  if (sigunguOverlayRef.current) {
+                    const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap;">${sigunguName}</div>`
+                    sigunguOverlayRef.current.setContent(content)
+                    sigunguOverlayRef.current.setPosition(mouseEvent.latLng)
+                    sigunguOverlayRef.current.setMap(mapRef.current)
+                  }
+                })
+
+                window.kakao.maps.event.addListener(detailPolygon, 'mouseout', function() {
+                  detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
+                  // CustomOverlay 숨기기
+                  if (sigunguOverlayRef.current) {
+                    sigunguOverlayRef.current.setMap(null)
+                  }
+                })
+
+                window.kakao.maps.event.addListener(detailPolygon, 'click', function() {
+                  // 선택된 시/군/구 저장 (오른쪽 위 라벨 업데이트)
+                  setSelectedCity(sigunguName)
+                  
+                  // 폴리곤의 경계로 지도 확대
+                  const bounds = new window.kakao.maps.LatLngBounds()
+                  polygonPath.forEach((latlng: any) => bounds.extend(latlng))
+                  mapRef.current.setBounds(bounds)
+                })
+
+                detailPolygonsRef.current.push(detailPolygon)
+              }
+            }
+          }
+        })
+        console.log('[상세 지도] 매칭된 시/군/구:', matchCount, '개')
+        console.log('[상세 지도] 생성된 폴리곤:', detailPolygonsRef.current.length, '개')
+      })
+      .catch(error => {
+        console.error('[상세 지도] GeoJSON 로드 실패:', error)
+      })
+
+    return () => {
+      // 클린업
+      detailPolygonsRef.current.forEach(polygon => polygon.setMap(null))
+      detailPolygonsRef.current = []
+    }
+  }, [showDetailMap, selectedRegion])
+
   const resetFilters = () => {
     setSelectedRegion(null)
     setSelectedCity(null)
+    setShowDetailMap(false)
     setCategoryFilter('all')
     setSearchTerm('')
     dispatch({ type: 'CLEAR_FILTERS' })
@@ -395,53 +884,40 @@ export function SearchPage() {
     
     // 지도를 대한민국 전체 보기로 복귀
     if (mapRef.current) {
-      const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
-      mapRef.current.setCenter(moveLatLon)
-      mapRef.current.setLevel(12)
-    }
-  }
-
-  const handleRegionClick = (regionId: string) => {
-    // 빈 문자열이면 전체 보기 (초기화)
-    if (regionId === '') {
-      setSelectedRegion(null)
-      setSelectedCity(null)
-      dispatch({ type: 'SELECT_REGION', payload: null })
-      dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
-      
-      // 지도를 대한민국 전체 보기로 복귀
-      if (mapRef.current && window.kakao?.maps) {
+      try {
+        if (koreaBoundsRef.current) {
+          // GeoJSON 경계를 사용하여 정확히 대한민국만 보이도록
+          mapRef.current.setBounds(koreaBoundsRef.current)
+        } else {
+          // fallback: 수동 설정
+          const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+          mapRef.current.setCenter(moveLatLon)
+          mapRef.current.setLevel(13)
+        }
+      } catch (error) {
+        console.error('[초기화] 지도 복원 실패:', error)
+        // 에러 발생 시 강제 수동 설정
         const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
         mapRef.current.setCenter(moveLatLon)
-        mapRef.current.setLevel(12)
+        mapRef.current.setLevel(13)
       }
-      return
     }
     
-    const nextRegion = regionId === selectedRegion ? null : regionId
-    setSelectedRegion(nextRegion)
-    setSelectedCity(null)
-
-    if (state.selectedRegion !== nextRegion) {
-      dispatch({ type: 'SELECT_REGION', payload: nextRegion })
-    }
-    dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
-
-    // 카카오맵 이동
-    if (nextRegion && mapRef.current && window.kakao?.maps) {
-      const coords = REGION_COORDINATES[nextRegion]
-      if (coords) {
-        const moveLatLon = new window.kakao.maps.LatLng(coords.lat, coords.lng)
-        mapRef.current.setCenter(moveLatLon)
-        mapRef.current.setLevel(coords.level)
-      }
-    } else if (mapRef.current && window.kakao?.maps) {
-      // 지역 선택 해제 시 대한민국 전체 보기로 복귀
-      const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
-      mapRef.current.setCenter(moveLatLon)
-      mapRef.current.setLevel(12)
-    }
+    // 시/군/구 경계선 제거
+    detailPolygonsRef.current.forEach(polygon => polygon.setMap(null))
+    detailPolygonsRef.current = []
+    
+    // 모든 시/도 경계선 다시 표시
+    showAllRegionPolygons()
   }
+
+  // 모든 시/도 경계선 표시/숨김 관리 함수
+  const showAllRegionPolygons = useCallback(() => {
+    if (!mapRef.current) return
+    polygonsRef.current.forEach(({ polygon }) => {
+      polygon.setMap(mapRef.current)
+    })
+  }, [])
 
   const handleCityClick = (city: string) => {
     setSelectedCity(city)
@@ -455,13 +931,6 @@ export function SearchPage() {
     const nextCategory = option === 'all' ? null : option
     if (state.selectedCategory !== nextCategory) {
       dispatch({ type: 'SELECT_CATEGORY', payload: nextCategory })
-    }
-  }
-
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value)
-    if (state.keyword !== value) {
-      dispatch({ type: 'SET_KEYWORD', payload: value })
     }
   }
 
@@ -533,71 +1002,95 @@ export function SearchPage() {
               )}
             </div>
 
-            {/* 카카오맵 컨테이너 */}
-            <div 
-              ref={mapContainerRef}
-              className="relative overflow-hidden rounded-4xl border border-surface-subtle"
-              style={{ width: '100%', height: '600px' }}
-            />
+            {/* 카카오맵 컨테이너 - 단일 지도 */}
+            <div className="relative">
+              {/* 뒤로 가기 버튼 (지역 선택 시에만 표시) */}
+              {showDetailMap && selectedRegion && (
+                <div className="absolute top-4 left-4 z-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 시/군/구 선택 상태인 경우: 도/광역시로 돌아가기
+                      if (selectedCity) {
+                        setSelectedCity(null)
+                        
+                        // 도/광역시 경계로 다시 확대
+                        if (mapRef.current && selectedRegion && REGION_COORDINATES[selectedRegion]) {
+                          const coords = REGION_COORDINATES[selectedRegion]
+                          const moveLatLon = new window.kakao.maps.LatLng(coords.lat, coords.lng)
+                          mapRef.current.setCenter(moveLatLon)
+                          mapRef.current.setLevel(coords.level)
+                        }
+                      } else {
+                        // 도/광역시 선택 상태인 경우: 전국 지도로 돌아가기
+                        setShowDetailMap(false)
+                        setSelectedRegion(null)
+                        dispatch({ type: 'SELECT_REGION', payload: null })
+                        
+                        // 전국 지도로 복귀
+                        if (mapRef.current) {
+                          try {
+                            if (koreaBoundsRef.current) {
+                              mapRef.current.setBounds(koreaBoundsRef.current)
+                            } else {
+                              // fallback: 수동 설정
+                              const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+                              mapRef.current.setCenter(moveLatLon)
+                              mapRef.current.setLevel(13)
+                            }
+                          } catch (error) {
+                            console.error('[뒤로 가기] 지도 복원 실패:', error)
+                            // 에러 발생 시 강제 수동 설정
+                            const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+                            mapRef.current.setCenter(moveLatLon)
+                            mapRef.current.setLevel(13)
+                          }
+                        }
+                        
+                        // 시/군/구 경계선 제거
+                        detailPolygonsRef.current.forEach(polygon => polygon.setMap(null))
+                        detailPolygonsRef.current = []
+                        
+                        // 모든 시/도 경계선 다시 표시
+                        showAllRegionPolygons()
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white hover:bg-slate-50 transition-colors shadow-lg border border-slate-200"
+                    title="뒤로 가기"
+                  >
+                    <ArrowLeft className="h-5 w-5 text-slate-700" />
+                    <span className="text-sm font-medium text-slate-700">
+                      {selectedCity ? REGION_INFO[selectedRegion]?.name : '전체 지도'}
+                    </span>
+                  </button>
+                </div>
+              )}
 
-            {/* 지역 선택 버튼 그리드 */}
-            <div className="mt-5 grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-6">
-              {/* 전체 버튼 */}
-              <button
-                type="button"
-                onClick={() => handleRegionClick('')}
-                className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
-                  !selectedRegion
-                    ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
-                    : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                }`}
-              >
-                <span className="text-xl">🇰🇷</span>
-                <span className="text-xs font-medium">전체</span>
-              </button>
-              {Object.entries(REGION_INFO).map(([regionId, info]) => (
-                <button
-                  key={regionId}
-                  type="button"
-                  onClick={() => handleRegionClick(regionId)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
-                    selectedRegion === regionId
-                      ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
-                      : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                  }`}
-                >
-                  <span className="text-xl">{info.emoji}</span>
-                  <span className="text-xs font-medium">{info.shortName}</span>
-                </button>
-              ))}
+              {/* 지역 정보 라벨 (지역 선택 시에만 표시) */}
+              {showDetailMap && selectedRegion && (
+                <div className="absolute top-4 right-4 z-10">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg border border-slate-200">
+                    <span className="text-xl">{REGION_INFO[selectedRegion]?.emoji}</span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {selectedCity || REGION_INFO[selectedRegion]?.name}
+                    </span>
             </div>
           </div>
+              )}
+              
+              <div 
+                ref={mapContainerRef}
+                className="relative overflow-hidden rounded-4xl border border-surface-subtle"
+                style={{ width: '100%', height: '600px' }}
+              />
+              </div>
+              
+            </div>
         </div>
 
         <aside className="flex flex-col gap-4 lg:gap-6">
           <div className="rounded-4xl border border-surface-subtle bg-white p-5 shadow-sm md:p-6">
-            <div className="flex items-center gap-2 rounded-full border border-surface-subtle bg-surface px-3 py-2">
-              <Search className="h-4 w-4 text-slate-500" />
-              <input
-                value={searchTerm}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="도시 또는 행사명을 검색하세요"
-                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-              />
-              {(searchTerm ||
-                categoryFilter !== 'all' ||
-                selectedRegion ||
-                selectedCity) && (
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="whitespace-nowrap text-xs text-slate-500 transition hover:text-brand-primary"
-                >
-                  초기화
-                </button>
-              )}
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {categoryOptions.map((option) => {
                 const categoryInfo = option === 'all' 
                   ? { label: '전체', emoji: '🌐' }
@@ -718,3 +1211,4 @@ export function SearchPage() {
     </div>
   )
 }
+
