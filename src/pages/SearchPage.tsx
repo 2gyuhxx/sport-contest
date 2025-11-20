@@ -87,31 +87,74 @@ export function SearchPage() {
   const customOverlayRef = useRef<any>(null) // 시/도용 CustomOverlay
   const sigunguOverlayRef = useRef<any>(null) // 시/군/구용 CustomOverlay
   const koreaBoundsRef = useRef<any>(null) // 대한민국 경계 저장
+  const [kakaoMapsLoaded, setKakaoMapsLoaded] = useState(false)
+
+  // 카카오맵 SDK 동적 로드
+  useEffect(() => {
+    // 이미 로드되어 있으면 스킵
+    if (window.kakao?.maps) {
+      setKakaoMapsLoaded(true)
+      return
+    }
+
+    // 이미 스크립트가 로드 중이면 스킵
+    const existingScript = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]')
+    if (existingScript) {
+      // 스크립트가 있으면 로드 완료 대기
+      const checkInterval = setInterval(() => {
+        if (window.kakao?.maps) {
+          clearInterval(checkInterval)
+          setKakaoMapsLoaded(true)
+        }
+      }, 100)
+      
+      // 최대 10초 대기
+      setTimeout(() => {
+        clearInterval(checkInterval)
+        if (!window.kakao?.maps) {
+          console.error('[카카오맵] SDK 로드 타임아웃')
+        }
+      }, 10000)
+      
+      return () => clearInterval(checkInterval)
+    }
+
+    // 스크립트 동적 로드
+    const script = document.createElement('script')
+    script.type = 'text/javascript'
+    script.src = '//dapi.kakao.com/v2/maps/sdk.js?appkey=76ed4671868b9a59aa14bd765c1dd98d&libraries=services,clusterer&autoload=false'
+    script.async = true
+    
+    script.onload = () => {
+      console.log('[카카오맵] SDK 스크립트 로드 완료')
+      // 스크립트 로드 후 약간의 지연을 두고 maps 객체 확인
+      setTimeout(() => {
+        if (window.kakao?.maps) {
+          console.log('[카카오맵] SDK 초기화 완료')
+          setKakaoMapsLoaded(true)
+        } else {
+          console.error('[카카오맵] SDK 스크립트는 로드되었지만 maps 객체가 없음')
+        }
+      }, 100)
+    }
+    
+    script.onerror = () => {
+      console.error('[카카오맵] SDK 스크립트 로드 실패')
+    }
+    
+    document.head.appendChild(script)
+
+    return () => {
+      // 컴포넌트 언마운트 시 스크립트 제거하지 않음 (다른 컴포넌트에서 사용할 수 있음)
+    }
+  }, [])
 
   // 카카오맵 초기화
   useEffect(() => {
-    if (!mapContainerRef.current) return
+    if (!mapContainerRef.current || !kakaoMapsLoaded || !window.kakao?.maps) return
 
-    // 카카오맵 SDK 로드 완료 대기
-    const waitForKakaoMaps = (callback: () => void, maxAttempts = 50) => {
-      let attempts = 0
-      const checkInterval = setInterval(() => {
-        attempts++
-        if (window.kakao?.maps) {
-          clearInterval(checkInterval)
-          callback()
-        } else if (attempts >= maxAttempts) {
-          clearInterval(checkInterval)
-          console.error('[카카오맵] SDK 로드 실패: 최대 시도 횟수 초과')
-        }
-      }, 100) // 100ms마다 체크
-    }
-
-    waitForKakaoMaps(() => {
-      if (!mapContainerRef.current || !window.kakao?.maps) return
-
-      console.log('[카카오맵] SDK 로드 완료, 지도 초기화 시작')
-      const container = mapContainerRef.current
+    console.log('[카카오맵] SDK 로드 완료, 지도 초기화 시작')
+    const container = mapContainerRef.current
     const options = {
       center: new window.kakao.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
       level: 13, // 대한민국 전체가 보이는 레벨
@@ -464,7 +507,7 @@ export function SearchPage() {
         customOverlayRef.current.setMap(null)
       }
     }
-  }, [])
+  }, [kakaoMapsLoaded])
 
   // 지역 선택 시 지도 이동
   useEffect(() => {
@@ -538,26 +581,14 @@ export function SearchPage() {
     markersRef.current.forEach(marker => marker.setMap(null))
     markersRef.current = []
 
-    // 카카오맵 SDK 로드 완료 대기
-    const waitForKakaoMaps = (callback: () => void, maxAttempts = 50) => {
-      let attempts = 0
-      const checkInterval = setInterval(() => {
-        attempts++
-        if (window.kakao?.maps && mapRef.current) {
-          clearInterval(checkInterval)
-          callback()
-        } else if (attempts >= maxAttempts) {
-          clearInterval(checkInterval)
-          console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
-        }
-      }, 100) // 100ms마다 체크
+    if (!kakaoMapsLoaded || !mapRef.current || !window.kakao?.maps) {
+      console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음', {
+        kakaoMapsLoaded,
+        mapExists: !!mapRef.current,
+        kakaoMapsExists: !!window.kakao?.maps
+      })
+      return
     }
-
-    waitForKakaoMaps(() => {
-      if (!mapRef.current || !window.kakao?.maps) {
-        console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
-        return
-      }
 
     // 도/광역시가 선택되지 않았으면 마커 표시 안 함
     if (!selectedRegion) {
@@ -715,8 +746,7 @@ export function SearchPage() {
         }
       })
     })
-    }) // waitForKakaoMaps 콜백 종료
-  }, [filteredEvents, handleEventSelect, selectedRegion])
+  }, [filteredEvents, handleEventSelect, selectedRegion, kakaoMapsLoaded])
 
   useEffect(() => {
     setCategoryFilter(initialCategory)
