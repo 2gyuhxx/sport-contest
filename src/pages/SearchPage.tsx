@@ -494,7 +494,6 @@ export function SearchPage() {
           createPolygon(regionId, polygonPath)
         })
       })
-    }) // waitForKakaoMaps 콜백 종료
 
     return () => {
       // 클린업 - 마커 및 Polygon 제거
@@ -1164,19 +1163,19 @@ export function SearchPage() {
                   : SPORT_CATEGORIES.find(cat => cat.value === option)
                 
                 return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => handleCategoryChange(option)}
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => handleCategoryChange(option)}
                     className={`flex items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs transition whitespace-nowrap ${
-                    categoryFilter === option
-                      ? 'border-brand-primary bg-brand-primary text-white'
-                      : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                  }`}
-                >
+                      categoryFilter === option
+                        ? 'border-brand-primary bg-brand-primary text-white'
+                        : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
+                    }`}
+                  >
                     {categoryInfo?.emoji && <span className="text-sm flex-shrink-0">{categoryInfo.emoji}</span>}
                     <span>{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
-                </button>
+                  </button>
                 )
               })}
               {selectedRegion && (
@@ -1239,9 +1238,9 @@ export function SearchPage() {
                 <p className="text-sm text-slate-500">행사를 불러오는 중...</p>
               </div>
             ) : (
-            <ul className="flex flex-col divide-y divide-surface-subtle">
-              {filteredEvents.length ? (
-                filteredEvents.map((event) => {
+              <ul className="flex flex-col divide-y divide-surface-subtle">
+                {filteredEvents.length ? (
+                  filteredEvents.map((event) => {
                   const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
                   return (
                     <li key={event.id} className="py-3">
@@ -1265,12 +1264,12 @@ export function SearchPage() {
                     </li>
                   )
                 })
-              ) : (
-                <li className="py-6 text-center text-sm text-slate-500">
-                  조건에 맞는 행사가 없습니다.
-                </li>
-              )}
-            </ul>
+                ) : (
+                  <li className="py-6 text-center text-sm text-slate-500">
+                    조건에 맞는 행사가 없습니다.
+                  </li>
+                )}
+              </ul>
             )}
           </div>
         </aside>
