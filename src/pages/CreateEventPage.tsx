@@ -288,39 +288,30 @@ export function CreateEventPage() {
   // 폼 제출
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('[행사 수정] handleSubmit 호출됨', { isEditMode, eventId })
     setError(null)
     
     const isValid = validateForm()
-    console.log('[행사 수정] 폼 검증 결과:', isValid, errors)
     if (!isValid) {
-      console.log('[행사 수정] 폼 검증 실패:', errors)
       return
     }
 
     if (!user) {
       setError('로그인이 필요합니다.')
-      console.log('[행사 수정] 사용자 없음')
       return
     }
 
     setIsLoading(true)
-    console.log('[행사 수정] 로딩 시작')
 
     try {
       if (isEditMode && eventId) {
         // 수정 모드
-        console.log('[행사 수정] 수정 시작:', { eventId, formData })
-        
         let imageUrl: string | null = null
 
         // 이미지 파일이 있으면 업로드
         if (imageFile) {
           try {
             setIsUploading(true)
-            console.log('[행사 수정] 이미지 업로드 시작:', { eventId, fileName: imageFile.name })
             imageUrl = await EventService.uploadFile(imageFile, parseInt(eventId, 10))
-            console.log('[행사 수정] 이미지 업로드 완료:', imageUrl)
           } catch (uploadError: any) {
             console.error('[행사 수정] 이미지 업로드 실패:', uploadError)
             setError(`행사는 수정되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
@@ -361,12 +352,7 @@ export function CreateEventPage() {
           organizer_user_name: formData.organizer || '',
         }
         
-        console.log('[행사 수정] API 호출 데이터:', updateData)
-        
-        const result = await EventService.updateEvent(parseInt(eventId, 10), updateData)
-        console.log('[행사 수정] API 응답:', result)
-
-        console.log('[행사 수정] 수정 완료, 성공 메시지 표시')
+        await EventService.updateEvent(parseInt(eventId, 10), updateData)
         // 성공 메시지 표시 (수정 모드일 때만)
         setShowSuccessMessage(true)
         setIsLoading(false) // 성공 시 로딩 상태 해제
@@ -404,9 +390,7 @@ export function CreateEventPage() {
         if (imageFile) {
           try {
             setIsUploading(true)
-            console.log('[행사 생성] 이미지 업로드 시작:', { eventId: createdEvent.id, fileName: imageFile.name })
             const imageUrl = await EventService.uploadFile(imageFile, createdEvent.id)
-            console.log('[행사 생성] 이미지 업로드 완료:', imageUrl)
 
             // ID를 이름으로 변환
             const sportCat = sportCategories.find(cat => cat.id === formData.sport_category_id)
@@ -428,7 +412,6 @@ export function CreateEventPage() {
               image: imageUrl,
               organizer_user_name: formData.organizer,
             })
-            console.log('[행사 생성] 이미지 URL 업데이트 완료')
           } catch (uploadError: any) {
             console.error('[행사 생성] 이미지 업로드 실패:', uploadError)
             alert(`행사는 등록되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
@@ -925,7 +908,6 @@ export function CreateEventPage() {
               type="submit"
               disabled={isLoading || isLoadingData}
               onClick={(e) => {
-                console.log('[행사 수정] 버튼 클릭됨', { isLoading, isLoadingData, isEditMode, eventId })
                 if (!e.isDefaultPrevented()) {
                   // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
                 }

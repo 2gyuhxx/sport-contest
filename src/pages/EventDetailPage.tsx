@@ -43,7 +43,6 @@ export function EventDetailPage() {
         if (result) {
           // 서버에서 받은 정확한 조회수로 업데이트
           dispatch({ type: 'UPDATE_EVENT_VIEWS', payload: { eventId, views: result.views } })
-          console.log(`[조회수] 행사 ${eventId} 서버 동기화 완료 (조회수: ${result.views})`)
         }
       }).catch((error) => {
         console.error('[조회수] 서버 동기화 실패:', error)

@@ -116,15 +116,6 @@ export const AuthService = {
     try {
       // 회원가입 API 호출
       const sportsValue = interests && interests.length > 0 ? interests.join(',') : null
-      
-      console.log('회원가입 요청 데이터:', {
-        email,
-        name,
-        role,
-        manager: role === 'organizer',
-        interests,
-        sports: sportsValue,
-      })
 
       const response = await apiRequest<LoginResponse>('/auth/signup', {
         method: 'POST',

@@ -124,11 +124,8 @@ export function SearchPage() {
     
     // LatLng 생성자가 사용 가능한지 확인
     if (!window.kakao?.maps?.LatLng || typeof window.kakao.maps.LatLng !== 'function') {
-      console.warn('[카카오맵] LatLng 생성자가 아직 준비되지 않음')
       return
     }
-
-    console.log('[카카오맵] SDK 로드 완료, 지도 초기화 시작')
     const container = mapContainerRef.current
     const options = {
       center: new window.kakao.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
@@ -292,8 +289,6 @@ export function SearchPage() {
           fillOpacity: 1.0,
         })
         
-        console.log('[대한민국 외 지역 가리기] 완료:', koreaHoles.length, '개 구멍')
-        console.log('[대한민국 경계]:', { minLat, maxLat, minLng, maxLng })
       })
       .catch(error => console.error('GeoJSON 로드 실패:', error))
 
@@ -420,7 +415,6 @@ export function SearchPage() {
     fetch('/korea-regions.geojson')
       .then(response => response.json())
       .then((geojson: any) => {
-        console.log('GeoJSON 로드 성공')
         geojson.features.forEach((feature: any) => {
           const regionName = feature.properties.name
           const regionId = getRegionIdFromName(regionName)
@@ -459,7 +453,6 @@ export function SearchPage() {
             }
           }
         })
-        console.log('GeoJSON 폴리곤 생성 완료, 총:', polygonsRef.current.length, '개')
       })
       .catch(error => {
         console.error('GeoJSON 로드 실패, 기본 데이터 사용:', error)
@@ -543,35 +536,20 @@ export function SearchPage() {
 
   // 행사 마커 표시 함수 (도/광역시 선택 시에만 표시)
   useEffect(() => {
-    console.log('[마커 표시] 시작', {
-      mapExists: !!mapRef.current,
-      kakaoMapsExists: !!window.kakao?.maps,
-      selectedRegion: selectedRegion,
-      filteredEventsCount: filteredEvents.length,
-      filteredEvents: filteredEvents
-    })
-
     // 기존 마커 제거
     markersRef.current.forEach(marker => marker.setMap(null))
     markersRef.current = []
 
     if (!kakaoMapsLoaded || !mapRef.current || !window.kakao?.maps) {
-      console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음', {
-        kakaoMapsLoaded,
-        mapExists: !!mapRef.current,
-        kakaoMapsExists: !!window.kakao?.maps
-      })
       return
     }
 
     // 도/광역시가 선택되지 않았으면 마커 표시 안 함
     if (!selectedRegion) {
-      console.log('[마커 표시] 지역이 선택되지 않아 마커를 표시하지 않음')
       return
     }
 
     if (!filteredEvents.length) {
-      console.log('[마커 표시] 필터링된 행사가 없음')
       return
     }
 
@@ -580,16 +558,7 @@ export function SearchPage() {
     // 필터링된 행사들의 주소로 마커 생성
     filteredEvents.forEach((event) => {
       const address = event.address || event.venue
-      console.log('[마커 생성 시도]', {
-        title: event.title,
-        address: address,
-        venue: event.venue,
-        region: event.region,
-        city: event.city
-      })
-
       if (!address) {
-        console.log('[마커 생성 건너뜀] 주소 없음:', event.title)
         return
       }
 
@@ -602,16 +571,8 @@ export function SearchPage() {
         searchQuery = `${regionName} ${event.city}`
       }
 
-      console.log('[검색 쿼리]', searchQuery, '(원본 region:', event.region, ')')
-
       // 먼저 주소로 검색
       geocoder.addressSearch(searchQuery, (result: any[], status: string) => {
-        console.log('[주소 검색 결과]', {
-          query: searchQuery,
-          status,
-          resultCount: result?.length || 0,
-          result: result
-        })
 
         if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
           const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x)
@@ -623,11 +584,6 @@ export function SearchPage() {
             title: event.title,
           })
 
-          console.log('[마커 생성 완료]', {
-            title: event.title,
-            lat: result[0].y,
-            lng: result[0].x
-          })
 
           // 마커 클릭 이벤트 - 공유 InfoWindow 사용
           window.kakao.maps.event.addListener(marker, 'click', () => {
@@ -659,15 +615,8 @@ export function SearchPage() {
           markersRef.current.push(marker)
         } else {
           // 주소 검색 실패 시 장소 검색 시도
-          console.log('[주소 검색 실패, 장소 검색 시도]', searchQuery)
-          
           const places = new window.kakao.maps.services.Places()
           places.keywordSearch(searchQuery, (placeResult: any[], placeStatus: string) => {
-            console.log('[장소 검색 결과]', {
-              query: searchQuery,
-              status: placeStatus,
-              resultCount: placeResult?.length || 0
-            })
 
             if (placeStatus === window.kakao.maps.services.Status.OK && placeResult.length > 0) {
               const coords = new window.kakao.maps.LatLng(placeResult[0].y, placeResult[0].x)
@@ -679,11 +628,6 @@ export function SearchPage() {
                 title: event.title,
               })
 
-              console.log('[장소 검색으로 마커 생성 완료]', {
-                title: event.title,
-                lat: placeResult[0].y,
-                lng: placeResult[0].x
-              })
 
               // 마커 클릭 이벤트 - 공유 InfoWindow 사용
               window.kakao.maps.event.addListener(marker, 'click', () => {
@@ -714,7 +658,6 @@ export function SearchPage() {
 
               markersRef.current.push(marker)
             } else {
-              console.log('[마커 생성 최종 실패]', event.title, searchQuery)
             }
           })
         }
@@ -769,7 +712,6 @@ export function SearchPage() {
         }
         
         // 해당 시/도에 속한 시/군/구만 필터링
-        console.log('[상세 지도] 선택된 지역:', regionName, '(ID:', selectedRegion, ')')
         const regionCode = REGION_CODE_MAP[selectedRegion]
         let matchCount = 0
         
@@ -782,7 +724,6 @@ export function SearchPage() {
           
           if (isMatch) {
             matchCount++
-            console.log('[상세 지도] 매칭된 시/군/구:', sigunguName, '(코드:', sigunguCode, ')')
             const geometry = feature.geometry
             
             if (geometry.type === 'MultiPolygon') {
@@ -900,8 +841,6 @@ export function SearchPage() {
             }
           }
         })
-        console.log('[상세 지도] 매칭된 시/군/구:', matchCount, '개')
-        console.log('[상세 지도] 생성된 폴리곤:', detailPolygonsRef.current.length, '개')
       })
       .catch(error => {
         console.error('[상세 지도] GeoJSON 로드 실패:', error)
