@@ -89,69 +89,42 @@ export function SearchPage() {
   const koreaBoundsRef = useRef<any>(null) // 대한민국 경계 저장
   const [kakaoMapsLoaded, setKakaoMapsLoaded] = useState(false)
 
-  // 카카오맵 SDK 동적 로드
+  // 카카오맵 SDK 로드 확인 (index.html에서 정적으로 로드됨)
   useEffect(() => {
-    // 이미 로드되어 있으면 스킵
-    if (window.kakao?.maps) {
-      setKakaoMapsLoaded(true)
-      return
-    }
-
-    // 이미 스크립트가 로드 중이면 스킵
-    const existingScript = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]')
-    if (existingScript) {
-      // 스크립트가 있으면 로드 완료 대기
-      const checkInterval = setInterval(() => {
-        if (window.kakao?.maps) {
-          clearInterval(checkInterval)
-          setKakaoMapsLoaded(true)
-        }
-      }, 100)
-      
-      // 최대 10초 대기
-      setTimeout(() => {
-        clearInterval(checkInterval)
-        if (!window.kakao?.maps) {
-          console.error('[카카오맵] SDK 로드 타임아웃')
-        }
-      }, 10000)
-      
-      return () => clearInterval(checkInterval)
-    }
-
-    // 스크립트 동적 로드
-    const script = document.createElement('script')
-    script.type = 'text/javascript'
-    script.src = '//dapi.kakao.com/v2/maps/sdk.js?appkey=76ed4671868b9a59aa14bd765c1dd98d&libraries=services,clusterer&autoload=false'
-    script.async = true
-    
-    script.onload = () => {
-      console.log('[카카오맵] SDK 스크립트 로드 완료')
-      // 스크립트 로드 후 약간의 지연을 두고 maps 객체 확인
-      setTimeout(() => {
-        if (window.kakao?.maps) {
-          console.log('[카카오맵] SDK 초기화 완료')
-          setKakaoMapsLoaded(true)
-        } else {
-          console.error('[카카오맵] SDK 스크립트는 로드되었지만 maps 객체가 없음')
-        }
-      }, 100)
+    // LatLng 생성자가 사용 가능할 때까지 대기
+    const checkReady = () => {
+      if (window.kakao?.maps?.LatLng && typeof window.kakao.maps.LatLng === 'function') {
+        console.log('[카카오맵] SDK 초기화 완료 (LatLng 생성자 확인됨)')
+        setKakaoMapsLoaded(true)
+      } else {
+        // 아직 준비되지 않았으면 50ms 후 다시 확인
+        setTimeout(checkReady, 50)
+      }
     }
     
-    script.onerror = () => {
-      console.error('[카카오맵] SDK 스크립트 로드 실패')
-    }
+    // 최대 10초 대기
+    const timeout = setTimeout(() => {
+      if (!window.kakao?.maps?.LatLng) {
+        console.error('[카카오맵] SDK LatLng 생성자 초기화 타임아웃')
+      }
+    }, 10000)
     
-    document.head.appendChild(script)
-
+    checkReady()
+    
     return () => {
-      // 컴포넌트 언마운트 시 스크립트 제거하지 않음 (다른 컴포넌트에서 사용할 수 있음)
+      clearTimeout(timeout)
     }
   }, [])
 
   // 카카오맵 초기화
   useEffect(() => {
-    if (!mapContainerRef.current || !kakaoMapsLoaded || !window.kakao?.maps) return
+    if (!mapContainerRef.current || !kakaoMapsLoaded) return
+    
+    // LatLng 생성자가 사용 가능한지 확인
+    if (!window.kakao?.maps?.LatLng || typeof window.kakao.maps.LatLng !== 'function') {
+      console.warn('[카카오맵] LatLng 생성자가 아직 준비되지 않음')
+      return
+    }
 
     console.log('[카카오맵] SDK 로드 완료, 지도 초기화 시작')
     const container = mapContainerRef.current
