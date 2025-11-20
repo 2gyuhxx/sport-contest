@@ -90,9 +90,28 @@ export function SearchPage() {
 
   // 카카오맵 초기화
   useEffect(() => {
-    if (!mapContainerRef.current || !window.kakao?.maps) return
+    if (!mapContainerRef.current) return
 
-    const container = mapContainerRef.current
+    // 카카오맵 SDK 로드 완료 대기
+    const waitForKakaoMaps = (callback: () => void, maxAttempts = 50) => {
+      let attempts = 0
+      const checkInterval = setInterval(() => {
+        attempts++
+        if (window.kakao?.maps) {
+          clearInterval(checkInterval)
+          callback()
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval)
+          console.error('[카카오맵] SDK 로드 실패: 최대 시도 횟수 초과')
+        }
+      }, 100) // 100ms마다 체크
+    }
+
+    waitForKakaoMaps(() => {
+      if (!mapContainerRef.current || !window.kakao?.maps) return
+
+      console.log('[카카오맵] SDK 로드 완료, 지도 초기화 시작')
+      const container = mapContainerRef.current
     const options = {
       center: new window.kakao.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
       level: 13, // 대한민국 전체가 보이는 레벨
@@ -432,6 +451,7 @@ export function SearchPage() {
           createPolygon(regionId, polygonPath)
         })
       })
+    }) // waitForKakaoMaps 콜백 종료
 
     return () => {
       // 클린업 - 마커 및 Polygon 제거
@@ -518,10 +538,26 @@ export function SearchPage() {
     markersRef.current.forEach(marker => marker.setMap(null))
     markersRef.current = []
 
-    if (!mapRef.current || !window.kakao?.maps) {
-      console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
-      return
+    // 카카오맵 SDK 로드 완료 대기
+    const waitForKakaoMaps = (callback: () => void, maxAttempts = 50) => {
+      let attempts = 0
+      const checkInterval = setInterval(() => {
+        attempts++
+        if (window.kakao?.maps && mapRef.current) {
+          clearInterval(checkInterval)
+          callback()
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval)
+          console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
+        }
+      }, 100) // 100ms마다 체크
     }
+
+    waitForKakaoMaps(() => {
+      if (!mapRef.current || !window.kakao?.maps) {
+        console.log('[마커 표시] 지도 또는 카카오맵 API가 준비되지 않음')
+        return
+      }
 
     // 도/광역시가 선택되지 않았으면 마커 표시 안 함
     if (!selectedRegion) {
@@ -679,6 +715,7 @@ export function SearchPage() {
         }
       })
     })
+    }) // waitForKakaoMaps 콜백 종료
   }, [filteredEvents, handleEventSelect, selectedRegion])
 
   useEffect(() => {
