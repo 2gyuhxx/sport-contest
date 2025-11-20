@@ -91,29 +91,53 @@ export function SearchPage() {
 
   // 카카오맵 SDK 로드 확인 (index.html에서 정적으로 로드됨)
   useEffect(() => {
+    console.log('[카카오맵] SDK 로드 확인 시작', {
+      hasKakao: !!window.kakao,
+      hasMaps: !!window.kakao?.maps,
+      hasLatLng: !!window.kakao?.maps?.LatLng,
+      scriptExists: !!document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]')
+    })
+    
     // LatLng 생성자가 사용 가능할 때까지 대기
+    let attemptCount = 0
+    const maxAttempts = 200 // 10초 (50ms * 200)
+    
     const checkReady = () => {
+      attemptCount++
+      
       if (window.kakao?.maps?.LatLng && typeof window.kakao.maps.LatLng === 'function') {
-        console.log('[카카오맵] SDK 초기화 완료 (LatLng 생성자 확인됨)')
+        console.log('[카카오맵] SDK 초기화 완료 (LatLng 생성자 확인됨)', { attemptCount })
         setKakaoMapsLoaded(true)
-      } else {
+      } else if (attemptCount < maxAttempts) {
         // 아직 준비되지 않았으면 50ms 후 다시 확인
         setTimeout(checkReady, 50)
+      } else {
+        // 타임아웃
+        console.error('[카카오맵] SDK LatLng 생성자 초기화 타임아웃', {
+          attemptCount,
+          hasKakao: !!window.kakao,
+          hasMaps: !!window.kakao?.maps,
+          hasLatLng: !!window.kakao?.maps?.LatLng,
+          scriptExists: !!document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]'),
+          scriptLoaded: document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]')?.getAttribute('data-loaded')
+        })
       }
     }
     
-    // 최대 10초 대기
-    const timeout = setTimeout(() => {
-      if (!window.kakao?.maps?.LatLng) {
-        console.error('[카카오맵] SDK LatLng 생성자 초기화 타임아웃')
-      }
-    }, 10000)
+    // 스크립트 로드 완료 이벤트 리스너 추가
+    const scriptElement = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]') as HTMLScriptElement
+    if (scriptElement) {
+      scriptElement.addEventListener('load', () => {
+        console.log('[카카오맵] 스크립트 onload 이벤트 발생')
+        scriptElement.setAttribute('data-loaded', 'true')
+      })
+      scriptElement.addEventListener('error', (e) => {
+        console.error('[카카오맵] 스크립트 로드 에러', e)
+      })
+    }
     
+    // 즉시 한 번 체크
     checkReady()
-    
-    return () => {
-      clearTimeout(timeout)
-    }
   }, [])
 
   // 카카오맵 초기화
