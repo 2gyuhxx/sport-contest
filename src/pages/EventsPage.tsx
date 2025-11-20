@@ -4,6 +4,7 @@ import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList/EventList'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
 import type { Category } from '../types/events'
+import { getCategoryLabel } from '../utils/categoryLabels'
 import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles } from 'lucide-react'
 
 type SortOption = 'latest' | 'popular' | 'date' | 'title' | 'recommended'
@@ -77,8 +78,11 @@ export function EventsPage() {
   const filteredAndSortedEvents = useMemo(() => {
     let filtered = [...events]
 
-    // 대분류 또는 소분류 카테고리 필터
-    if (selectedSportCategoryId) {
+    // 추천 정렬일 때는 카테고리 필터를 무시 (사용자 관심사 기반으로만 필터링)
+    const isRecommendedSort = sortBy === 'recommended'
+    
+    // 대분류 또는 소분류 카테고리 필터 (추천 정렬이 아닐 때만 적용)
+    if (selectedSportCategoryId && !isRecommendedSort) {
       // 대분류가 선택된 경우
       const selectedCategory = sportCategories.find(cat => cat.id === selectedSportCategoryId)
       
@@ -383,7 +387,7 @@ export function EventsPage() {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-slate-900">맞춤 추천 모드</h3>
                 <p className="mt-1 text-xs text-slate-600">
-                  회원님의 관심 종목({(user.interests as string[]).join(', ')})을 바탕으로 추천합니다
+                  회원님의 관심 종목({(user.interests as Category[]).map(cat => getCategoryLabel(cat)).join(', ')})을 바탕으로 추천합니다
                 </p>
               </div>
             </div>

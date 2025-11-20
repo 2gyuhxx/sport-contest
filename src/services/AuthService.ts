@@ -1,4 +1,6 @@
 import type { LoginCredentials, SignupData, User } from '../types/auth'
+import type { Category } from '../types/events'
+import { categoryMap } from './EventService'
 import apiRequest from '../config/api'
 
 // API 응답 타입
@@ -35,13 +37,26 @@ function transformUser(dbUser: LoginResponse['user'] | UserResponse['user']): Us
   // MySQL에서 boolean이 0/1로 반환될 수 있으므로 명시적으로 boolean으로 변환
   const manager = Boolean(dbUser.manager)
   
+  // 한글 스포츠 이름을 카테고리 ID로 변환
+  let interests: Category[] | undefined = undefined
+  if (dbUser.sports) {
+    const sportNames = dbUser.sports.split(',').map(s => s.trim())
+    const categoryIds = sportNames
+      .map(name => categoryMap[name])
+      .filter((category): category is Category => category !== undefined)
+    
+    if (categoryIds.length > 0) {
+      interests = categoryIds
+    }
+  }
+  
   return {
     id: dbUser.id.toString(),
     email: dbUser.email,
     name: dbUser.name || '',
     role: manager ? 'organizer' : 'user',
     manager: manager, // manager 필드 직접 포함 (명시적 boolean 변환)
-    interests: dbUser.sports ? (dbUser.sports.split(',') as any[]) : undefined,
+    interests,
     createdAt: dbUser.created_at,
   }
 }
