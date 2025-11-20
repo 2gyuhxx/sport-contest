@@ -74,7 +74,8 @@ export function EventsPage() {
 
   // 필터링 및 정렬
   const filteredAndSortedEvents = useMemo(() => {
-    let filtered = [...events]
+    // 종료된 행사 제외
+    let filtered = events.filter(event => event.event_status !== 'inactive')
 
     // 대분류 또는 소분류 카테고리 필터
     if (selectedSportCategoryId) {

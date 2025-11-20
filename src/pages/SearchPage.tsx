@@ -256,11 +256,13 @@ export function SearchPage() {
     // CustomOverlay 생성 (시/도용)
     customOverlayRef.current = new window.kakao.maps.CustomOverlay({
       yAnchor: 1,
+      zIndex: 1000, // 최상단에 표시
     })
     
     // CustomOverlay 생성 (시/군/구용)
     sigunguOverlayRef.current = new window.kakao.maps.CustomOverlay({
       yAnchor: 1,
+      zIndex: 1000, // 최상단에 표시
     })
 
     // 대한민국 외 모든 지역 가리기 (바다, 북한, 주변국 포함)
@@ -353,7 +355,10 @@ export function SearchPage() {
         new window.kakao.maps.Polygon({
           map: map,
           path: polygonPath,
-          strokeWeight: 0,
+          strokeWeight: 2,
+          strokeColor: '#10b981',
+          strokeOpacity: 0.9,
+          strokeStyle: 'solid',
           fillColor: overlayColor,
           fillOpacity: 1.0,
         })
@@ -417,32 +422,17 @@ export function SearchPage() {
         map: map,
         path: polygonPath,
         strokeWeight: 2,
-        strokeColor: '#4F46E5',
-        strokeOpacity: 0.8,
+        strokeColor: '#10b981',
+        strokeOpacity: 0.9,
         strokeStyle: 'solid',
         fillColor: '#fff',
-        fillOpacity: 0.4,
+        fillOpacity: 0.05,
       })
 
-      // mouseover 이벤트
-      window.kakao.maps.event.addListener(polygon, 'mouseover', function(mouseEvent: any) {
-        polygon.setOptions({ fillColor: '#818CF8', fillOpacity: 0.7 })
-        const content = `<div style="padding: 8px 12px; background: white; border: 2px solid #4F46E5; border-radius: 8px; font-size: 14px; font-weight: bold; color: #1e293b; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap;">${regionInfo.emoji} ${regionInfo.name}</div>`
-        customOverlayRef.current.setContent(content)
-        customOverlayRef.current.setPosition(mouseEvent.latLng)
-        customOverlayRef.current.setMap(map)
-      })
-
-      // mousemove 이벤트
-      window.kakao.maps.event.addListener(polygon, 'mousemove', function(mouseEvent: any) {
-        customOverlayRef.current.setPosition(mouseEvent.latLng)
-      })
-
-      // mouseout 이벤트
-      window.kakao.maps.event.addListener(polygon, 'mouseout', function() {
-        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.4 })
-        customOverlayRef.current.setMap(null)
-      })
+      // 각 폴리곤에 원래 opacity 저장
+      ;(polygon as any)._originalOpacity = 0.05
+      
+      // mouseover, mousemove, mouseout 이벤트 제거 (시/도는 hover 효과 없음)
 
       // click 이벤트 - 지역 확대 및 시/군/구 경계선 표시
       window.kakao.maps.event.addListener(polygon, 'click', function() {
@@ -451,13 +441,7 @@ export function SearchPage() {
         customOverlayRef.current.setMap(null)
         
         // 클릭된 폴리곤의 스타일을 원래대로 복원
-        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.4 })
-        
-        // 먼저 모든 시/도 경계선을 표시하고 스타일 초기화 (이전에 숨긴 것 복원)
-        polygonsRef.current.forEach(({ polygon: p }) => {
-          p.setMap(mapRef.current)
-          p.setOptions({ fillColor: '#fff', fillOpacity: 0.4 })
-        })
+        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.05 })
         
         // 선택된 지역 설정
         setSelectedRegion(regionId)
@@ -471,10 +455,14 @@ export function SearchPage() {
           mapRef.current.setLevel(coords.level)
         }
         
-        // 선택된 지역의 시/도 경계선만 숨기기
+        // 선택된 지역은 숨기고, 나머지 지역들은 뿌옇게 표시
         polygonsRef.current.forEach(({ polygon: p, regionId: rid }) => {
           if (rid === regionId) {
-            p.setMap(null)
+            p.setMap(null) // 선택된 지역은 숨김
+          } else {
+            p.setMap(mapRef.current) // 다른 지역은 표시
+            p.setOptions({ fillColor: '#fff', fillOpacity: 0.5 }) // 뿌옇게
+            ;(p as any)._originalOpacity = 0.5 // 원래 opacity 업데이트
           }
         })
       })
@@ -588,6 +576,8 @@ export function SearchPage() {
     const term = searchTerm.trim().toLowerCase()
     return events
       .filter((event) => {
+        // 종료된 행사 제외
+        const isActive = event.event_status !== 'inactive'
         const regionMatch = selectedRegion ? event.region === selectedRegion : true
         const cityMatch = selectedCity ? event.city === selectedCity : true
         const categoryMatch =
@@ -598,7 +588,7 @@ export function SearchPage() {
               .toLowerCase()
               .includes(term)
           : true
-        return regionMatch && cityMatch && categoryMatch && keywordMatch
+        return isActive && regionMatch && cityMatch && categoryMatch && keywordMatch
       })
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [categoryFilter, events, searchTerm, selectedCity, selectedRegion])
@@ -877,8 +867,13 @@ export function SearchPage() {
                     detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
                   })
                   
-                  // mousemove 이벤트 - 지역 이름 표시
+                  // mousemove 이벤트 - 지역 이름 표시 (throttling 적용)
+                  let lastMoveTime = 0
                   window.kakao.maps.event.addListener(detailPolygon, 'mousemove', function(mouseEvent: any) {
+                    const now = Date.now()
+                    if (now - lastMoveTime < 30) return // 30ms throttle (약 33fps)
+                    lastMoveTime = now
+                    
                     if (sigunguOverlayRef.current) {
                       const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap;">${sigunguName}</div>`
                       sigunguOverlayRef.current.setContent(content)
@@ -933,8 +928,13 @@ export function SearchPage() {
                   detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
                 })
                 
-                // mousemove 이벤트 - 지역 이름 표시
+                // mousemove 이벤트 - 지역 이름 표시 (throttling 적용)
+                let lastMoveTime = 0
                 window.kakao.maps.event.addListener(detailPolygon, 'mousemove', function(mouseEvent: any) {
+                  const now = Date.now()
+                  if (now - lastMoveTime < 30) return // 30ms throttle (약 33fps)
+                  lastMoveTime = now
+                  
                   if (sigunguOverlayRef.current) {
                     const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap;">${sigunguName}</div>`
                     sigunguOverlayRef.current.setContent(content)
@@ -1023,6 +1023,8 @@ export function SearchPage() {
     if (!mapRef.current) return
     polygonsRef.current.forEach(({ polygon }) => {
       polygon.setMap(mapRef.current)
+      polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.05 }) // 투명하게 복원
+      ;(polygon as any)._originalOpacity = 0.05 // 원래 opacity 복원
     })
   }, [])
 
@@ -1204,19 +1206,19 @@ export function SearchPage() {
                   : SPORT_CATEGORIES.find(cat => cat.value === option)
                 
                 return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleCategoryChange(option)}
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleCategoryChange(option)}
                     className={`flex items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs transition whitespace-nowrap ${
-                      categoryFilter === option
-                        ? 'border-brand-primary bg-brand-primary text-white'
-                        : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                    }`}
-                  >
+                    categoryFilter === option
+                      ? 'border-brand-primary bg-brand-primary text-white'
+                      : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
+                  }`}
+                >
                     {categoryInfo?.emoji && <span className="text-sm flex-shrink-0">{categoryInfo.emoji}</span>}
                     <span>{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
-                  </button>
+                </button>
                 )
               })}
               {selectedRegion && (
@@ -1279,9 +1281,9 @@ export function SearchPage() {
                 <p className="text-sm text-slate-500">행사를 불러오는 중...</p>
               </div>
             ) : (
-              <ul className="flex flex-col divide-y divide-surface-subtle">
-                {filteredEvents.length ? (
-                  filteredEvents.map((event) => {
+            <ul className="flex flex-col divide-y divide-surface-subtle">
+              {filteredEvents.length ? (
+                filteredEvents.map((event) => {
                   const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
                   return (
                     <li key={event.id} className="py-3">
@@ -1305,12 +1307,12 @@ export function SearchPage() {
                     </li>
                   )
                 })
-                ) : (
-                  <li className="py-6 text-center text-sm text-slate-500">
-                    조건에 맞는 행사가 없습니다.
-                  </li>
-                )}
-              </ul>
+              ) : (
+                <li className="py-6 text-center text-sm text-slate-500">
+                  조건에 맞는 행사가 없습니다.
+                </li>
+              )}
+            </ul>
             )}
           </div>
         </aside>
