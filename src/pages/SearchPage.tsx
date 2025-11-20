@@ -145,14 +145,23 @@ export function SearchPage() {
       scriptElement.addEventListener('load', () => {
         console.log('[카카오맵] 스크립트 onload 이벤트 발생')
         // SDK 초기화를 위해 약간의 지연
-        setTimeout(() => checkReady(), 100)
+        setTimeout(() => {
+          console.log('[카카오맵] onload 후 window.kakao 상태:', {
+            hasKakao: !!window.kakao,
+            hasMaps: !!window.kakao?.maps,
+            kakaoKeys: window.kakao ? Object.keys(window.kakao) : []
+          })
+          checkReady()
+        }, 200)
       })
       scriptElement.addEventListener('error', (e) => {
         console.error('[카카오맵] 스크립트 로드 에러', e)
+        console.error('[카카오맵] 스크립트 src:', scriptElement.src)
         if (checkInterval) clearInterval(checkInterval)
       })
       // 즉시 한 번 체크 (이미 로드된 경우 대비)
-      checkReady()
+      // 약간의 지연을 두고 체크 (스크립트가 방금 추가되었을 수 있음)
+      setTimeout(() => checkReady(), 100)
     } else {
       // 스크립트가 없는 경우 - 동적 로드 시도
       console.warn('[카카오맵] 스크립트 태그를 찾을 수 없습니다. 동적 로드를 시도합니다.')
