@@ -89,98 +89,32 @@ export function SearchPage() {
   const koreaBoundsRef = useRef<any>(null) // 대한민국 경계 저장
   const [kakaoMapsLoaded, setKakaoMapsLoaded] = useState(false)
 
-  // 카카오맵 SDK 로드 확인 (index.html에서 정적으로 로드됨)
+  // 카카오맵 SDK 로드 확인
   useEffect(() => {
-    console.log('[카카오맵] SDK 로드 확인 시작', {
-      hasKakao: !!window.kakao,
-      hasMaps: !!window.kakao?.maps,
-      hasLatLng: !!window.kakao?.maps?.LatLng,
-      scriptExists: !!document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]')
-    })
-    
-    // 스크립트 요소 찾기
-    const scriptElement = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]') as HTMLScriptElement
-    
-    // LatLng 생성자가 사용 가능할 때까지 대기
-    let attemptCount = 0
-    const maxAttempts = 300 // 15초 (50ms * 300)
-    let checkInterval: number | null = null
-    
-    const checkReady = () => {
-      attemptCount++
-      
-      // window.kakao.maps가 있는지 확인 (maps 객체가 초기화되었는지)
-      if (window.kakao?.maps && window.kakao.maps.LatLng && typeof window.kakao.maps.LatLng === 'function') {
-        console.log('[카카오맵] SDK 초기화 완료 (LatLng 생성자 확인됨)', { attemptCount })
-        if (checkInterval) clearInterval(checkInterval)
+    const checkKakaoMaps = () => {
+      if (window.kakao?.maps) {
         setKakaoMapsLoaded(true)
-      } else if (attemptCount < maxAttempts) {
-        // 아직 준비되지 않았으면 계속 확인
-        // 이미 interval이 설정되어 있으면 스킵
-        if (!checkInterval) {
-          checkInterval = setInterval(checkReady, 50)
-        }
-      } else {
-        // 타임아웃
-        if (checkInterval) clearInterval(checkInterval)
-        console.error('[카카오맵] SDK LatLng 생성자 초기화 타임아웃', {
-          attemptCount,
-          hasKakao: !!window.kakao,
-          hasMaps: !!window.kakao?.maps,
-          hasLatLng: !!window.kakao?.maps?.LatLng,
-          scriptExists: !!scriptElement,
-          scriptSrc: scriptElement?.src,
-          kakaoKeys: window.kakao ? Object.keys(window.kakao) : []
-        })
-        
-        // 카카오 객체가 있지만 maps가 없는 경우 - API 키나 도메인 문제일 수 있음
-        if (window.kakao && !window.kakao.maps) {
-          console.error('[카카오맵] window.kakao는 있지만 maps 객체가 없습니다. API 키 또는 도메인 설정을 확인하세요.')
-        }
       }
     }
     
-    // 스크립트 로드 완료 이벤트 리스너 추가
-    if (scriptElement) {
-      scriptElement.addEventListener('load', () => {
-        console.log('[카카오맵] 스크립트 onload 이벤트 발생')
-        // SDK 초기화를 위해 약간의 지연
-        setTimeout(() => {
-          console.log('[카카오맵] onload 후 window.kakao 상태:', {
-            hasKakao: !!window.kakao,
-            hasMaps: !!window.kakao?.maps,
-            kakaoKeys: window.kakao ? Object.keys(window.kakao) : []
-          })
-          checkReady()
-        }, 200)
-      })
-      scriptElement.addEventListener('error', (e) => {
-        console.error('[카카오맵] 스크립트 로드 에러', e)
-        console.error('[카카오맵] 스크립트 src:', scriptElement.src)
-        if (checkInterval) clearInterval(checkInterval)
-      })
-      // 즉시 한 번 체크 (이미 로드된 경우 대비)
-      // 약간의 지연을 두고 체크 (스크립트가 방금 추가되었을 수 있음)
-      setTimeout(() => checkReady(), 100)
-    } else {
-      // 스크립트가 없는 경우 - 동적 로드 시도
-      console.warn('[카카오맵] 스크립트 태그를 찾을 수 없습니다. 동적 로드를 시도합니다.')
-      const script = document.createElement('script')
-      script.type = 'text/javascript'
-      script.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=76ed4671868b9a59aa14bd765c1dd98d&libraries=services,clusterer'
-      script.onload = () => {
-        console.log('[카카오맵] 동적 로드 완료')
-        setTimeout(() => checkReady(), 100)
+    // 즉시 체크
+    checkKakaoMaps()
+    
+    // 주기적으로 체크 (최대 5초)
+    const interval = setInterval(() => {
+      checkKakaoMaps()
+      if (window.kakao?.maps) {
+        clearInterval(interval)
       }
-      script.onerror = (e) => {
-        console.error('[카카오맵] 동적 로드 실패', e)
-      }
-      document.head.appendChild(script)
-      checkReady()
-    }
+    }, 100)
+    
+    const timeout = setTimeout(() => {
+      clearInterval(interval)
+    }, 5000)
     
     return () => {
-      if (checkInterval) clearInterval(checkInterval)
+      clearInterval(interval)
+      clearTimeout(timeout)
     }
   }, [])
 
