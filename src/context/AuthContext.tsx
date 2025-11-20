@@ -1,6 +1,8 @@
 import { createContext, useReducer, useEffect, type ReactNode } from 'react'
 import type { User, AuthState } from '../types/auth'
+import type { Category } from '../types/events'
 import { AuthService } from '../services/AuthService'
+import { categoryMap } from '../services/EventService'
 
 // Action 타입 정의
 type AuthAction =
@@ -69,6 +71,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser) as User
+        
+        // interests가 한글 이름인 경우 카테고리 ID로 변환 (이전 버전 호환성)
+        if (user.interests && user.interests.length > 0) {
+          const firstInterest = user.interests[0]
+          // 한글 이름인지 확인 (카테고리 ID는 'team-ball', 'fitness-skill' 같은 형식)
+          if (typeof firstInterest === 'string' && !firstInterest.includes('-')) {
+            // 한글 이름이면 카테고리 ID로 변환
+            const categoryIds = (user.interests as string[])
+              .map(name => categoryMap[name])
+              .filter((category): category is Category => category !== undefined)
+            
+            if (categoryIds.length > 0) {
+              user.interests = categoryIds
+              // 변환된 정보를 localStorage에 다시 저장
+              localStorage.setItem('sportable_user', JSON.stringify(user))
+            } else {
+              // 변환 실패 시 서버에서 최신 정보 가져오기
+              user.interests = undefined
+            }
+          }
+        }
+        
         // manager 필드가 없는 경우 서버에서 최신 정보 가져오기
         if (user.manager === undefined) {
           AuthService.getCurrentUserFromServer()

@@ -78,12 +78,8 @@ interface MyEventResponse {
   events: DBEvent[]
 }
 
-// DB 행사 데이터를 프론트엔드 Event 타입으로 변환
-function transformDBEventToEvent(dbEvent: DBEvent): Event {
-  // sport를 Category로 매핑 (SearchPage의 SPORT_CATEGORIES와 일치)
-  let category: Category = 'other' // 기본값
-  
-  const categoryMap: Record<string, Category> = {
+// 한글 스포츠 이름을 카테고리 ID로 변환하는 맵 (공통 사용)
+export const categoryMap: Record<string, Category> = {
     // 구기·팀
     '구기·팀': 'team-ball',
     '축구': 'team-ball',
@@ -141,7 +137,12 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
     // 기타
     '기타': 'other',
     'e스포츠': 'other',
-  }
+}
+
+// DB 행사 데이터를 프론트엔드 Event 타입으로 변환
+function transformDBEventToEvent(dbEvent: DBEvent): Event {
+  // sport를 Category로 매핑 (SearchPage의 SPORT_CATEGORIES와 일치)
+  let category: Category = 'other' // 기본값
   
   category = categoryMap[dbEvent.sport] || categoryMap[dbEvent.sport.toLowerCase()] || 'other'
   
