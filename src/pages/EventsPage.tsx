@@ -3,6 +3,7 @@ import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList/EventList'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
+import type { Category } from '../types/events'
 import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles } from 'lucide-react'
 
 type SortOption = 'latest' | 'popular' | 'date' | 'title' | 'recommended'
@@ -130,15 +131,11 @@ export function EventsPage() {
       case 'recommended':
         // 추천 정렬: 사용자의 관심 카테고리를 기반으로 추천
         if (user?.interests && user.interests.length > 0) {
-          const userInterests = user.interests as string[]
+          const userInterests = user.interests as Category[]
           
-          // 관심사와 매칭되는 행사만 필터링
+          // 관심 카테고리와 일치하는 행사만 필터링 (event.category와 직접 비교)
           filtered = filtered.filter(event => {
-            return userInterests.some(interest => 
-              event.title.includes(interest) || 
-              event.description?.includes(interest) || 
-              event.sport?.includes(interest)
-            )
+            return userInterests.includes(event.category)
           })
           
           // 매칭된 행사들을 날짜 가중치 + 조회수로 정렬
