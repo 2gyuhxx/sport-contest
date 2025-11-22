@@ -3,9 +3,11 @@ import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList/EventList'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
-import type { Category } from '../types/events'
+import { FavoriteService } from '../services/FavoriteService'
+import type { Category, Event } from '../types/events'
 import { getCategoryLabel } from '../utils/categoryLabels'
-import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles } from 'lucide-react'
+import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
+import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles, Heart } from 'lucide-react'
 
 type SortOption = 'latest' | 'popular' | 'date' | 'title' | 'recommended'
 
@@ -36,6 +38,11 @@ export function EventsPage() {
   const [selectedSportCategoryId, setSelectedSportCategoryId] = useState<number | null>(null)
   const [selectedSubSportCategoryId, setSelectedSubSportCategoryId] = useState<number | null>(null)
   const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+  
+  // 찜 기반 추천 상태
+  const [myFavorites, setMyFavorites] = useState<any[]>([])
+  const [favoriteBasedEvents, setFavoriteBasedEvents] = useState<Event[]>([])
+  const [recommendedSports, setRecommendedSports] = useState<string[]>([])
 
   // 대분류 카테고리 로드
   useEffect(() => {
@@ -73,6 +80,79 @@ export function EventsPage() {
     }
     loadSubCategories()
   }, [selectedSportCategoryId])
+
+  // 찜 목록 로드 및 코사인 유사도 기반 추천 (추천 모드일 때만)
+  useEffect(() => {
+    const loadFavoritesAndRecommend = async () => {
+      console.log('[찜 추천] 조건 체크 - isAuthenticated:', isAuthenticated, 'sortBy:', sortBy)
+      
+      if (isAuthenticated && sortBy === 'recommended' && user) {
+        try {
+          console.log('[찜 추천] API 호출 시작...')
+          
+          // 1. 내 찜 목록 가져오기
+          const favorites = await FavoriteService.getMyFavorites()
+          console.log('[찜 추천] 받은 찜 목록:', favorites)
+          setMyFavorites(favorites)
+          
+          // 2. 내가 찜한 소분류 목록
+          const myFavoriteSports = [...new Set(
+            favorites
+              .map((fav: any) => fav.sub_sport)
+              .filter((sub: string | null) => sub !== null)
+          )]
+          console.log('[찜 추천] 내가 찜한 소분류:', myFavoriteSports)
+          
+          // 3. 사용자-종목 행렬 가져오기
+          const { matrix, users, sports } = await FavoriteService.getUserSportMatrix()
+          console.log('[코사인 유사도] 행렬 로드 완료 - 사용자:', users.length, '종목:', sports.length)
+          
+          // 4. 나와 유사한 사용자 찾기
+          const similarUsers = findSimilarUsers(user.id, matrix, users, sports, 5)
+          console.log('[코사인 유사도] 유사한 사용자:', similarUsers)
+          
+          // 5. 유사한 사용자들이 찜한 종목 추천
+          const recommendedSportsList = recommendSportsFromSimilarUsers(
+            similarUsers,
+            matrix,
+            sports,
+            myFavoriteSports
+          )
+          console.log('[코사인 유사도] 추천 종목:', recommendedSportsList)
+          
+          // 6. 추천 종목 목록 저장
+          const topRecommendedSports = recommendedSportsList.slice(0, 3).map(item => item.sport)
+          setRecommendedSports(topRecommendedSports)
+          
+          // 7. 추천 종목 + 내가 찜한 종목의 행사 필터링
+          const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
+          console.log('[찜 추천] 최종 타겟 종목:', allTargetSports)
+          
+          const recommendedEvents = events.filter(event => {
+            const isActive = event.event_status !== 'inactive'
+            const hasSubSport = !!event.sub_sport
+            const matchesSubSport = allTargetSports.includes(event.sub_sport || '')
+            
+            return isActive && hasSubSport && matchesSubSport
+          })
+          
+          console.log('[찜 추천] 최종 추천 행사:', recommendedEvents.length, '개')
+          setFavoriteBasedEvents(recommendedEvents)
+        } catch (err) {
+          console.error('찜 목록 로드 오류:', err)
+          setMyFavorites([])
+          setFavoriteBasedEvents([])
+          setRecommendedSports([])
+        }
+      } else {
+        console.log('[찜 추천] 조건 미충족으로 초기화')
+        setMyFavorites([])
+        setFavoriteBasedEvents([])
+        setRecommendedSports([])
+      }
+    }
+    loadFavoritesAndRecommend()
+  }, [isAuthenticated, sortBy, events, user])
 
   // 필터링 및 정렬
   const filteredAndSortedEvents = useMemo(() => {
@@ -439,6 +519,45 @@ export function EventsPage() {
             detailHrefBase="/events/"
           />
         </div>
+
+        {/* 찜 기반 추천 섹션 */}
+        {sortBy === 'recommended' && isAuthenticated && myFavorites.length > 0 && (
+          <div className="mt-8">
+            {/* 찜 추천 모드 안내 배너 */}
+            <div className="mb-4 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-pink-50 p-4">
+              <div className="flex items-start gap-3">
+                <Heart className="h-5 w-5 flex-shrink-0 text-red-600" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-slate-900">찜 추천 모드 (코사인 유사도 기반)</h3>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {recommendedSports.length > 0 ? (
+                      <>
+                        회원님의 찜 목록({[...new Set(myFavorites.map((fav: any) => fav.sub_sport).filter((s: string | null) => s !== null))].join(', ')})과 
+                        유사한 사용자들이 찜한 종목({recommendedSports.join(', ')})을 바탕으로 추천합니다
+                      </>
+                    ) : (
+                      <>
+                        회원님의 찜 목록({[...new Set(myFavorites.map((fav: any) => fav.sub_sport).filter((s: string | null) => s !== null))].join(', ')})을 바탕으로 추천합니다
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 찜 기반 추천 행사 목록 */}
+            <div className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm md:p-8">
+              <EventList
+                events={favoriteBasedEvents}
+                layout={layoutMode}
+                columns={layoutMode === 'grid' ? 3 : 2}
+                cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
+                emptyMessage="찜한 종목과 일치하는 새로운 행사가 없습니다."
+                detailHrefBase="/events/"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

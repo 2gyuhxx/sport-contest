@@ -8,6 +8,7 @@ import eventRoutes from './routes/events.js'
 import listRoutes from './routes/lists.js'
 import uploadRoutes from './routes/upload.js'
 import categoryRoutes from './routes/categories.js'
+import favoriteRoutes from './routes/favorites.js'
 import { EventModel } from './models/Event.js'
 import pool from './config/database.js'
 
@@ -85,6 +86,8 @@ app.use('/api/lists', listRoutes)
 app.use('/api/upload', uploadRoutes)
 // 카테고리 라우트 (대분류, 소분류)
 app.use('/api', categoryRoutes)
+// 찜 라우트
+app.use('/api/favorites', favoriteRoutes)
 
 // Health check
 app.get('/health', (req, res) => {

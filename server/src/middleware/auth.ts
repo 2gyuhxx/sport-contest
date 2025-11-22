@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken'
 
 export interface AuthRequest extends Request {
   userId?: number
+  user?: {
+    id: number
+  }
 }
 
 /**
@@ -28,6 +31,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
 
     const payload = decoded as { userId: number }
     req.userId = payload.userId
+    req.user = { id: payload.userId } // user 객체도 설정
     next()
   })
 }

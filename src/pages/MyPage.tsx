@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventService } from '../services/EventService'
+import { FavoriteService } from '../services/FavoriteService'
 import { AuthService } from '../services/AuthService'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
@@ -15,7 +16,8 @@ import {
   Loader2,
   ArrowLeft,
   Edit,
-  Trash2
+  Trash2,
+  Heart
 } from 'lucide-react'
 
 interface MyEvent {
@@ -44,6 +46,54 @@ export function MyPage() {
   const [error, setError] = useState<string | null>(null)
   const [showEvents, setShowEvents] = useState(false) // 행사 목록 표시 여부
   const [deletingEventId, setDeletingEventId] = useState<number | null>(null) // 삭제 중인 행사 ID
+  
+  // 찜 목록 상태
+  const [favoriteEvents, setFavoriteEvents] = useState<any[]>([])
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false)
+  const [removingFavoriteId, setRemovingFavoriteId] = useState<number | null>(null)
+  const [showRemoveModal, setShowRemoveModal] = useState(false)
+  const [removeModalMessage, setRemoveModalMessage] = useState('')
+
+  // 찜 목록 로드 함수
+  const loadFavorites = async () => {
+    if (!isAuthenticated) return
+    
+    try {
+      setIsLoadingFavorites(true)
+      const favorites = await FavoriteService.getMyFavorites()
+      setFavoriteEvents(favorites)
+    } catch (err) {
+      console.error('찜 목록 로드 오류:', err)
+    } finally {
+      setIsLoadingFavorites(false)
+    }
+  }
+
+  // 찜 삭제 핸들러
+  const handleRemoveFavorite = async (eventId: number, eventTitle: string) => {
+    try {
+      setRemovingFavoriteId(eventId)
+      await FavoriteService.removeFavorite(eventId)
+      
+      // 목록에서 제거
+      setFavoriteEvents(prev => prev.filter(fav => fav.id !== eventId))
+      setRemoveModalMessage('찜 목록에서 제거되었습니다')
+      setShowRemoveModal(true)
+    } catch (err) {
+      console.error('찜 삭제 오류:', err)
+      setRemoveModalMessage('찜 삭제 중 오류가 발생했습니다')
+      setShowRemoveModal(true)
+    } finally {
+      setRemovingFavoriteId(null)
+    }
+  }
+
+  // 페이지 로드 시 찜 목록 로드
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFavorites()
+    }
+  }, [isAuthenticated])
 
   // 행사 목록 로드 함수
   const loadMyEvents = async () => {
@@ -253,9 +303,45 @@ export function MyPage() {
   }
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* 헤더 */}
-      <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
+    <>
+      {/* 찜 제거 성공 모달 */}
+      {showRemoveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                  removeModalMessage.includes('오류') ? 'bg-red-100' : 'bg-green-100'
+                }`}>
+                  {removeModalMessage.includes('오류') ? (
+                    <XCircle className="h-6 w-6 text-red-600" />
+                  ) : (
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {removeModalMessage.includes('오류') ? '오류' : '완료'}
+                  </h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                {removeModalMessage}
+              </p>
+              <button
+                onClick={() => setShowRemoveModal(false)}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8 pb-16">
+        {/* 헤더 */}
+        <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
         <div className="mx-auto max-w-3xl">
           <Link
             to="/"
@@ -344,6 +430,85 @@ export function MyPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* 찜 목록 관리 */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">찜 목록 관리</h2>
+          
+          {isLoadingFavorites ? (
+            <div className="flex min-h-[200px] items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-primary" />
+                <p className="mt-2 text-sm text-slate-600">찜 목록을 불러오는 중...</p>
+              </div>
+            </div>
+          ) : favoriteEvents.length === 0 ? (
+            <div className="flex min-h-[200px] items-center justify-center">
+              <div className="text-center">
+                <Heart className="mx-auto h-12 w-12 text-slate-300" />
+                <p className="mt-4 text-sm text-slate-600">찜한 행사가 없습니다.</p>
+                <Link
+                  to="/"
+                  className="mt-2 inline-block text-sm text-brand-primary hover:underline"
+                >
+                  행사 둘러보기 →
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {favoriteEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="group relative flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-primary hover:shadow-md"
+                >
+                  <Link to={`/events/${event.id}`} className="flex-1 min-w-0">
+                    {/* 행사 정보 */}
+                    <div className="space-y-1.5">
+                      <h3 className="font-semibold text-slate-900 line-clamp-1">{event.title}</h3>
+                      
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <Tag className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{event.sport}</span>
+                        {event.sub_sport && (
+                          <>
+                            <span>·</span>
+                            <span className="truncate">{event.sub_sport}</span>
+                          </>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{event.region} {event.sub_region}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        <span>{new Date(event.start_at).toLocaleDateString('ko-KR')}</span>
+                      </div>
+                    </div>
+                  </Link>
+                  
+                  {/* 찜 해제 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFavorite(event.id, event.title)}
+                    disabled={removingFavoriteId === event.id}
+                    className="ml-3 flex-shrink-0 rounded-full p-2 transition hover:bg-red-50 disabled:opacity-50"
+                    title="찜 해제"
+                  >
+                    {removingFavoriteId === event.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                    ) : (
+                      <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 관리자용: 등록한 행사 목록 */}
@@ -472,6 +637,7 @@ export function MyPage() {
         )}
       </section>
     </div>
+    </>
   )
 }
 

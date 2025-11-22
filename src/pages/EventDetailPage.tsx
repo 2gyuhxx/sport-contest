@@ -1,9 +1,11 @@
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
+import { useAuthContext } from '../context/useAuthContext'
 import { formatDate } from '../utils/formatDate'
-import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle, Heart } from 'lucide-react'
 import { EventService, categoryToKoreanMap } from '../services/EventService'
+import { FavoriteService } from '../services/FavoriteService'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -12,9 +14,17 @@ export function EventDetailPage() {
     state: { events, regions },
     dispatch,
   } = useEventContext()
+  const { state: authState } = useAuthContext()
+  const { isAuthenticated } = authState
   
   // 조회수 증가가 한 번만 실행되도록 추적
   const viewCountedRef = useRef(false)
+  
+  // 찜 상태
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [isLoadingFavorite, setIsLoadingFavorite] = useState(false)
+  const [showFavoriteModal, setShowFavoriteModal] = useState(false)
+  const [favoriteModalMessage, setFavoriteModalMessage] = useState('')
 
   const event = useMemo(() => events.find((item) => item.id === eventId), [eventId, events])
   const regionLabel = useMemo(
@@ -50,6 +60,52 @@ export function EventDetailPage() {
     }
   }, [eventId, dispatch])
 
+  // 찜 상태 확인
+  useEffect(() => {
+    if (isAuthenticated && eventId) {
+      setIsLoadingFavorite(true)
+      FavoriteService.checkFavorite(parseInt(eventId, 10))
+        .then(setIsFavorite)
+        .catch((error) => console.error('찜 상태 확인 실패:', error))
+        .finally(() => setIsLoadingFavorite(false))
+    } else {
+      setIsFavorite(false)
+    }
+  }, [isAuthenticated, eventId])
+
+  // 찜 토글 핸들러
+  const handleFavorite = async () => {
+    if (!isAuthenticated) {
+      setFavoriteModalMessage('로그인이 필요합니다')
+      setShowFavoriteModal(true)
+      return
+    }
+
+    if (!eventId) return
+
+    setIsLoadingFavorite(true)
+    try {
+      const response = await FavoriteService.toggleFavorite(parseInt(eventId, 10), isFavorite)
+      setIsFavorite(!isFavorite)
+      setFavoriteModalMessage(response.message || (isFavorite ? '관심 행사에서 제거되었습니다' : '관심 행사로 등록되었습니다'))
+      setShowFavoriteModal(true)
+    } catch (error: any) {
+      console.error('찜 토글 오류:', error)
+      setFavoriteModalMessage(error.message || '찜 기능 처리 중 오류가 발생했습니다.')
+      setShowFavoriteModal(true)
+    } finally {
+      setIsLoadingFavorite(false)
+    }
+  }
+
+  // 모달 확인 핸들러
+  const handleCloseModal = () => {
+    setShowFavoriteModal(false)
+    if (favoriteModalMessage === '로그인이 필요합니다') {
+      navigate('/login')
+    }
+  }
+
   if (!event) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-surface text-center text-slate-600">
@@ -66,8 +122,48 @@ export function EventDetailPage() {
   }
 
   return (
-    <div className="bg-surface pb-20 pt-10">
-      <div className="mx-auto flex max-w-content flex-col gap-10 px-4 lg:gap-12">
+    <>
+      {/* 찜 성공/실패 모달 */}
+      {showFavoriteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                  favoriteModalMessage.includes('실패') || favoriteModalMessage.includes('로그인') 
+                    ? 'bg-red-100' 
+                    : 'bg-green-100'
+                }`}>
+                  {favoriteModalMessage.includes('실패') || favoriteModalMessage.includes('로그인') ? (
+                    <XCircle className="h-6 w-6 text-red-600" />
+                  ) : (
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {favoriteModalMessage.includes('실패') || favoriteModalMessage.includes('로그인') 
+                      ? '알림' 
+                      : '완료'}
+                  </h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                {favoriteModalMessage}
+              </p>
+              <button
+                onClick={handleCloseModal}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-surface pb-20 pt-10">
+        <div className="mx-auto flex max-w-content flex-col gap-10 px-4 lg:gap-12">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-500">event detail</p>
@@ -194,14 +290,28 @@ export function EventDetailPage() {
               </button>
               <button
                 type="button"
-                className="w-full rounded-2xl border border-surface-subtle px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary"
+                onClick={handleFavorite}
+                disabled={isLoadingFavorite}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                  isFavorite
+                    ? 'border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600'
+                    : 'border-surface-subtle text-slate-700 hover:border-brand-primary hover:text-brand-primary'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                관심 행사 등록
+                {isLoadingFavorite ? (
+                  '처리 중...'
+                ) : (
+                  <>
+                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-white' : 'fill-none'}`} />
+                    {isFavorite ? '관심 행사 등록됨' : '관심 행사 등록'}
+                  </>
+                )}
               </button>
             </div>
           </aside>
         </section>
       </div>
     </div>
+    </>
   )
 }
