@@ -95,11 +95,24 @@ export function CreateEventPage() {
             return `${year}-${month}-${day}`
           }
 
+          // 스포츠 카테고리 이름으로 ID 찾기
+          const categories = await EventService.getSportCategoriesDB()
+          const sportCategory = categories.find(cat => cat.name === event.sport)
+          const sportCategoryId = sportCategory?.id || null
+
+          // 소분류 ID 찾기 (대분류가 있을 때만)
+          let subSportCategoryId = null
+          if (sportCategoryId && event.sub_sport) {
+            const subCategories = await EventService.getSubSportCategoriesById(sportCategoryId)
+            const subCategory = subCategories.find(sub => sub.name === event.sub_sport)
+            subSportCategoryId = subCategory?.id || null
+          }
+
           setFormData({
             title: event.title || '',
             organizer: event.organizer_user_name || '',
-            sport_category_id: null, // 편집 모드에서는 API 응답에 ID가 없으므로 null로 시작
-            sub_sport_category_id: null,
+            sport_category_id: sportCategoryId,
+            sub_sport_category_id: subSportCategoryId,
             start_at: formatDate(event.start_at),
             end_at: formatDate(event.end_at),
             region: event.region || '',
@@ -107,7 +120,7 @@ export function CreateEventPage() {
             address: '',
             summary: event.description || '',
             link: event.website || '',
-            image: '',
+            image: event.image || '',
           })
 
           // 주소 데이터 로드
@@ -120,7 +133,10 @@ export function CreateEventPage() {
             setDetailAddress('') // 상세 주소는 별도 필드가 없으므로 빈 문자열로 시작
           }
 
-          // 스포츠 대분류 ID가 있으면 소분류 목록은 useEffect에서 자동으로 로드됨
+          // 이미지 미리보기 설정
+          if (event.image) {
+            setImagePreview(event.image)
+          }
         } catch (err) {
           console.error('행사 데이터 로딩 오류:', err)
           setError('행사 데이터를 불러오는데 실패했습니다')
@@ -134,19 +150,27 @@ export function CreateEventPage() {
 
   // sport_category 선택 시 sub_sport 목록 가져오기
   // sport_category_id 선택 시 소분류 목록 가져오기
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  
   useEffect(() => {
     const loadSubSportCategories = async () => {
       if (!formData.sport_category_id) {
         setSubSportCategories([])
-        setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        if (!isInitialLoad) {
+          setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        }
         return
       }
 
       try {
         const subCategories = await EventService.getSubSportCategoriesById(formData.sport_category_id)
         setSubSportCategories(subCategories)
-        // 대분류가 변경되면 소분류 초기화
-        setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        // 대분류가 변경되면 소분류 초기화 (단, 초기 로드 시에는 제외)
+        if (!isInitialLoad) {
+          setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        } else {
+          setIsInitialLoad(false)
+        }
       } catch (err) {
         console.error('소분류 카테고리 로딩 오류:', err)
         setSubSportCategories([])
