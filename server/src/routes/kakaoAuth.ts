@@ -39,7 +39,7 @@ interface KakaoUserInfo {
 // 카카오 OAuth 설정 (매 요청마다 최신 환경 변수 읽기)
 const getKakaoConfig = () => {
   const clientId = process.env.KAKAO_REST_API_KEY
-  const redirectUri = process.env.KAKAO_REDIRECT_URI || 'http://localhost:3001/auth/kakao/callback'
+  const redirectUri = process.env.KAKAO_REDIRECT_URI || 'https://wherehani.com/api/auth/kakao/callback'
   
   return { clientId, redirectUri }
 }
@@ -76,13 +76,13 @@ router.get('/kakao', (req, res) => {
   try {
     if (!clientId) {
       console.error('카카오 REST API 키가 설정되지 않았습니다')
-      const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
+      const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
       return res.redirect(`${frontendUrl}/login?error=oauth_failed`)
     }
 
     if (!redirectUri) {
       console.error('카카오 리다이렉트 URI가 설정되지 않았습니다')
-      const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
+      const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
       return res.redirect(`${frontendUrl}/login?error=oauth_failed`)
     }
 
@@ -101,7 +101,7 @@ router.get('/kakao', (req, res) => {
       message: error.message,
       stack: error.stack,
     })
-    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
+    const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
     res.redirect(`${frontendUrl}/login?error=oauth_failed`)
   }
 })
@@ -125,12 +125,12 @@ router.get('/kakao/callback', async (req, res) => {
     // 카카오에서 오류가 발생한 경우
     if (error) {
       console.error('카카오 OAuth 오류:', error)
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
     }
 
     if (!code || typeof code !== 'string') {
       console.error('카카오 OAuth: code가 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
     }
 
     console.log('카카오 OAuth 콜백 시작, code:', code.substring(0, 20) + '...')
@@ -158,7 +158,7 @@ router.get('/kakao/callback', async (req, res) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({}))
       console.error('카카오 토큰 요청 실패:', errorData)
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
     }
 
     const tokenData = await tokenResponse.json() as KakaoTokenResponse
@@ -168,7 +168,7 @@ router.get('/kakao/callback', async (req, res) => {
 
     if (!accessToken) {
       console.error('액세스 토큰을 받을 수 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
     }
 
     console.log('액세스 토큰 받기 성공')
@@ -199,7 +199,7 @@ router.get('/kakao/callback', async (req, res) => {
         statusText: userInfoResponse.statusText,
         error: errorText,
       })
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
     }
 
     const userInfo = await userInfoResponse.json() as KakaoUserInfo
@@ -233,7 +233,7 @@ router.get('/kakao/callback', async (req, res) => {
     const kakaoId = userInfo.id?.toString()
     if (!kakaoId) {
       console.error('카카오 ID를 가져올 수 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
     }
 
     // 디버깅을 위한 상세 로그
@@ -382,7 +382,7 @@ router.get('/kakao/callback', async (req, res) => {
       user = await UserModel.findById(oauthConnection.user_id)
       if (!user) {
         console.error('OAuth 연결은 있지만 사용자를 찾을 수 없음:', oauthConnection.user_id)
-        return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=user_not_found`)
+        return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=user_not_found`)
       }
 
       // 기존 사용자의 이름을 카카오 닉네임으로 업데이트 (변경된 경우)
@@ -421,7 +421,7 @@ router.get('/kakao/callback', async (req, res) => {
       const emailExists = await UserModel.isEmailExists(searchEmail)
       if (emailExists) {
         console.error('이미 가입된 이메일입니다:', searchEmail)
-        return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=email_already_exists`)
+        return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=email_already_exists`)
       }
       
       user = await UserModel.findByEmail(searchEmail)
@@ -522,12 +522,12 @@ router.get('/kakao/callback', async (req, res) => {
 
     if (!jwtSecret) {
       console.error('JWT_SECRET이 설정되지 않았습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=server_error`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=server_error`)
     }
 
     if (!user) {
       console.error('사용자 정보가 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=user_not_found`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://wherehani.com'}/login?error=user_not_found`)
     }
 
     const jwtAccessToken = jwt.sign(
@@ -547,7 +547,7 @@ router.get('/kakao/callback', async (req, res) => {
     console.log('리프레시 토큰 생성 완료')
 
     // 프론트엔드로 리다이렉트 (토큰을 쿼리 파라미터로 전달)
-    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
+    const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
     let redirectUrl = `${frontendUrl}/auth/callback?token=${jwtAccessToken}&refreshToken=${refreshTokenJWT}`
     if (isNewUser) {
       redirectUrl += '&isNewUser=true'
@@ -561,7 +561,7 @@ router.get('/kakao/callback', async (req, res) => {
       code: error.code,
       stack: error.stack,
     })
-    res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
+    res.redirect(`${process.env.CORS_ORIGIN || 'http://wherehani.com'}/login?error=oauth_failed`)
   }
 })
 
