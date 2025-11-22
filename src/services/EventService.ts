@@ -571,6 +571,14 @@ export const EventService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: '파일 업로드에 실패했습니다' }))
+        
+        // 토큰 만료 시 로그아웃 처리
+        if (response.status === 401 || errorData.error === '유효하지 않은 토큰입니다') {
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.')
+        }
+        
         throw new Error(errorData.error || '파일 업로드에 실패했습니다')
       }
 

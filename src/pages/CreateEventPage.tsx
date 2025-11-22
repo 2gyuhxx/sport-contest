@@ -330,9 +330,19 @@ export function CreateEventPage() {
             imageUrl = await EventService.uploadFile(imageFile, parseInt(eventId, 10))
           } catch (uploadError: any) {
             console.error('[행사 수정] 이미지 업로드 실패:', uploadError)
-            setError(`행사는 수정되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
             setIsUploading(false)
             setIsLoading(false)
+            
+            // 세션 만료 에러인 경우
+            if (uploadError.message.includes('세션이 만료')) {
+              setError(uploadError.message)
+              setTimeout(() => {
+                navigate('/login')
+              }, 2000)
+              return
+            }
+            
+            setError(`이미지 업로드에 실패했습니다: ${uploadError.message}`)
             return
           } finally {
             setIsUploading(false)
