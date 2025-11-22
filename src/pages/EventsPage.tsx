@@ -108,7 +108,7 @@ export function EventsPage() {
           console.log('[코사인 유사도] 행렬 로드 완료 - 사용자:', users.length, '종목:', sports.length)
           
           // 4. 나와 유사한 사용자 찾기
-          const similarUsers = findSimilarUsers(user.id, matrix, users, sports, 5)
+          const similarUsers = findSimilarUsers(Number(user.id), matrix, users, sports, 5)
           console.log('[코사인 유사도] 유사한 사용자:', similarUsers)
           
           // 5. 유사한 사용자들이 찜한 종목 추천
@@ -528,7 +528,7 @@ export function EventsPage() {
               <div className="flex items-start gap-3">
                 <Heart className="h-5 w-5 flex-shrink-0 text-red-600" />
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-slate-900">찜 추천 모드 (코사인 유사도 기반)</h3>
+                  <h3 className="text-sm font-semibold text-slate-900">찜 추천 모드</h3>
                   <p className="mt-1 text-xs text-slate-600">
                     {recommendedSports.length > 0 ? (
                       <>

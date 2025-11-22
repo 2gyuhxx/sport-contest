@@ -70,7 +70,7 @@ export function MyPage() {
   }
 
   // 찜 삭제 핸들러
-  const handleRemoveFavorite = async (eventId: number, eventTitle: string) => {
+  const handleRemoveFavorite = async (eventId: number) => {
     try {
       setRemovingFavoriteId(eventId)
       await FavoriteService.removeFavorite(eventId)
@@ -494,7 +494,7 @@ export function MyPage() {
                   {/* 찜 해제 버튼 */}
                   <button
                     type="button"
-                    onClick={() => handleRemoveFavorite(event.id, event.title)}
+                    onClick={() => handleRemoveFavorite(event.id)}
                     disabled={removingFavoriteId === event.id}
                     className="ml-3 flex-shrink-0 rounded-full p-2 transition hover:bg-red-50 disabled:opacity-50"
                     title="찜 해제"
