@@ -32,17 +32,6 @@ export function EventDetailPage() {
     [event?.region, regions],
   )
 
-  // 신청하기 버튼 핸들러
-  const handleApply = () => {
-    if (event?.link) {
-      // website URL이 있으면 새 탭에서 열기
-      window.open(event.link, '_blank', 'noopener,noreferrer')
-    } else {
-      // URL이 없으면 알림 표시
-      alert('신청 URL이 등록되지 않았습니다.')
-    }
-  }
-
   // 조회수 증가 (React Strict Mode에서도 한 번만 실행)
   useEffect(() => {
     if (eventId && !viewCountedRef.current) {
@@ -210,6 +199,27 @@ export function EventDetailPage() {
           </div>
 
           <aside className="flex flex-col gap-4">
+            {/* 관심 행사 등록 버튼 */}
+            <button
+              type="button"
+              onClick={handleFavorite}
+              disabled={isLoadingFavorite}
+              className={`w-full rounded-2xl border px-4 py-3 text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                isFavorite
+                  ? 'border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600'
+                  : 'border-surface-subtle text-slate-700 hover:border-brand-primary hover:text-brand-primary'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {isLoadingFavorite ? (
+                '처리 중...'
+              ) : (
+                <>
+                  <Heart className={`h-4 w-4 ${isFavorite ? 'fill-white' : 'fill-none'}`} />
+                  {isFavorite ? '관심 행사 등록됨' : '관심 행사 등록'}
+                </>
+              )}
+            </button>
+
             {/* 행사 설명 */}
             <div className="rounded-3xl bg-surface p-5 text-sm leading-relaxed text-slate-600">
               {event.summary}
@@ -257,56 +267,6 @@ export function EventDetailPage() {
                   </div>
                 )}
               </dl>
-            </div>
-
-            {/* 참여 신청 */}
-            <div className="rounded-3xl border border-surface-subtle p-5 shadow-sm">
-              <div className="mb-4 rounded-2xl bg-surface px-4 py-3 text-sm text-slate-600">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  참여 신청
-                </p>
-                <p className="text-slate-900">{event.title}</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleApply}
-                disabled={!event.link}
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-primary px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {event.link ? (
-                  <>
-                    <ExternalLink className="h-4 w-4" />
-                    신청하기
-                  </>
-                ) : (
-                  '신청 URL 없음'
-                )}
-              </button>
-              <button
-                type="button"
-                className="mb-3 w-full rounded-2xl border border-surface-subtle px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary"
-              >
-                공유하기
-              </button>
-              <button
-                type="button"
-                onClick={handleFavorite}
-                disabled={isLoadingFavorite}
-                className={`w-full rounded-2xl border px-4 py-3 text-sm font-semibold transition flex items-center justify-center gap-2 ${
-                  isFavorite
-                    ? 'border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600'
-                    : 'border-surface-subtle text-slate-700 hover:border-brand-primary hover:text-brand-primary'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isLoadingFavorite ? (
-                  '처리 중...'
-                ) : (
-                  <>
-                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-white' : 'fill-none'}`} />
-                    {isFavorite ? '관심 행사 등록됨' : '관심 행사 등록'}
-                  </>
-                )}
-              </button>
             </div>
           </aside>
         </section>

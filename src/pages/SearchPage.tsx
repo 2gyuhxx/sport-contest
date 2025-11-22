@@ -944,9 +944,9 @@ export function SearchPage() {
         <p className="text-xs uppercase tracking-[0.25em] text-slate-500">지도 검색</p>
         <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">원하는 지역의 스포츠 행사를 지도에서 찾아보세요</h1>
         <p className="mt-2 text-slate-600">
-          도·광역시를 클릭해 세부 시·군·구 경계를 확인하고, 필터와 검색으로 관심 있는
-          행사를 빠르게 찾을 수 있습니다.
-        </p>
+            도·광역시를 클릭해 세부 시·군·구 경계를 확인하고, 필터와 검색으로 관심 있는
+            행사를 빠르게 찾을 수 있습니다.
+          </p>
       </header>
 
       <section className="mx-auto grid max-w-content grid-cols-1 gap-6 px-6 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
@@ -1084,51 +1084,6 @@ export function SearchPage() {
                 </button>
                 )
               })}
-              {/* 빈 공간 채우기 (11개 카테고리 → 마지막 줄에 2개 빈칸) */}
-              <div className="invisible"></div>
-              {selectedRegion && (
-                <Tag
-                  label={`지역: ${REGION_INFO[selectedRegion]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? selectedRegion}`}
-                />
-              )}
-              {selectedCity && <Tag label={`도시: ${selectedCity}`} />}
-            </div>
-          </div>
-
-          <div className="rounded-4xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">시/군/구</h2>
-              {selectedRegion ? (
-                <span className="text-xs text-slate-500">{citiesInRegion.length}곳</span>
-              ) : (
-                <span className="text-xs text-slate-500">도/광역시를 먼저 선택하세요</span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {selectedRegion ? (
-                citiesInRegion.length ? (
-                  citiesInRegion.map((city) => (
-                    <button
-                      key={city}
-                      type="button"
-                      onClick={() => handleCityClick(city)}
-                      className={`rounded-lg border px-2 py-1 text-xs transition ${
-                        selectedCity === city
-                          ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
-                          : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
-                      }`}
-                    >
-                      {city}
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500">
-                    샘플 데이터에 도시 정보가 없습니다. 더 많은 Mock 데이터를 추가해 보세요.
-                  </p>
-                )
-              ) : (
-                <p className="text-sm text-slate-500">지역을 선택하면 도시 목록이 표시됩니다.</p>
-              )}
             </div>
           </div>
 
