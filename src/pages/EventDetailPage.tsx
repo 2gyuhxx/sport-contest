@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { formatDate } from '../utils/formatDate'
 import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
-import { EventService } from '../services/EventService'
+import { EventService, categoryToKoreanMap } from '../services/EventService'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -77,7 +77,9 @@ export function EventDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span className="rounded-full bg-white px-3 py-1 shadow">{event.category}</span>
+            <span className="rounded-full bg-white px-3 py-1 shadow">
+              {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category}
+            </span>
             <span className="rounded-full bg-white px-3 py-1 shadow">
               조회수 {event.views.toLocaleString()}
             </span>

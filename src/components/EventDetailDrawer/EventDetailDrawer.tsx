@@ -1,6 +1,7 @@
 import { formatDate } from '../../utils/formatDate'
 import type { Event } from '../../types/events'
 import { ExternalLink } from 'lucide-react'
+import { categoryToKoreanMap } from '../../services/EventService'
 
 interface EventDetailDrawerProps {
   event: Event | null
@@ -41,7 +42,7 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
         <div className="space-y-3 px-5 py-4">
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase text-brand-primary">
-              {event.category}
+              {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category}
             </span>
             <span className="text-xs text-slate-500">{formatDate(event.date)}</span>
           </div>

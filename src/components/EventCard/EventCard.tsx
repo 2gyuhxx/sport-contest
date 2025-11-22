@@ -3,6 +3,7 @@ import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
 import { CheckCircle2, XCircle } from 'lucide-react'
+import { categoryToKoreanMap } from '../../services/EventService'
 
 interface EventCardProps {
   event: Event
@@ -67,7 +68,7 @@ export function EventCard({
           loading="lazy"
         />
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary">
-          {event.sub_sport || event.sport || ''}
+          {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category || ''}
         </span>
         {/* 진행/종료 상태 배지 */}
         {event.event_status && (
