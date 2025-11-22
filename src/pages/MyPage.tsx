@@ -5,7 +5,6 @@ import { FavoriteService } from '../services/FavoriteService'
 import { AuthService } from '../services/AuthService'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
-  User, 
   Calendar, 
   MapPin, 
   Tag, 
@@ -14,7 +13,6 @@ import {
   XCircle, 
   AlertCircle,
   Loader2,
-  ArrowLeft,
   Edit,
   Trash2,
   Heart
@@ -339,35 +337,21 @@ export function MyPage() {
         </div>
       )}
 
-      <div className="space-y-8 pb-16">
+      <div className="space-y-16 pb-20">
         {/* 헤더 */}
-        <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
-        <div className="mx-auto max-w-3xl">
-          <Link
-            to="/"
-            className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-white/80 transition hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            홈으로 돌아가기
-          </Link>
-          <div className="mt-4 flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
-              <User className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold md:text-4xl">마이페이지</h1>
-              <p className="mt-2 text-white/90">
-                {isManager
-                  ? `${user?.name}님이 등록한 행사와 관리자 기능을 관리할 수 있습니다`
-                  : `${user?.name}님의 프로필과 관심 종목을 관리할 수 있습니다`}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+        <header className="mx-auto max-w-content px-6 mb-8">
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">my page</p>
+          <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">마이페이지</h1>
+          <p className="mt-2 text-slate-600">
+            {isManager
+              ? `${user?.name}님이 등록한 행사와 관리자 기능을 관리할 수 있습니다.`
+              : `${user?.name}님의 프로필과 관심 종목을 관리할 수 있습니다.`}
+          </p>
+        </header>
 
-      {/* 역할별 메인 섹션 */}
-      <section className="mx-auto max-w-3xl space-y-8">
+      <div className="mx-auto max-w-content px-6">
+        {/* 역할별 메인 섹션 */}
+        <section className="mx-auto max-w-3xl space-y-8">
         {/* 공통: 계정 관리 카드 */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">
@@ -636,6 +620,7 @@ export function MyPage() {
           </div>
         )}
       </section>
+      </div>
     </div>
     </>
   )

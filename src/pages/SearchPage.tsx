@@ -476,24 +476,6 @@ export function SearchPage() {
     }
   }, [selectedRegion])
 
-  const citiesByRegion = useMemo(() => {
-    const map = new Map<string, Set<string>>()
-    events.forEach((event) => {
-      if (!map.has(event.region)) {
-        map.set(event.region, new Set())
-      }
-      map.get(event.region)!.add(event.city)
-    })
-    return map
-  }, [events])
-
-  const citiesInRegion = useMemo(() => {
-    if (!selectedRegion) return []
-    return Array.from(citiesByRegion.get(selectedRegion) ?? []).sort((a, b) =>
-      a.localeCompare(b, 'ko'),
-    )
-  }, [citiesByRegion, selectedRegion])
-
   const categoryOptions = useMemo<CategoryFilter[]>(() => {
     // 새로운 스포츠 카테고리 목록 사용
     return ['all', ...SPORT_CATEGORIES.map(cat => cat.value)]
@@ -901,13 +883,6 @@ export function SearchPage() {
     })
   }, [])
 
-  const handleCityClick = (city: string) => {
-    setSelectedCity(city)
-    setSearchTerm(city)
-    dispatch({ type: 'SET_KEYWORD', payload: city })
-    dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
-  }
-
   const handleCategoryChange = (option: CategoryFilter) => {
     setCategoryFilter(option)
     const nextCategory = option === 'all' ? null : option
@@ -941,7 +916,7 @@ export function SearchPage() {
   return (
     <div className="space-y-16 pb-20">
       <header className="mx-auto max-w-content px-6 mb-8">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">지도 검색</p>
+        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">MAP SEARCH</p>
         <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">원하는 지역의 스포츠 행사를 지도에서 찾아보세요</h1>
         <p className="mt-2 text-slate-600">
             도·광역시를 클릭해 세부 시·군·구 경계를 확인하고, 필터와 검색으로 관심 있는

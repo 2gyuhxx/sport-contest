@@ -72,9 +72,6 @@ export function LoginPage() {
             <LogIn className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900">로그인</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            스포터블에 오신 것을 환영합니다
-          </p>
         </div>
 
         {/* 로그인 폼 */}
@@ -195,15 +192,6 @@ export function LoginPage() {
               회원가입
             </Link>
           </div>
-        </div>
-
-        {/* 데모 안내 */}
-        <div className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
-          <p className="font-semibold">💡 데모 안내</p>
-          <p className="mt-1 text-xs">
-            회원가입 후 로그인하시거나, 임의의 이메일과 비밀번호로 테스트해보세요.
-            (데이터는 브라우저 localStorage에 저장됩니다)
-          </p>
         </div>
       </div>
     </div>

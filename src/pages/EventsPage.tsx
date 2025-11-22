@@ -1,13 +1,14 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList/EventList'
+import { EventCard } from '../components/EventCard'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
 import { FavoriteService } from '../services/FavoriteService'
 import type { Category, Event } from '../types/events'
 import { getCategoryLabel } from '../utils/categoryLabels'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
-import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles, Heart } from 'lucide-react'
+import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type SortOption = 'latest' | 'popular' | 'date' | 'title' | 'recommended'
 
@@ -43,6 +44,31 @@ export function EventsPage() {
   const [myFavorites, setMyFavorites] = useState<any[]>([])
   const [favoriteBasedEvents, setFavoriteBasedEvents] = useState<Event[]>([])
   const [recommendedSports, setRecommendedSports] = useState<string[]>([])
+
+  // 캐러셀 ref
+  const interestScrollRef = useRef<HTMLDivElement>(null)
+  const favoriteScrollRef = useRef<HTMLDivElement>(null)
+
+  // 캐러셀 스크롤 함수 (3개씩 이동)
+  const scrollCarousel = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = ref.current.clientWidth
+      ref.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+    }
+  }
+
+  // 캐러셀 초기 위치 설정
+  useEffect(() => {
+    if (interestScrollRef.current) {
+      interestScrollRef.current.scrollLeft = 0
+    }
+    if (favoriteScrollRef.current) {
+      favoriteScrollRef.current.scrollLeft = 0
+    }
+  }, [sortBy])
 
   // 대분류 카테고리 로드
   useEffect(() => {
@@ -275,7 +301,7 @@ export function EventsPage() {
         <p className="text-xs uppercase tracking-[0.25em] text-slate-500">all events</p>
         <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">행사</h1>
         <p className="mt-2 text-slate-600">
-          전국의 다양한 체육 행사를 확인하고 참여하세요
+          전국의 다양한 체육 행사를 확인하고 참여하세요.
         </p>
       </header>
       
@@ -366,7 +392,8 @@ export function EventsPage() {
             </div>
           </div>
 
-          {/* 필터 영역 */}
+          {/* 필터 영역 - 추천 모드가 아닐 때만 표시 */}
+          {sortBy !== 'recommended' && (
           <div className="mt-4 flex flex-col gap-4 border-t border-surface-subtle pt-4 md:flex-row">
             {/* 대분류 필터 */}
             <div className="flex-1">
@@ -459,6 +486,7 @@ export function EventsPage() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* 추천 모드 안내 배너 */}
@@ -504,20 +532,62 @@ export function EventsPage() {
 
         {/* 행사 목록 */}
         <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-          <EventList
-            events={filteredAndSortedEvents}
-            layout={layoutMode}
-            columns={layoutMode === 'grid' ? 3 : 2}
-            cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
-            emptyMessage={
-              sortBy === 'recommended' && isAuthenticated
-                ? user?.interests && user.interests.length > 0
-                  ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
-                  : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
-                : '조건에 맞는 행사가 없습니다.'
-            }
-            detailHrefBase="/events/"
-          />
+          {sortBy === 'recommended' && filteredAndSortedEvents.length > 4 ? (
+            <div className="relative">
+              {/* 왼쪽 화살표 */}
+              <button
+                onClick={() => scrollCarousel(interestScrollRef, 'left')}
+                className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
+                aria-label="이전"
+              >
+                <ChevronLeft className="h-6 w-6 text-slate-700" />
+              </button>
+
+              {/* 스크롤 컨테이너 */}
+              <div
+                ref={interestScrollRef}
+                className="overflow-x-hidden scrollbar-hide"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <div className="flex gap-5 pb-4 transition-transform duration-300">
+                  {filteredAndSortedEvents.map((event) => (
+                    <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)]">
+                      <EventCard
+                        event={event}
+                        layout="vertical"
+                        variant="default"
+                        detailHref={`/events/${event.id}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 오른쪽 화살표 */}
+              <button
+                onClick={() => scrollCarousel(interestScrollRef, 'right')}
+                className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
+                aria-label="다음"
+              >
+                <ChevronRight className="h-6 w-6 text-slate-700" />
+              </button>
+            </div>
+          ) : (
+            <EventList
+              events={filteredAndSortedEvents}
+              layout={layoutMode}
+              columns={layoutMode === 'grid' ? 3 : 2}
+              cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
+              emptyMessage={
+                sortBy === 'recommended' && isAuthenticated
+                  ? user?.interests && user.interests.length > 0
+                    ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
+                    : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
+                  : '조건에 맞는 행사가 없습니다.'
+              }
+              detailHrefBase="/events/"
+            />
+          )}
         </div>
 
         {/* 찜 기반 추천 섹션 */}
@@ -545,16 +615,65 @@ export function EventsPage() {
               </div>
             </div>
 
+            {/* 결과 개수 */}
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-slate-600">
+                총 <span className="font-semibold text-brand-primary">{favoriteBasedEvents.length}</span>개의 행사
+              </p>
+            </div>
+
             {/* 찜 기반 추천 행사 목록 */}
-            <div className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm md:p-8">
-              <EventList
-                events={favoriteBasedEvents}
-                layout={layoutMode}
-                columns={layoutMode === 'grid' ? 3 : 2}
-                cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
-                emptyMessage="찜한 종목과 일치하는 새로운 행사가 없습니다."
-                detailHrefBase="/events/"
-              />
+            <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
+              {favoriteBasedEvents.length > 4 ? (
+                <div className="relative">
+                  {/* 왼쪽 화살표 */}
+                  <button
+                    onClick={() => scrollCarousel(favoriteScrollRef, 'left')}
+                    className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
+                    aria-label="이전"
+                  >
+                    <ChevronLeft className="h-6 w-6 text-slate-700" />
+                  </button>
+
+                  {/* 스크롤 컨테이너 */}
+                  <div
+                    ref={favoriteScrollRef}
+                    className="overflow-x-hidden scrollbar-hide"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
+                    <div className="flex gap-5 pb-4 transition-transform duration-300">
+                      {favoriteBasedEvents.map((event) => (
+                        <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)]">
+                          <EventCard
+                            event={event}
+                            layout="vertical"
+                            variant="default"
+                            detailHref={`/events/${event.id}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 오른쪽 화살표 */}
+                  <button
+                    onClick={() => scrollCarousel(favoriteScrollRef, 'right')}
+                    className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
+                    aria-label="다음"
+                  >
+                    <ChevronRight className="h-6 w-6 text-slate-700" />
+                  </button>
+                </div>
+              ) : (
+                <EventList
+                  events={favoriteBasedEvents}
+                  layout={layoutMode}
+                  columns={layoutMode === 'grid' ? 3 : 2}
+                  cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
+                  emptyMessage="찜한 종목과 일치하는 새로운 행사가 없습니다."
+                  detailHrefBase="/events/"
+                />
+              )}
             </div>
           </div>
         )}

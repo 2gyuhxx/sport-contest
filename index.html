@@ -57,6 +57,15 @@
       canvas {
         transition: opacity 0.15s ease-out !important;
       }
+      
+      /* 캐러셀 스크롤바 숨기기 */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
     </style>
   </head>
   <body>
