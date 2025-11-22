@@ -14,7 +14,7 @@ const getGoogleClient = () => {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   // Google Cloud Console에 등록된 리다이렉션 URI와 일치해야 함
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://wherehani.com/api/auth/google/callback'
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://wherehani.com/api/auth/google/callback'
 
   if (!clientId || !clientSecret) {
     throw new Error('Google OAuth credentials not configured')
@@ -59,7 +59,7 @@ router.get('/google', (req, res) => {
 
     console.log('Google OAuth URL 생성 성공')
     console.log('생성된 Auth URL:', authUrl)
-    console.log('리다이렉트 URI:', process.env.GOOGLE_REDIRECT_URI || 'https://wherehani.com/api/auth/google/callback')
+    console.log('리다이렉트 URI:', process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback')
     res.redirect(authUrl)
   } catch (error: any) {
     console.error('Google OAuth 오류:', error)
@@ -89,12 +89,12 @@ router.get('/google/callback', async (req, res) => {
     // Google에서 오류가 발생한 경우
     if (error) {
       console.error('Google OAuth 오류:', error)
-      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
     }
 
     if (!code || typeof code !== 'string') {
       console.error('Google OAuth: code가 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
     }
 
     console.log('Google OAuth 콜백 시작, code:', code.substring(0, 20) + '...')
@@ -111,7 +111,7 @@ router.get('/google/callback', async (req, res) => {
     console.log('ID 토큰 검증 시작...')
     if (!tokens.id_token) {
       console.error('ID 토큰이 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
     }
 
     const ticket = await client.verifyIdToken({
@@ -122,7 +122,7 @@ router.get('/google/callback', async (req, res) => {
     const payload = ticket.getPayload()
     if (!payload) {
       console.error('페이로드를 가져올 수 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=oauth_failed`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
     }
 
     console.log('사용자 정보 가져오기 성공:', payload.email)
@@ -144,7 +144,7 @@ router.get('/google/callback', async (req, res) => {
       // 기존 사용자 - 로그인
       user = await UserModel.findById(oauthConnection.user_id)
       if (!user) {
-        return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=user_not_found`)
+        return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=user_not_found`)
       }
 
       // 마지막 로그인 시간 업데이트
@@ -156,7 +156,7 @@ router.get('/google/callback', async (req, res) => {
         const emailExists = await UserModel.isEmailExists(email)
         if (emailExists) {
           console.error('이미 가입된 이메일입니다:', email)
-          return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=email_already_exists`)
+          return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=email_already_exists`)
         }
       }
       
@@ -243,7 +243,7 @@ router.get('/google/callback', async (req, res) => {
     const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '15m'
 
     if (!jwtSecret) {
-      return res.redirect(`${process.env.CORS_ORIGIN || 'https://wherehani.com'}/login?error=server_error`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=server_error`)
     }
 
     const accessToken = jwt.sign(
@@ -260,7 +260,7 @@ router.get('/google/callback', async (req, res) => {
     const refreshToken = await SessionTokenModel.create(user.id, deviceInfo, ip)
 
     // 프론트엔드로 리다이렉트 (토큰을 쿼리 파라미터로 전달)
-    const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
     let redirectUrl = `${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}`
     if (isNewUser) {
       redirectUrl += '&isNewUser=true'

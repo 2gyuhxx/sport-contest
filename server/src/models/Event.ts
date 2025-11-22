@@ -197,11 +197,12 @@ export class EventModel {
   }
 
   /**
-   * 모든 행사 가져오기
+   * 모든 행사 가져오기 (승인된 행사만)
    */
   static async findAll(): Promise<EventRow[]> {
     const [rows] = await pool.execute<EventRow[]>(
-      'SELECT * FROM events ORDER BY created_at DESC'
+      'SELECT * FROM events WHERE status = ? ORDER BY created_at DESC',
+      ['approved']
     )
     return rows
   }
