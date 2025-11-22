@@ -940,24 +940,14 @@ export function SearchPage() {
 
   return (
     <div className="space-y-16 pb-20">
-      <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-10 text-white md:p-16">
-        <div className="mx-auto flex max-w-content flex-col gap-7">
-          <span className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
-            sport contest search
-          </span>
-          <h1 className="text-3xl font-bold md:text-5xl">
-            원하는 지역의 스포츠 행사를 지도에서 찾아보세요
-          </h1>
-          <p className="max-w-2xl text-base text-white/80 md:text-lg">
-            도·광역시를 클릭해 세부 시·군·구 경계를 확인하고, 필터와 검색으로 관심 있는
-            행사를 빠르게 찾을 수 있습니다.
-          </p>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-white/80">
-            <span>• 지역을 선택하면 해당 지역이 확대되어 표시됩니다.</span>
-            <span>• 시/군/구를 클릭하여 세부 필터링이 가능합니다.</span>
-          </div>
-        </div>
-      </section>
+      <header className="mb-8">
+        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">지도 검색</p>
+        <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">원하는 지역의 스포츠 행사를 지도에서 찾아보세요</h1>
+        <p className="mt-2 text-slate-600">
+          도·광역시를 클릭해 세부 시·군·구 경계를 확인하고, 필터와 검색으로 관심 있는
+          행사를 빠르게 찾을 수 있습니다.
+        </p>
+      </header>
 
       <section className="mx-auto grid max-w-content grid-cols-1 gap-6 px-4 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
         <div className="relative flex flex-col gap-5 overflow-hidden">

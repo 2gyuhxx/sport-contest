@@ -6,7 +6,6 @@ import { AuthProvider } from '../context/AuthContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { AuthService } from '../services/AuthService'
 import { classNames } from '../utils/classNames'
-import { DevDebugPanel } from '../components/DevDebugPanel'
 
 function AppHeader() {
   const navigate = useNavigate()
@@ -66,15 +65,12 @@ function AppHeader() {
       <header className="border-b border-surface-subtle bg-white">
         <div className="mx-auto flex max-w-content flex-col gap-3 px-6 py-5 md:py-7">
         <div className="flex items-center justify-between gap-4">
-          <Link to="/" className="flex flex-col text-left">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-              sport contest
-            </span>
-            <div className="flex items-baseline gap-2">
-              <h1 className="text-xl font-bold text-slate-900 md:text-2xl">
-                지역 행사 탐색
-              </h1>
-            </div>
+          <Link to="/" className="flex items-center">
+            <img 
+              src="/images/logo.png" 
+              alt="어디서하니" 
+              className="h-20 w-auto md:h-24"
+            />
           </Link>
           <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
             {isAuthenticated && user ? (
@@ -176,13 +172,9 @@ export function AppShell() {
 
           <footer className="border-t border-surface-subtle bg-white">
             <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-7 text-xs text-slate-500 md:flex-row md:items-center md:justify-between">
-              <span>© 2025 Sport Contest Prototype</span>
-              <span>Mock data 기반 프로토타입 · React & Tailwind CSS</span>
+              <span>© 어디서하니</span>
             </div>
           </footer>
-
-          {/* 개발자 디버그 패널 (개발 모드에서만 표시) */}
-          <DevDebugPanel />
         </div>
       </EventProvider>
     </AuthProvider>

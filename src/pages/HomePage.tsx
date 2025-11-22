@@ -32,9 +32,11 @@ export function HomePage() {
     <div className="space-y-16 pb-16">
       <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-10 text-white md:p-16">
         <div className="mx-auto flex max-w-content flex-col gap-7">
-          <span className="text-sm font-semibold uppercase tracking-[0.2em]">
-            sport contest finder
-          </span>
+          <img 
+            src="/images/top_tab_logo.png" 
+            alt="어디서하니" 
+            className="h-8 w-auto md:h-10"
+          />
           <h1 className="text-3xl font-bold md:text-5xl">
             지역별 스포츠 행사 정보를 한눈에 확인하세요
           </h1>

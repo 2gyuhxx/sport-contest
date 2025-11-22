@@ -598,21 +598,19 @@ export function CreateEventPage() {
 
       <div className="space-y-8 pb-16">
         {/* 헤더 */}
-        <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
-        <div className="mx-auto max-w-3xl">
-          <span className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-            event registration
-          </span>
-          <h1 className="mt-2 text-3xl font-bold md:text-4xl">
+        <header className="mb-8">
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+            {isEditMode ? 'event update' : 'event registration'}
+          </p>
+          <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
             {isEditMode ? '행사 수정' : '행사 등록'}
           </h1>
-          <p className="mt-3 text-white/90">
+          <p className="mt-2 text-slate-600">
             {isEditMode 
               ? '등록한 행사 정보를 수정할 수 있습니다. 수정 후 스팸 검사를 다시 진행합니다.'
               : '새로운 스포츠 행사 정보를 등록하여 더 많은 사람들과 공유하세요.'}
           </p>
-        </div>
-      </section>
+        </header>
 
       {/* 폼 */}
       <section className="mx-auto max-w-3xl">
