@@ -189,16 +189,17 @@ export function EventsPage() {
   }
 
   return (
-    <div className="bg-surface pb-20 pt-10">
-      <div className="mx-auto max-w-content px-4 lg:px-6">
-        {/* 헤더 */}
-        <header className="mb-8">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">all events</p>
-          <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">행사</h1>
-          <p className="mt-2 text-slate-600">
-            전국의 다양한 체육 행사를 확인하고 참여하세요
-          </p>
-        </header>
+    <div className="space-y-16 pb-20">
+      {/* 헤더 */}
+      <header className="mx-auto max-w-content px-6 mb-8">
+        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">all events</p>
+        <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">행사</h1>
+        <p className="mt-2 text-slate-600">
+          전국의 다양한 체육 행사를 확인하고 참여하세요
+        </p>
+      </header>
+      
+      <div className="mx-auto max-w-content px-6">
 
         {/* 필터 및 정렬 */}
         <div className="mb-6 rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm">

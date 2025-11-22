@@ -598,7 +598,7 @@ export function CreateEventPage() {
 
       <div className="space-y-8 pb-16">
         {/* 헤더 */}
-        <header className="mb-8">
+        <header className="mx-auto max-w-content px-6 mb-8">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
             {isEditMode ? 'event update' : 'event registration'}
           </p>
@@ -613,7 +613,7 @@ export function CreateEventPage() {
         </header>
 
       {/* 폼 */}
-      <section className="mx-auto max-w-3xl">
+      <section className="mx-auto max-w-3xl px-6">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* 에러 메시지 */}
           {error && (

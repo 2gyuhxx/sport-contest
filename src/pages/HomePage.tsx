@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import { useEventContext } from '../context/useEventContext'
 import { EventList } from '../components/EventList'
@@ -30,36 +29,14 @@ export function HomePage() {
 
   return (
     <div className="space-y-16 pb-16">
-      <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-10 text-white md:p-16">
-        <div className="mx-auto flex max-w-content flex-col gap-7">
-          <img 
-            src="/images/top_tab_logo.png" 
-            alt="어디서하니" 
-            className="h-8 w-auto md:h-10"
-          />
-          <h1 className="text-3xl font-bold md:text-5xl">
-            지역별 스포츠 행사 정보를 한눈에 확인하세요
-          </h1>
-          <p className="max-w-2xl text-base text-white/80 md:text-lg">
-            축구, 마라톤, e스포츠 등 다양한 종목의 지역 행사를 한 곳에서 탐색하고
-            관심있는 이벤트를 빠르게 찾아보세요.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              to="/search"
-              className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-brand-secondary transition hover:bg-surface"
-            >
-              지도에서 행사 찾기
-            </Link>
-            <Link
-              to="/search?category=football"
-              className="rounded-full border border-white/50 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              인기 종목 살펴보기
-            </Link>
-          </div>
-        </div>
-      </section>
+      <header className="mx-auto max-w-content px-6 mb-8">
+        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">sport contest finder</p>
+        <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">지역별 스포츠 행사 정보를 한눈에 확인하세요</h1>
+        <p className="mt-2 text-slate-600">
+          축구, 마라톤, e스포츠 등 다양한 종목의 지역 행사를 한 곳에서 탐색하고
+          관심있는 이벤트를 빠르게 찾아보세요.
+        </p>
+      </header>
 
       <section className="mx-auto flex max-w-content flex-col gap-12 px-6">
         {/* 인기 행사 TOP */}

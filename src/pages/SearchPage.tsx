@@ -940,7 +940,7 @@ export function SearchPage() {
 
   return (
     <div className="space-y-16 pb-20">
-      <header className="mb-8">
+      <header className="mx-auto max-w-content px-6 mb-8">
         <p className="text-xs uppercase tracking-[0.25em] text-slate-500">지도 검색</p>
         <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">원하는 지역의 스포츠 행사를 지도에서 찾아보세요</h1>
         <p className="mt-2 text-slate-600">
@@ -949,7 +949,7 @@ export function SearchPage() {
         </p>
       </header>
 
-      <section className="mx-auto grid max-w-content grid-cols-1 gap-6 px-4 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
+      <section className="mx-auto grid max-w-content grid-cols-1 gap-6 px-6 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
         <div className="relative flex flex-col gap-5 overflow-hidden">
           <div className="rounded-4xl border border-surface-subtle bg-white p-5 shadow-sm md:p-7 lg:p-8 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
