@@ -24,8 +24,10 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin: (origin, callback) => {
-    // origin이 없으면 (같은 도메인 요청 등) 허용
-    if (!origin) return callback(null, true)
+    // origin이 없으면 (서버 간 요청, OAuth 콜백 등) 허용
+    if (!origin) {
+      return callback(null, true)
+    }
     
     // 허용된 origin 목록에 있으면 허용
     if (allowedOrigins.includes(origin)) {
@@ -37,6 +39,13 @@ app.use(cors({
       return callback(null, true)
     }
     
+    // 프로덕션 환경에서 wherehani.com 도메인 허용 (www 포함)
+    if (origin.includes('wherehani.com')) {
+      return callback(null, true)
+    }
+    
+    // 그 외의 경우 차단
+    console.warn('CORS 차단된 origin:', origin)
     callback(new Error('CORS 정책에 의해 차단되었습니다'))
   },
   credentials: true,
