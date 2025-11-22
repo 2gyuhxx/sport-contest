@@ -268,41 +268,33 @@ export function CreateEventPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    // 수정 모드일 때는 필수 검증 완화 (기존 값이 있으면 필수 아님)
-    if (isEditMode) {
-      // 수정 모드: 날짜 유효성 검사만 수행
-      if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
-        newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
-      }
-    } else {
-      // 생성 모드: 모든 필수 필드 검증
-      if (!formData.title.trim()) {
-        newErrors.title = '행사명을 입력해주세요.'
-      }
-      if (!formData.organizer.trim()) {
-        newErrors.organizer = '개최사를 입력해주세요.'
-      }
-      if (!formData.sport_category_id) {
-        newErrors.sport_category_id = '스포츠 대분류를 선택해주세요.'
-      }
-      if (!formData.sub_sport_category_id) {
-        newErrors.sub_sport_category_id = '스포츠 소분류를 선택해주세요.'
-      }
-      if (!formData.start_at) {
-        newErrors.start_at = '시작 날짜를 선택해주세요.'
-      }
-      if (!formData.end_at) {
-        newErrors.end_at = '종료 날짜를 선택해주세요.'
-      }
-      if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
-        newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
-      }
-      if (!postcode) {
-        newErrors.address = '주소를 검색해주세요.'
-      }
-      if (!formData.summary.trim()) {
-        newErrors.summary = '간단 요약을 입력해주세요.'
-      }
+    // 모든 필수 필드 검증 (생성/수정 모드 공통)
+    if (!formData.title.trim()) {
+      newErrors.title = '행사명을 입력해주세요.'
+    }
+    if (!formData.organizer.trim()) {
+      newErrors.organizer = '개최사를 입력해주세요.'
+    }
+    if (!formData.sport_category_id) {
+      newErrors.sport_category_id = '스포츠 대분류를 선택해주세요.'
+    }
+    if (!formData.sub_sport_category_id) {
+      newErrors.sub_sport_category_id = '스포츠 소분류를 선택해주세요.'
+    }
+    if (!formData.start_at) {
+      newErrors.start_at = '시작 날짜를 선택해주세요.'
+    }
+    if (!formData.end_at) {
+      newErrors.end_at = '종료 날짜를 선택해주세요.'
+    }
+    if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
+      newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
+    }
+    if (!postcode) {
+      newErrors.address = '주소를 검색해주세요.'
+    }
+    if (!formData.summary.trim()) {
+      newErrors.summary = '간단 요약을 입력해주세요.'
     }
 
     setErrors(newErrors)
