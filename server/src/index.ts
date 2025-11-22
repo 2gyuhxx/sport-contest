@@ -9,6 +9,7 @@ import listRoutes from './routes/lists.js'
 import uploadRoutes from './routes/upload.js'
 import categoryRoutes from './routes/categories.js'
 import { EventModel } from './models/Event.js'
+import pool from './config/database.js'
 
 dotenv.config()
 
@@ -16,8 +17,28 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // 미들웨어
+// CORS 설정: 개발 환경과 프로덕션 환경 모두 지원
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:5173', 'https://wherehani.com']
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // origin이 없으면 (같은 도메인 요청 등) 허용
+    if (!origin) return callback(null, true)
+    
+    // 허용된 origin 목록에 있으면 허용
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    
+    // 개발 환경에서는 localhost 허용
+    if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+      return callback(null, true)
+    }
+    
+    callback(new Error('CORS 정책에 의해 차단되었습니다'))
+  },
   credentials: true,
 }))
 app.use(express.json())
@@ -67,8 +88,50 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal Server Error' })
 })
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`)
+// 데이터베이스 연결 테스트
+async function testDatabaseConnection() {
+  try {
+    const connection = await pool.getConnection()
+    console.log('✅ 데이터베이스 연결 성공')
+    console.log('📊 데이터베이스 정보:', {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || '3306',
+      database: process.env.DB_NAME || 'sport_contest',
+      user: process.env.DB_USER || 'root',
+    })
+    connection.release()
+    return true
+  } catch (error: any) {
+    console.error('❌ 데이터베이스 연결 실패:', error.message)
+    console.error('📋 환경변수 확인:', {
+      DB_HOST: process.env.DB_HOST || '(기본값: localhost)',
+      DB_PORT: process.env.DB_PORT || '(기본값: 3306)',
+      DB_USER: process.env.DB_USER || '(기본값: root)',
+      DB_NAME: process.env.DB_NAME || '(기본값: sport_contest)',
+      DB_PASSWORD: process.env.DB_PASSWORD ? '***' : '(설정되지 않음)',
+    })
+    return false
+  }
+}
+
+// 서버 시작
+async function startServer() {
+  // 데이터베이스 연결 테스트
+  const dbConnected = await testDatabaseConnection()
+  
+  if (!dbConnected) {
+    console.error('⚠️  데이터베이스 연결 실패. 서버는 시작되지만 일부 기능이 작동하지 않을 수 있습니다.')
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on http://localhost:${PORT}`)
+    console.log(`🌐 CORS 허용 Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5173, https://wherehani.com'}`)
+  })
+}
+
+startServer().catch((error) => {
+  console.error('서버 시작 실패:', error)
+  process.exit(1)
 })
 
 
