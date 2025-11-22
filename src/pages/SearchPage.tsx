@@ -1084,6 +1084,8 @@ export function SearchPage() {
                 </button>
                 )
               })}
+              {/* 빈 공간 채우기 (11개 카테고리 → 마지막 줄에 2개 빈칸) */}
+              <div className="invisible"></div>
               {selectedRegion && (
                 <Tag
                   label={`지역: ${REGION_INFO[selectedRegion]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? selectedRegion}`}
