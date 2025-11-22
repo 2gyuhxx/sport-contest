@@ -274,7 +274,7 @@ router.get('/google/callback', async (req, res) => {
       code: error.code,
       stack: error.stack,
     })
-    res.redirect(`${process.env.CORS_ORIGIN || 'http://wherehani.com'}/login?error=oauth_failed`)
+    res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
   }
 })
 

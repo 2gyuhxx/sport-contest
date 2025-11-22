@@ -101,7 +101,7 @@ router.get('/kakao', (req, res) => {
       message: error.message,
       stack: error.stack,
     })
-    const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
     res.redirect(`${frontendUrl}/login?error=oauth_failed`)
   }
 })
@@ -527,7 +527,7 @@ router.get('/kakao/callback', async (req, res) => {
 
     if (!user) {
       console.error('사용자 정보가 없습니다')
-      return res.redirect(`${process.env.CORS_ORIGIN || 'http://wherehani.com'}/login?error=user_not_found`)
+      return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=user_not_found`)
     }
 
     const jwtAccessToken = jwt.sign(
@@ -547,7 +547,7 @@ router.get('/kakao/callback', async (req, res) => {
     console.log('리프레시 토큰 생성 완료')
 
     // 프론트엔드로 리다이렉트 (토큰을 쿼리 파라미터로 전달)
-    const frontendUrl = process.env.CORS_ORIGIN || 'https://wherehani.com'
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173'
     let redirectUrl = `${frontendUrl}/auth/callback?token=${jwtAccessToken}&refreshToken=${refreshTokenJWT}`
     if (isNewUser) {
       redirectUrl += '&isNewUser=true'
@@ -561,7 +561,7 @@ router.get('/kakao/callback', async (req, res) => {
       code: error.code,
       stack: error.stack,
     })
-    res.redirect(`${process.env.CORS_ORIGIN || 'http://wherehani.com'}/login?error=oauth_failed`)
+    res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}/login?error=oauth_failed`)
   }
 })
 

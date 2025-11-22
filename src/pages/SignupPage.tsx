@@ -425,7 +425,7 @@ export function SignupPage() {
             <button
               type="button"
               onClick={() => {
-                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://wherehani.com' 
+                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
                 window.location.href = `${apiBaseUrl}/auth/google`
               }}
               className="w-full flex items-center justify-center gap-3 rounded-lg border-2 border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
@@ -455,7 +455,7 @@ export function SignupPage() {
             <button
               type="button"
               onClick={() => {
-                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://wherehani.com'
+                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
                 window.location.href = `${apiBaseUrl}/auth/kakao`
               }}
               className="w-full flex items-center justify-center gap-3 rounded-lg border-2 border-yellow-300 bg-[#FEE500] px-4 py-3 font-semibold text-slate-900 transition hover:bg-[#FDD835]"
