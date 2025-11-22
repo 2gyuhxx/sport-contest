@@ -32,13 +32,13 @@ export function LoginPage() {
 
   // Google 로그인 시작
   const handleGoogleLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://wherehani.com' 
     window.location.href = `${apiBaseUrl}/auth/google`
   }
 
   // 카카오 로그인 시작
   const handleKakaoLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://wherehani.com'
     window.location.href = `${apiBaseUrl}/auth/kakao`
   }
 
