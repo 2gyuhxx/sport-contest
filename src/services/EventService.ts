@@ -139,6 +139,20 @@ export const categoryMap: Record<string, Category> = {
     'e스포츠': 'other',
 }
 
+// 카테고리 ID를 한글 대분류 이름으로 변환하는 역맵 (DB 저장용)
+export const categoryToKoreanMap: Record<Category, string> = {
+    'team-ball': '구기·팀',
+    'racket-ball': '라켓·볼',
+    'martial-arts': '무도·격투',
+    'fitness-skill': '체력·기술',
+    'precision': '정밀·기술',
+    'ice-snow': '빙상·설원',
+    'water': '수상·해양',
+    'leisure': '레저·환경',
+    'mind': '마인드',
+    'other': '기타',
+}
+
 // DB 행사 데이터를 프론트엔드 Event 타입으로 변환
 function transformDBEventToEvent(dbEvent: DBEvent): Event {
   // sport를 Category로 매핑 (SearchPage의 SPORT_CATEGORIES와 일치)

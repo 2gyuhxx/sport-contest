@@ -130,7 +130,23 @@ export const AuthService = {
 
     try {
       // 회원가입 API 호출
-      const sportsValue = interests && interests.length > 0 ? interests.join(',') : null
+      // interests가 영어 카테고리 ID인 경우 한글 이름으로 변환
+      let sportsValue: string | null = null
+      if (interests && interests.length > 0) {
+        // interests가 이미 한글 이름인지 확인 (첫 번째 항목으로 판단)
+        const firstInterest = interests[0]
+        if (typeof firstInterest === 'string' && firstInterest.includes('-')) {
+          // 영어 카테고리 ID인 경우 한글 이름으로 변환
+          const { categoryToKoreanMap } = await import('./EventService')
+          const koreanNames = interests
+            .map(categoryId => categoryToKoreanMap[categoryId as keyof typeof categoryToKoreanMap])
+            .filter((name): name is string => name !== undefined)
+          sportsValue = koreanNames.length > 0 ? koreanNames.join(',') : null
+        } else {
+          // 이미 한글 이름인 경우 그대로 사용
+          sportsValue = interests.join(',')
+        }
+      }
 
       const response = await apiRequest<LoginResponse>('/auth/signup', {
         method: 'POST',

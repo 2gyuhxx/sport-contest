@@ -93,8 +93,13 @@ export function OAuthSignupPage() {
       }
       
       // 일반 사용자인 경우에만 관심종목 업데이트
+      // 영어 카테고리 ID를 한글 이름으로 변환
       if (isUser) {
-        updateData.sports = interests.length > 0 ? interests.join(',') : null
+        const { categoryToKoreanMap } = await import('../services/EventService')
+        const koreanNames = interests
+          .map(categoryId => categoryToKoreanMap[categoryId as keyof typeof categoryToKoreanMap])
+          .filter((name): name is string => name !== undefined)
+        updateData.sports = koreanNames.length > 0 ? koreanNames.join(',') : null
       }
       
       const updatedUser = await AuthService.updateUserInfo(updateData)
