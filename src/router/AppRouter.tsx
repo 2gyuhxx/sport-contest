@@ -8,6 +8,7 @@ import { SignupPage } from '../pages/SignupPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { MyPage } from '../pages/MyPage'
 import { OAuthSignupPage } from '../pages/OAuthSignupPage'
+import { DevTestPage } from '../pages/DevTestPage'
 import { AppShell } from '../ui/AppShell'
 
 export function AppRouter() {
@@ -25,6 +26,8 @@ export function AppRouter() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/oauth/signup" element={<OAuthSignupPage />} />
+          {/* 개발자 테스트 페이지 (숨겨진 경로) */}
+          <Route path="/dev/test" element={<DevTestPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
