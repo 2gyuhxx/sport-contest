@@ -40,6 +40,11 @@ app.use(cors({
     callback(new Error('CORS 정책에 의해 차단되었습니다'))
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
