@@ -14,7 +14,7 @@ const getGoogleClient = () => {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   // Google Cloud Console에 등록된 리다이렉션 URI와 일치해야 함
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://wherehani.com/api/auth/google/callback'
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://wherehani.com/auth/google/callback'
 
   if (!clientId || !clientSecret) {
     throw new Error('Google OAuth credentials not configured')
@@ -59,7 +59,7 @@ router.get('/google', (req, res) => {
 
     console.log('Google OAuth URL 생성 성공')
     console.log('생성된 Auth URL:', authUrl)
-    console.log('리다이렉트 URI:', process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback')
+    console.log('리다이렉트 URI:', process.env.GOOGLE_REDIRECT_URI || 'http://wherehani.com/auth/google/callback')
     res.redirect(authUrl)
   } catch (error: any) {
     console.error('Google OAuth 오류:', error)

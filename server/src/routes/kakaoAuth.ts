@@ -39,7 +39,7 @@ interface KakaoUserInfo {
 // 카카오 OAuth 설정 (매 요청마다 최신 환경 변수 읽기)
 const getKakaoConfig = () => {
   const clientId = process.env.KAKAO_REST_API_KEY
-  const redirectUri = process.env.KAKAO_REDIRECT_URI || 'http://wherehani.com/api/auth/kakao/callback'
+  const redirectUri = process.env.KAKAO_REDIRECT_URI || 'http://wherehani.com/auth/kakao/callback'
   
   return { clientId, redirectUri }
 }
