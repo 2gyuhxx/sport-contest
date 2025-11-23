@@ -67,6 +67,15 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: '인증이 필요합니다' })
     }
 
+    // 중복 제목 검사
+    const [existingEvents] = await pool.execute(
+      'SELECT id FROM events WHERE title = ?',
+      [title]
+    )
+    if (Array.isArray(existingEvents) && existingEvents.length > 0) {
+      return res.status(400).json({ error: '이미 등록된 행사명입니다. 다른 이름을 사용해주세요.' })
+    }
+
     // 우편번호를 5자리 고정 문자열로 변환 (앞에 0 채우기)
     const formattedAddress = address 
       ? String(address).padStart(5, '0') 
@@ -326,6 +335,15 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     // 날짜 유효성 검사
     if (finalStartAt > finalEndAt) {
       return res.status(400).json({ error: '시작 날짜는 종료 날짜보다 이전이어야 합니다' })
+    }
+
+    // 중복 제목 검사 (자기 자신은 제외)
+    const [existingEvents] = await pool.execute(
+      'SELECT id FROM events WHERE title = ? AND id != ?',
+      [finalTitle, eventId]
+    )
+    if (Array.isArray(existingEvents) && existingEvents.length > 0) {
+      return res.status(400).json({ error: '이미 등록된 행사명입니다. 다른 이름을 사용해주세요.' })
     }
 
     // 행사 업데이트
