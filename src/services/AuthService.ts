@@ -298,5 +298,15 @@ export const AuthService = {
       throw error
     }
   },
+
+  /**
+   * 비밀번호 변경
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await apiRequest<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+  },
 }
 

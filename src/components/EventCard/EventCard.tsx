@@ -36,7 +36,7 @@ export const EventCard = memo(function EventCard({
       : 'rounded-2xl shadow-sm hover:shadow-elevate',
     'hover:border-brand-primary',
     isActive ? 'ring-2 ring-brand-primary' : '',
-    effectiveLayout === 'horizontal' ? 'flex flex-col md:flex-row' : 'flex flex-col',
+    effectiveLayout === 'horizontal' ? 'flex flex-col md:flex-row' : 'flex flex-col h-full',
   )
 
   const imageClasses = classNames(
@@ -96,8 +96,8 @@ export const EventCard = memo(function EventCard({
         <header className="flex flex-col gap-2">
           <h3
             className={classNames(
-              'font-semibold text-slate-900',
-              isCompact ? 'text-base leading-snug' : 'text-lg md:text-xl',
+              'font-semibold text-slate-900 line-clamp-2',
+              isCompact ? 'text-base leading-snug min-h-[2.4rem]' : 'text-lg md:text-xl min-h-[3.5rem]',
             )}
           >
             {event.title}
@@ -106,20 +106,12 @@ export const EventCard = memo(function EventCard({
             {event.city} · {formatDate(event.date)}
           </p>
         </header>
-        <p
-          className={classNames(
-            'text-slate-600',
-            isCompact ? 'text-xs leading-snug line-clamp-2' : 'text-sm leading-relaxed',
-          )}
-        >
-          {event.summary}
-        </p>
         <footer className="mt-auto flex items-center justify-between text-xs text-slate-500">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 truncate">
             <span aria-hidden="true">📍</span>
-            {isCompact ? event.region.toUpperCase() : (event.venue || event.address)}
+            <span className="truncate">{isCompact ? event.region.toUpperCase() : (event.venue || event.address)}</span>
           </span>
-          <span className="flex items-center gap-1 text-slate-500">
+          <span className="flex items-center gap-1 text-slate-500 flex-shrink-0">
             <span aria-hidden="true">👁</span>
             {event.views.toLocaleString()}
           </span>

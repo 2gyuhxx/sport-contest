@@ -430,5 +430,54 @@ router.delete('/me', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+/**
+ * 비밀번호 변경
+ */
+router.post('/change-password', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    // userId 확인
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 입력 검증
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: '현재 비밀번호와 새 비밀번호를 입력해주세요' })
+    }
+
+    // 새 비밀번호 유효성 검사
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: '새 비밀번호는 최소 6자 이상이어야 합니다' })
+    }
+
+    // 현재 비밀번호와 새 비밀번호가 같은지 확인
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ error: '새 비밀번호는 현재 비밀번호와 달라야 합니다' })
+    }
+
+    // 사용자가 비밀번호를 가지고 있는지 확인 (OAuth 사용자 체크)
+    const hasPassword = await UserModel.hasPassword(req.userId)
+    if (!hasPassword) {
+      return res.status(400).json({ error: 'OAuth 로그인 사용자는 비밀번호를 변경할 수 없습니다' })
+    }
+
+    // 현재 비밀번호 검증
+    const isValidPassword = await UserModel.verifyPassword(req.userId, currentPassword)
+    if (!isValidPassword) {
+      return res.status(401).json({ error: '현재 비밀번호가 일치하지 않습니다' })
+    }
+
+    // 비밀번호 변경
+    await UserModel.updatePassword(req.userId, newPassword)
+
+    res.json({ message: '비밀번호가 변경되었습니다' })
+  } catch (error) {
+    console.error('비밀번호 변경 오류:', error)
+    res.status(500).json({ error: '비밀번호 변경 중 오류가 발생했습니다' })
+  }
+})
+
 export default router
 

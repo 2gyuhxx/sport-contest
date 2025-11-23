@@ -63,34 +63,34 @@ function AppHeader() {
         </div>
       )}
       <header className="border-b border-surface-subtle bg-white">
-        <div className="mx-auto flex max-w-content flex-col gap-3 px-6 py-5 md:py-7">
+        <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-3 md:py-4">
         <div className="flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center">
             <img 
               src="/images/logo.png" 
               alt="어디서하니" 
-              className="h-20 w-auto md:h-24"
+              className="h-10 w-auto md:h-14"
             />
           </Link>
-          <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+          <div className="flex items-center gap-3 text-base font-medium text-slate-600">
             {isAuthenticated && user ? (
               <>
                 {/* 사용자 이름 (클릭 불가, 살짝 왼쪽 정렬 느낌으로 단독 표시) */}
-                <div className="flex items-center gap-2 rounded-full bg-surface px-4 py-2">
+                <div className="flex items-center gap-2 rounded-full bg-surface px-3 py-1">
                   <User className="h-4 w-4 text-brand-primary" />
                   <span className="font-semibold text-slate-900">{user.name}</span>
                 </div>
                 {/* 별도 마이페이지 버튼 */}
                 <Link
                   to="/my"
-                  className="rounded-full border border-slate-300 px-4 py-2 text-slate-700 transition hover:border-brand-primary hover:text-brand-primary"
+                  className="rounded-full border border-slate-300 px-3 py-1 text-slate-700 transition hover:border-brand-primary hover:text-brand-primary"
                 >
                   마이페이지
                 </Link>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 transition hover:border-red-400 hover:text-red-600"
+                  className="flex items-center gap-2 rounded-full border border-slate-300 px-3 py-1 transition hover:border-red-400 hover:text-red-600"
                 >
                   <LogOut className="h-4 w-4" />
                   로그아웃
@@ -114,14 +114,16 @@ function AppHeader() {
             )}
           </div>
         </div>
-        <nav className="flex flex-wrap gap-3 text-sm font-medium text-slate-600">
+        <nav className="flex flex-wrap gap-3 text-base font-medium text-slate-600">
           <NavLink
             to="/"
             end
             className={({ isActive }) =>
               classNames(
-                'rounded-full px-3 py-1 transition',
-                isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
+                'rounded-full px-3 py-1 transition border',
+                isActive 
+                  ? 'border-brand-primary text-brand-primary' 
+                  : 'border-slate-300 hover:border-brand-primary hover:text-brand-primary',
               )
             }
           >
@@ -131,8 +133,10 @@ function AppHeader() {
             to="/search"
             className={({ isActive }) =>
               classNames(
-                'rounded-full px-3 py-1 transition',
-                isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
+                'rounded-full px-3 py-1 transition border',
+                isActive 
+                  ? 'border-brand-primary text-brand-primary' 
+                  : 'border-slate-300 hover:border-brand-primary hover:text-brand-primary',
               )
             }
           >
@@ -144,8 +148,10 @@ function AppHeader() {
               to="/admin/events/create"
               className={({ isActive }) =>
                 classNames(
-                  'rounded-full px-3 py-1 transition',
-                  isActive ? 'bg-brand-primary text-white' : 'hover:bg-surface-subtle',
+                  'rounded-full px-3 py-1 transition border',
+                  isActive 
+                    ? 'border-brand-primary text-brand-primary' 
+                    : 'border-slate-300 hover:border-brand-primary hover:text-brand-primary',
                 )
               }
             >
@@ -163,10 +169,10 @@ export function AppShell() {
   return (
     <AuthProvider>
       <EventProvider>
-        <div className="min-h-screen bg-surface">
+        <div className="flex min-h-screen flex-col bg-surface">
           <AppHeader />
 
-          <main className="mx-auto max-w-content px-6 py-12 md:py-18">
+          <main className="mx-auto w-full max-w-content flex-1 px-6 py-4 md:py-4">
             <Outlet />
           </main>
 

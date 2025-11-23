@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
 
 type FormData = {
   title: string
@@ -50,6 +50,9 @@ export function CreateEventPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false) // 성공 메시지 표시 여부
+  const [successModalMessage, setSuccessModalMessage] = useState('') // 성공 모달 메시지
+  const [showErrorModal, setShowErrorModal] = useState(false) // 에러 모달 표시 여부
+  const [errorModalMessage, setErrorModalMessage] = useState('') // 에러 모달 메시지
   
   // 컴포넌트 마운트 시 스포츠 종목 목록 가져오기
   const [sportCategories, setSportCategories] = useState<SportCategory[]>([])
@@ -380,6 +383,7 @@ export function CreateEventPage() {
         
         await EventService.updateEvent(parseInt(eventId, 10), updateData)
         // 성공 메시지 표시 (수정 모드일 때만)
+        setSuccessModalMessage('행사 정보가 성공적으로 수정되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
         setShowSuccessMessage(true)
         setIsLoading(false) // 성공 시 로딩 상태 해제
       } else {
@@ -440,14 +444,15 @@ export function CreateEventPage() {
             })
           } catch (uploadError: any) {
             console.error('[행사 생성] 이미지 업로드 실패:', uploadError)
-            alert(`행사는 등록되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
+            setErrorModalMessage(`행사는 등록되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
+            setShowErrorModal(true)
           } finally {
             setIsUploading(false)
           }
         }
 
-        alert('행사 등록이 접수되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
-        navigate('/')
+        setSuccessModalMessage('행사 등록이 접수되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
+        setShowSuccessMessage(true)
       }
     } catch (err) {
       console.error('행사 등록/수정 오류:', err)
@@ -455,9 +460,10 @@ export function CreateEventPage() {
       
       // 스팸으로 분류된 경우 특별 처리
       if (errorMessage.includes('스팸으로 분류')) {
-        alert('해당 행사는 스팸으로 분류되어 등록할 수 없습니다!')
+        setErrorModalMessage('해당 행사는 스팸으로 분류되어 등록할 수 없습니다!')
+        setShowErrorModal(true)
         if (!isEditMode) {
-          navigate('/')
+          setTimeout(() => navigate('/'), 2000)
         }
         return
       }
@@ -496,7 +502,16 @@ export function CreateEventPage() {
   // 성공 메시지 확인 핸들러
   const handleConfirmSuccess = () => {
     setShowSuccessMessage(false)
-    navigate('/my')
+    if (isEditMode) {
+      navigate('/my')
+    } else {
+      navigate('/')
+    }
+  }
+
+  // 에러 모달 확인 핸들러
+  const handleConfirmError = () => {
+    setShowErrorModal(false)
   }
 
   // 권한 체크: 행사 관리자만 접근 가능
@@ -569,21 +584,18 @@ export function CreateEventPage() {
 
   return (
     <>
-      {/* 행사 수정 완료 모달 */}
+      {/* 행사 등록/수정 성공 모달 */}
       {showSuccessMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
           <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
             <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-green-100 p-3">
                   <CheckCircle2 className="h-6 w-6 text-green-600" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">행사가 수정되었습니다</h3>
-                </div>
               </div>
-              <p className="text-sm text-slate-600 mb-6">
-                행사 정보가 성공적으로 수정되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.
+              <p className="text-center text-sm text-slate-600 mb-6">
+                {successModalMessage}
               </p>
               <button
                 onClick={handleConfirmSuccess}
@@ -596,21 +608,31 @@ export function CreateEventPage() {
         </div>
       )}
 
+      {/* 에러 모달 */}
+      {showErrorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-red-100 p-3">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+              <p className="text-center text-sm text-slate-600 mb-6">
+                {errorModalMessage}
+              </p>
+              <button
+                onClick={handleConfirmError}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-8 pb-16">
-        {/* 헤더 */}
-        <header className="mx-auto max-w-content px-6 mb-8">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-            {isEditMode ? 'event update' : 'event registration'}
-          </p>
-          <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
-            {isEditMode ? '행사 수정' : '행사 등록'}
-          </h1>
-          <p className="mt-2 text-slate-600">
-            {isEditMode 
-              ? '등록한 행사 정보를 수정할 수 있습니다. 수정 후 스팸 검사를 다시 진행합니다.'
-              : '새로운 스포츠 행사 정보를 등록하여 더 많은 사람들과 공유하세요.'}
-          </p>
-        </header>
 
       {/* 폼 */}
       <section className="mx-auto max-w-3xl px-6">

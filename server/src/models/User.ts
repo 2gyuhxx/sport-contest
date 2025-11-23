@@ -182,5 +182,29 @@ export class UserModel {
       connection.release()
     }
   }
+
+  /**
+   * 비밀번호 변경
+   */
+  static async updatePassword(userId: number, newPassword: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    
+    await pool.execute(
+      'UPDATE user_credentials SET password_hash = ? WHERE user_id = ?',
+      [passwordHash, userId]
+    )
+  }
+
+  /**
+   * 사용자가 비밀번호를 가지고 있는지 확인 (OAuth 사용자 구분)
+   */
+  static async hasPassword(userId: number): Promise<boolean> {
+    const [rows] = await pool.execute<(RowDataPacket & { count: number })[]>(
+      'SELECT COUNT(*) as count FROM user_credentials WHERE user_id = ?',
+      [userId]
+    )
+    
+    return rows[0].count > 0
+  }
 }
 

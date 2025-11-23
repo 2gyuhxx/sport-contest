@@ -6,15 +6,17 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 /**
- * 단일 텍스트에 대한 스팸 체크 (Python 프로세스 실행)
+ * 단일 텍스트에 대한 스팸 체크 (Python 프로세스 실행) - 타임아웃 포함
  */
-async function checkSingleText(text: string): Promise<number> {
+async function checkSingleText(text: string, timeout: number = 600000): Promise<number> {
   return new Promise((resolve, reject) => {
     let isResolved = false
+    let timeoutId: NodeJS.Timeout
 
     const safeResolve = (value: number) => {
       if (!isResolved) {
         isResolved = true
+        if (timeoutId) clearTimeout(timeoutId)
         resolve(value)
       }
     }
@@ -22,6 +24,7 @@ async function checkSingleText(text: string): Promise<number> {
     const safeReject = (error: Error) => {
       if (!isResolved) {
         isResolved = true
+        if (timeoutId) clearTimeout(timeoutId)
         reject(error)
       }
     }
@@ -35,11 +38,22 @@ async function checkSingleText(text: string): Promise<number> {
         shell: false,
       })
 
+      // 타임아웃 설정
+      timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          console.error(`[스팸 체크] 타임아웃 (${timeout}ms 초과)`)
+          pythonProcess.kill('SIGTERM')
+          safeReject(new Error(`스팸 체크 타임아웃 (${timeout}ms 초과)`))
+        }
+      }, timeout)
+
       let stdout = ''
       let stderr = ''
 
       pythonProcess.stdout.on('data', (data) => {
-        stdout += data.toString()
+        const output = data.toString()
+        stdout += output
+        console.log('[스팸 체크 stdout]:', output.trim())
       })
 
       pythonProcess.stderr.on('data', (data) => {
@@ -53,11 +67,14 @@ async function checkSingleText(text: string): Promise<number> {
 
       // 텍스트 정규화 및 전송
       const textToSend = (text && typeof text === 'string') ? text.trim() : ''
+      console.log('[스팸 체크] Python 프로세스에 텍스트 전송:', textToSend.substring(0, 100))
       pythonProcess.stdin.write(textToSend, 'utf8')
       pythonProcess.stdin.end()
 
       pythonProcess.on('close', (code) => {
         if (isResolved) return
+
+        console.log('[스팸 체크] Python 프로세스 종료, 코드:', code)
 
         // stderr에서 JSON 에러 찾기
         const jsonErrorMatch = stderr.match(/\{"error":\s*"[^"]+"\}/g)
@@ -83,12 +100,14 @@ async function checkSingleText(text: string): Promise<number> {
         }
 
         try {
+          console.log('[스팸 체크] stdout 파싱 시도:', stdout.trim())
           const result = JSON.parse(stdout.trim())
           if (result.error) {
             safeReject(new Error(`스팸 체크 오류: ${result.error}`))
             return
           }
           // result는 0 (정상) 또는 1 (스팸)
+          console.log('[스팸 체크] 파싱 결과:', result)
           safeResolve(result.result === 1 ? 1 : 0)
         } catch (parseError) {
           safeReject(new Error(`스팸 체크 결과 파싱 실패: ${parseError instanceof Error ? parseError.message : String(parseError)}`))

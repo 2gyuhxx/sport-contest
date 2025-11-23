@@ -40,7 +40,7 @@ export const EventList = memo(function EventList({
   const wrapperClass = useMemo(
     () =>
       layout === 'grid'
-        ? `grid gap-5 ${columnClasses[columns]}`
+        ? `grid gap-5 auto-rows-fr ${columnClasses[columns]}`
         : 'flex flex-col gap-4',
     [layout, columnClasses, columns]
   )
@@ -71,19 +71,20 @@ export const EventList = memo(function EventList({
     <>
       <div className={wrapperClass}>
         {events.map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            onSelect={handleSelect}
-            isActive={activeEventId === event.id || detailEvent?.id === event.id}
-            variant={cardVariant}
-            layout={layout === 'grid' ? 'vertical' : 'horizontal'}
-            detailHref={
-              !showDetailOnSelect && detailHrefBase ? `${detailHrefBase}${event.id}` : undefined
-            }
-        />
-      ))}
-    </div>
+          <div key={event.id} className={layout === 'grid' ? 'h-full' : ''}>
+            <EventCard
+              event={event}
+              onSelect={handleSelect}
+              isActive={activeEventId === event.id || detailEvent?.id === event.id}
+              variant={cardVariant}
+              layout={layout === 'grid' ? 'vertical' : 'horizontal'}
+              detailHref={
+                !showDetailOnSelect && detailHrefBase ? `${detailHrefBase}${event.id}` : undefined
+              }
+            />
+          </div>
+        ))}
+      </div>
       {showDetailOnSelect && (
         <EventDetailDrawer event={detailEvent} onClose={handleCloseDrawer} />
       )}

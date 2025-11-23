@@ -914,19 +914,10 @@ export function SearchPage() {
 
 
   return (
-    <div className="space-y-16 pb-20">
-      <header className="mx-auto max-w-content px-6 mb-8">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">MAP SEARCH</p>
-        <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">원하는 지역의 스포츠 행사를 지도에서 찾아보세요</h1>
-        <p className="mt-2 text-slate-600">
-            도·광역시를 클릭해 세부 시·군·구 경계를 확인하고, 필터와 검색으로 관심 있는
-            행사를 빠르게 찾을 수 있습니다.
-          </p>
-      </header>
-
+    <div className="pb-12">
       <section className="mx-auto grid max-w-content grid-cols-1 gap-6 px-6 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
-        <div className="relative flex flex-col gap-5 overflow-hidden">
-          <div className="rounded-4xl border border-surface-subtle bg-white p-5 shadow-sm md:p-7 lg:p-8 overflow-hidden">
+        <div className="relative flex flex-col gap-5">
+          <div className="rounded-3xl border border-surface-subtle bg-white p-5 shadow-sm md:p-7 lg:p-8 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 md:text-xl">
@@ -1027,7 +1018,7 @@ export function SearchPage() {
               
               <div 
                 ref={mapContainerRef}
-                className="relative overflow-hidden rounded-4xl border border-surface-subtle"
+                className="relative overflow-hidden rounded-3xl border border-surface-subtle"
                 style={{ width: '100%', height: '600px' }}
               />
               </div>
@@ -1036,7 +1027,7 @@ export function SearchPage() {
         </div>
 
         <aside className="flex flex-col gap-4 lg:gap-6">
-          <div className="rounded-4xl border border-surface-subtle bg-white p-5 shadow-sm md:p-6">
+          <div className="rounded-3xl border border-surface-subtle bg-white p-5 shadow-sm md:p-6">
             <div className="grid grid-cols-3 gap-2">
               {categoryOptions.map((option) => {
                 const categoryInfo = option === 'all' 
@@ -1062,7 +1053,7 @@ export function SearchPage() {
             </div>
           </div>
 
-          <div className="rounded-4xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
+          <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Calendar className="h-4 w-4 text-brand-primary" />
@@ -1076,20 +1067,21 @@ export function SearchPage() {
                 <p className="text-sm text-slate-500">행사를 불러오는 중...</p>
               </div>
             ) : (
+            <div className="max-h-[445px] overflow-y-auto">
             <ul className="flex flex-col divide-y divide-surface-subtle">
               {filteredEvents.length ? (
                 filteredEvents.map((event) => {
-                  const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
+                    const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
                   return (
                     <li key={event.id} className="py-3">
-                      <div className="w-full text-left">
+                        <div className="w-full text-left">
                         <div className="flex flex-col gap-1">
-                          <a
-                            href={`/events/${event.id}`}
-                            className="text-sm font-semibold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer"
-                          >
+                            <a
+                              href={`/events/${event.id}`}
+                              className="text-sm font-semibold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer"
+                            >
                             {event.title}
-                          </a>
+                            </a>
                           <span className="text-xs text-slate-500">
                             {regionLabel} · {event.city} · {formatDate(event.date)}
                           </span>
@@ -1098,7 +1090,7 @@ export function SearchPage() {
                           </div>
                           <p className="text-xs text-slate-500">{event.summary}</p>
                         </div>
-                      </div>
+                        </div>
                     </li>
                   )
                 })
@@ -1108,6 +1100,7 @@ export function SearchPage() {
                 </li>
               )}
             </ul>
+            </div>
             )}
           </div>
         </aside>

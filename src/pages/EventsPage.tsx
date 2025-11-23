@@ -301,18 +301,8 @@ export function EventsPage() {
   }
 
   return (
-    <div className="space-y-16 pb-20">
-      {/* 헤더 */}
-      <header className="mx-auto max-w-content px-6 mb-8">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">all events</p>
-        <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">행사</h1>
-        <p className="mt-2 text-slate-600">
-          전국의 다양한 체육 행사를 확인하고 참여하세요.
-        </p>
-      </header>
-      
+    <div className="pb-12">
       <div className="mx-auto max-w-content px-6">
-
         {/* 필터 및 정렬 */}
         <div className="mb-6 rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -557,7 +547,7 @@ export function EventsPage() {
               >
                 <div className="flex gap-5 pb-4 transition-transform duration-300">
                   {filteredAndSortedEvents.map((event) => (
-                    <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)]">
+                    <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)] h-[420px]">
                       <EventCard
                         event={event}
                         layout="vertical"
@@ -649,7 +639,7 @@ export function EventsPage() {
                   >
                     <div className="flex gap-5 pb-4 transition-transform duration-300">
                       {favoriteBasedEvents.map((event) => (
-                        <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)]">
+                        <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)] h-[420px]">
                           <EventCard
                             event={event}
                             layout="vertical"

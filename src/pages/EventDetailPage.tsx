@@ -196,7 +196,7 @@ export function EventDetailPage() {
             </button>
 
             {/* 행사 설명 */}
-            <div className="rounded-3xl bg-surface p-5 text-sm leading-relaxed text-slate-600">
+            <div className="break-words whitespace-pre-wrap rounded-3xl bg-surface p-5 text-sm leading-relaxed text-slate-600">
               {event.summary}
             </div>
 
@@ -207,20 +207,20 @@ export function EventDetailPage() {
                   <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     행사 일시
                   </dt>
-                  <dd className="text-slate-900">{formatDate(event.date)}</dd>
+                  <dd className="break-words text-slate-900">{formatDate(event.date)}</dd>
                 </div>
                 <div className="grid gap-1">
                   <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     장소
                   </dt>
-                  <dd className="text-slate-900">{event.venue || event.address}</dd>
+                  <dd className="break-words text-slate-900">{event.venue || event.address}</dd>
                 </div>
                 {event.organizer && (
                   <div className="grid gap-1">
                     <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       주최
                     </dt>
-                    <dd className="text-slate-900">{event.organizer}</dd>
+                    <dd className="break-words text-slate-900">{event.organizer}</dd>
                   </div>
                 )}
                 {event.link && (
@@ -228,15 +228,15 @@ export function EventDetailPage() {
                     <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       웹사이트
                     </dt>
-                    <dd>
+                    <dd className="break-all">
                       <a
                         href={event.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-brand-primary hover:underline"
+                        className="inline-flex items-start gap-1 text-brand-primary hover:underline"
                       >
-                        <span className="truncate">{event.link}</span>
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        <span className="break-all">{event.link}</span>
+                        <ExternalLink className="mt-0.5 h-3 w-3 flex-shrink-0" />
                       </a>
                     </dd>
                   </div>
