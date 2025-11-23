@@ -571,28 +571,8 @@ export function MyPage() {
                     return (
                       <div
                         key={event.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-primary hover:shadow-md"
+                        className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-primary hover:shadow-md"
                       >
-                        {/* 수정/삭제 버튼 */}
-                        <div className="mb-3 flex items-center justify-end gap-2">
-                          <Link
-                            to={`/events/edit/${event.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-3 py-1.5 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                            수정
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEvent(event.id, event.title)}
-                            disabled={deletingEventId === event.id}
-                            className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            {deletingEventId === event.id ? '삭제 중...' : '삭제'}
-                          </button>
-                        </div>
-                        
                         {/* 제목과 상태 */}
                         <div className="mb-3 flex items-start justify-between gap-4">
                           <Link
@@ -620,7 +600,7 @@ export function MyPage() {
                         </div>
 
                         {/* 정보 */}
-                        <div className="space-y-1.5 text-sm text-slate-600">
+                        <div className="space-y-1.5 text-sm text-slate-600 mb-3">
                           <div className="flex items-center gap-2">
                             <Tag className="h-3.5 w-3.5 text-slate-400" />
                             <span>{event.sport}</span>
@@ -638,6 +618,26 @@ export function MyPage() {
                               {formatDate(event.start_at)} ~ {formatDate(event.end_at)}
                             </span>
                           </div>
+                        </div>
+
+                        {/* 수정/삭제 버튼 - 맨 아래 오른쪽 */}
+                        <div className="mt-auto flex items-center justify-end gap-2">
+                          <Link
+                            to={`/events/edit/${event.id}`}
+                            className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-3 py-1.5 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            수정
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvent(event.id, event.title)}
+                            disabled={deletingEventId === event.id}
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {deletingEventId === event.id ? '삭제 중...' : '삭제'}
+                          </button>
                         </div>
                       </div>
                     )
