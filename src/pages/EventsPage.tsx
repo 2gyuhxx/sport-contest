@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList/EventList'
@@ -50,7 +50,7 @@ export function EventsPage() {
   const favoriteScrollRef = useRef<HTMLDivElement>(null)
 
   // 캐러셀 스크롤 함수 (3개씩 이동)
-  const scrollCarousel = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+  const scrollCarousel = useCallback((ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
     if (ref.current) {
       const scrollAmount = ref.current.clientWidth
       ref.current.scrollBy({
@@ -58,7 +58,13 @@ export function EventsPage() {
         behavior: 'smooth'
       })
     }
-  }
+  }, [])
+
+  // 캐러셀 스크롤 래퍼 함수들
+  const scrollInterestLeft = useCallback(() => scrollCarousel(interestScrollRef, 'left'), [scrollCarousel])
+  const scrollInterestRight = useCallback(() => scrollCarousel(interestScrollRef, 'right'), [scrollCarousel])
+  const scrollFavoriteLeft = useCallback(() => scrollCarousel(favoriteScrollRef, 'left'), [scrollCarousel])
+  const scrollFavoriteRight = useCallback(() => scrollCarousel(favoriteScrollRef, 'right'), [scrollCarousel])
 
   // 캐러셀 초기 위치 설정
   useEffect(() => {
@@ -536,7 +542,7 @@ export function EventsPage() {
             <div className="relative">
               {/* 왼쪽 화살표 */}
               <button
-                onClick={() => scrollCarousel(interestScrollRef, 'left')}
+                onClick={scrollInterestLeft}
                 className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
                 aria-label="이전"
               >
@@ -565,7 +571,7 @@ export function EventsPage() {
 
               {/* 오른쪽 화살표 */}
               <button
-                onClick={() => scrollCarousel(interestScrollRef, 'right')}
+                onClick={scrollInterestRight}
                 className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
                 aria-label="다음"
               >
@@ -628,7 +634,7 @@ export function EventsPage() {
                 <div className="relative">
                   {/* 왼쪽 화살표 */}
                   <button
-                    onClick={() => scrollCarousel(favoriteScrollRef, 'left')}
+                    onClick={scrollFavoriteLeft}
                     className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
                     aria-label="이전"
                   >
@@ -657,7 +663,7 @@ export function EventsPage() {
 
                   {/* 오른쪽 화살표 */}
                   <button
-                    onClick={() => scrollCarousel(favoriteScrollRef, 'right')}
+                    onClick={scrollFavoriteRight}
                     className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
                     aria-label="다음"
                   >

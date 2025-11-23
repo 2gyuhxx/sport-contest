@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import type { Event } from '../../types/events'
 import { formatDate } from '../../utils/formatDate'
@@ -14,7 +15,7 @@ interface EventCardProps {
   detailHref?: string
 }
 
-export function EventCard({
+export const EventCard = memo(function EventCard({
   event,
   onSelect,
   isActive = false,
@@ -22,9 +23,9 @@ export function EventCard({
   variant = 'default',
   detailHref,
 }: EventCardProps) {
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     onSelect?.(event)
-  }
+  }, [event, onSelect])
 
   const isCompact = variant === 'compact'
   const effectiveLayout = isCompact ? 'vertical' : layout
@@ -62,10 +63,10 @@ export function EventCard({
           src={event.image}
           alt={event.title}
           className={classNames(
-            'h-full w-full object-cover transition duration-200',
-            isCompact ? 'group-hover:scale-105' : 'group-hover:scale-105',
+            'h-full w-full object-cover transition duration-200 group-hover:scale-105',
           )}
           loading="lazy"
+          decoding="async"
         />
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary">
           {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category || ''}
@@ -136,4 +137,4 @@ export function EventCard({
   }
 
   return card
-}
+})

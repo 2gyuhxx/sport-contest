@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState } from 'react'
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
@@ -6,6 +6,7 @@ import { formatDate } from '../utils/formatDate'
 import { ExternalLink, CheckCircle2, XCircle, Heart } from 'lucide-react'
 import { EventService, categoryToKoreanMap } from '../services/EventService'
 import { FavoriteService } from '../services/FavoriteService'
+import { FavoriteModal } from '../components/FavoriteModal'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -63,7 +64,7 @@ export function EventDetailPage() {
   }, [isAuthenticated, eventId])
 
   // 찜 토글 핸들러
-  const handleFavorite = async () => {
+  const handleFavorite = useCallback(async () => {
     if (!isAuthenticated) {
       setFavoriteModalMessage('로그인이 필요합니다')
       setShowFavoriteModal(true)
@@ -85,15 +86,15 @@ export function EventDetailPage() {
     } finally {
       setIsLoadingFavorite(false)
     }
-  }
+  }, [isAuthenticated, eventId, isFavorite])
 
   // 모달 확인 핸들러
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowFavoriteModal(false)
     if (favoriteModalMessage === '로그인이 필요합니다') {
       navigate('/login')
     }
-  }
+  }, [favoriteModalMessage, navigate])
 
   if (!event) {
     return (
@@ -113,47 +114,15 @@ export function EventDetailPage() {
   return (
     <>
       {/* 찜 성공/실패 모달 */}
-      {showFavoriteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                  favoriteModalMessage.includes('실패') || favoriteModalMessage.includes('로그인') 
-                    ? 'bg-red-100' 
-                    : 'bg-green-100'
-                }`}>
-                  {favoriteModalMessage.includes('실패') || favoriteModalMessage.includes('로그인') ? (
-                    <XCircle className="h-6 w-6 text-red-600" />
-                  ) : (
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    {favoriteModalMessage.includes('실패') || favoriteModalMessage.includes('로그인') 
-                      ? '알림' 
-                      : '완료'}
-                  </h3>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 mb-6">
-                {favoriteModalMessage}
-              </p>
-              <button
-                onClick={handleCloseModal}
-                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <FavoriteModal
+        isOpen={showFavoriteModal}
+        message={favoriteModalMessage}
+        onClose={handleCloseModal}
+      />
 
       <div className="bg-surface pb-20 pt-10">
         <div className="mx-auto flex max-w-content flex-col gap-10 px-4 lg:gap-12">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+          <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-500">event detail</p>
             <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">{event.title}</h1>
@@ -194,7 +163,13 @@ export function EventDetailPage() {
         <section className="grid gap-8 rounded-4xl border border-surface-subtle bg-white p-6 shadow-sm md:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] md:p-10">
           <div className="flex flex-col gap-6">
             <div className="overflow-hidden rounded-3xl">
-              <img src={event.image} alt={event.title} className="h-full w-full object-cover" />
+              <img
+                src={event.image}
+                alt={event.title}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           </div>
 

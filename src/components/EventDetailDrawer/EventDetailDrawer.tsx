@@ -30,6 +30,8 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
             src={event.image}
             alt={event.title}
             className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
           <button
             type="button"
