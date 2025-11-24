@@ -863,13 +863,30 @@ router.patch('/admin/:id/report-state', async (req, res) => {
       return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
     }
 
-    // reports_state 업데이트
-    await pool.execute(
-      `UPDATE events 
-       SET reports_state = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [reports_state, eventId]
-    )
+    // reports_state가 'normal'로 변경될 때, 해당 행사의 모든 신고 기록 삭제
+    if (reports_state === 'normal') {
+      // events_reports 테이블에서 해당 event_id의 모든 신고 기록 삭제
+      await pool.execute(
+        'DELETE FROM events_reports WHERE event_id = ?',
+        [eventId]
+      )
+      
+      // events 테이블의 reports_count를 0으로 리셋
+      await pool.execute(
+        `UPDATE events 
+         SET reports_state = ?, reports_count = 0, updated_at = NOW()
+         WHERE id = ?`,
+        [reports_state, eventId]
+      )
+    } else {
+      // 'normal'이 아닌 경우에는 reports_state만 업데이트
+      await pool.execute(
+        `UPDATE events 
+         SET reports_state = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [reports_state, eventId]
+      )
+    }
 
     // 업데이트된 행사 정보 반환
     const updatedEvent = await EventModel.findById(eventId)
