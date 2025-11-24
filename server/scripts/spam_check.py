@@ -61,13 +61,7 @@ def download_and_cache_model(model_url, cache_path, model_name):
         
         # urlopen으로 다운로드 (context 매개변수 호환성 문제 해결)
         with urllib.request.urlopen(model_url, context=ssl_context) as response:
-            # 파일 크기 확인
-            file_size = response.headers.get('Content-Length')
-            if file_size:
-                file_size_mb = int(file_size) / (1024 * 1024)
-                print(json.dumps({'info': f'{model_name} 모델 크기: {file_size_mb:.2f} MB'}), file=sys.stderr, flush=True)
-            
-            # 청크 단위로 다운로드 (진행 상황 표시)
+            # 청크 단위로 다운로드
             chunk_size = 8192  # 8KB
             downloaded = 0
             chunks = []
@@ -78,14 +72,10 @@ def download_and_cache_model(model_url, cache_path, model_name):
                     break
                 chunks.append(chunk)
                 downloaded += len(chunk)
-                
-                # 10MB마다 진행 상황 출력
-                if downloaded % (10 * 1024 * 1024) < chunk_size:
-                    downloaded_mb = downloaded / (1024 * 1024)
-                    print(json.dumps({'info': f'{model_name} 다운로드 진행: {downloaded_mb:.2f} MB'}), file=sys.stderr, flush=True)
             
             model_data = b''.join(chunks)
-            print(json.dumps({'info': f'{model_name} 다운로드 완료: {downloaded / (1024 * 1024):.2f} MB'}), file=sys.stderr, flush=True)
+            downloaded_mb = downloaded / (1024 * 1024)
+            print(json.dumps({'info': f'{model_name} 모델 다운로드 완료: {downloaded_mb:.2f} MB'}), file=sys.stderr, flush=True)
         
         # 파일로 저장
         print(json.dumps({'info': f'{model_name} 파일 저장 중...'}), file=sys.stderr, flush=True)
@@ -131,7 +121,7 @@ def load_model_and_tokenizer():
                     num_labels=2
                 )
                 _model_title.load_state_dict(loaded_data)
-            else:
+                else:
                 # 전체 모델 방식
                 _model_title = loaded_data
                 
@@ -139,9 +129,9 @@ def load_model_and_tokenizer():
             _model_title.eval()
         except Exception as e:
             error_msg = f'Title 모델 로드 오류: {str(e)}'
-            print(json.dumps({'error': error_msg}), file=sys.stderr, flush=True)
-            sys.exit(1)
-        
+                    print(json.dumps({'error': error_msg}), file=sys.stderr, flush=True)
+                    sys.exit(1)
+                    
         # Describe 모델 로드 (로컬 캐시 사용)
         try:
             loaded_data = download_and_cache_model(MODEL_DESCRIBE_URL, MODEL_DESCRIBE_PATH, 'Describe')

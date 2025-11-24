@@ -153,14 +153,10 @@ export class EventModel {
     image: string | null,
     organizerUserName: string
   ): Promise<EventRow> {
-    // 먼저 행사 존재 확인 및 권한 확인
+    // 먼저 행사 존재 확인 (권한 체크는 API 라우트에서 이미 수행됨)
     const event = await this.findById(eventId)
     if (!event) {
       throw new Error('행사를 찾을 수 없습니다')
-    }
-
-    if (event.organizer_user_id !== organizerUserId) {
-      throw new Error('행사를 수정할 권한이 없습니다')
     }
 
     // 종료일 기준으로 eraser 상태 재설정

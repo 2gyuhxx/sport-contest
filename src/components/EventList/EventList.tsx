@@ -72,19 +72,19 @@ export const EventList = memo(function EventList({
       <div className={wrapperClass}>
         {events.map((event) => (
           <div key={event.id} className={layout === 'grid' ? 'h-full' : ''}>
-            <EventCard
-              event={event}
-              onSelect={handleSelect}
-              isActive={activeEventId === event.id || detailEvent?.id === event.id}
-              variant={cardVariant}
-              layout={layout === 'grid' ? 'vertical' : 'horizontal'}
-              detailHref={
-                !showDetailOnSelect && detailHrefBase ? `${detailHrefBase}${event.id}` : undefined
-              }
-            />
+          <EventCard
+            event={event}
+            onSelect={handleSelect}
+            isActive={activeEventId === event.id || detailEvent?.id === event.id}
+            variant={cardVariant}
+            layout={layout === 'grid' ? 'vertical' : 'horizontal'}
+            detailHref={
+              !showDetailOnSelect && detailHrefBase ? `${detailHrefBase}${event.id}` : undefined
+            }
+        />
           </div>
-        ))}
-      </div>
+      ))}
+    </div>
       {showDetailOnSelect && (
         <EventDetailDrawer event={detailEvent} onClose={handleCloseDrawer} />
       )}

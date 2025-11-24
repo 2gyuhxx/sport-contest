@@ -140,8 +140,8 @@ async function startServer() {
     console.error('⚠️  데이터베이스 연결 실패. 서버는 시작되지만 일부 기능이 작동하지 않을 수 있습니다.')
   }
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`)
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`)
     console.log(`🌐 CORS 허용 Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5173, http://wherehani.com'}`)
   })
 }

@@ -269,6 +269,8 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const isOrganizer = managerValue === 1 // manager = 1: 행사 주최자
     
     console.log('[행사 수정 권한 체크]', {
+      eventId,
+      eventTitle: existingEvent.title,
       userId,
       organizerUserId,
       isMaster,
@@ -277,20 +279,27 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       managerType: typeof currentUser.manager,
       userIdType: typeof userId,
       organizerUserIdType: typeof organizerUserId,
-      currentUserExists: !!currentUser
+      currentUserExists: !!currentUser,
+      userIdMatch: userId === organizerUserId,
+      strictEqual: userId === organizerUserId,
+      looseEqual: userId == organizerUserId,
     })
     
     // master는 모든 행사 수정 가능, 행사 주최자는 자신이 등록한 행사만 수정 가능
     const isOwner = organizerUserId === userId
+    
     if (!isOwner && !isMaster) {
       console.log('[행사 수정 권한 거부]', { 
+        eventId,
+        eventTitle: existingEvent.title,
         isOwner, 
-        isMaster, 
+        isMaster,
+        isOrganizer,
         userId, 
         organizerUserId,
         managerValue,
-        reason: !isOwner ? '소유자가 아님' : '',
-        reason2: !isMaster ? 'master가 아님' : ''
+        reason: !isOwner ? `소유자가 아님 (userId: ${userId}, organizerUserId: ${organizerUserId})` : '',
+        reason2: !isMaster ? `master가 아님 (manager: ${managerValue})` : ''
       })
       return res.status(403).json({ error: '행사를 수정할 권한이 없습니다' })
     }

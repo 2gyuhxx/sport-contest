@@ -59,9 +59,36 @@ async function checkSingleText(text: string, timeout: number = 600000): Promise<
       pythonProcess.stderr.on('data', (data) => {
         const errorData = data.toString()
         stderr += errorData
-        // 디버깅: stderr 출력 확인 (경고 메시지는 무시)
-        if (!errorData.includes('Some weights') && !errorData.includes('You should probably TRAIN')) {
-          console.error('[스팸 체크 스크립트 stderr]:', errorData.trim())
+        
+        // JSON 형식의 info 메시지 파싱 및 표시
+        const lines = errorData.split('\n').filter(line => line.trim())
+        for (const line of lines) {
+          try {
+            // JSON 형식인지 확인
+            if (line.trim().startsWith('{') && line.trim().endsWith('}')) {
+              const jsonData = JSON.parse(line.trim())
+              if (jsonData.info) {
+                // info 메시지는 일반 로그로 출력
+                console.log(`[스팸 모델] ${jsonData.info}`)
+              } else if (jsonData.error) {
+                // error 메시지는 에러 로그로 출력
+                console.error(`[스팸 모델] ${jsonData.error}`)
+              } else if (jsonData.warning) {
+                // warning 메시지는 경고 로그로 출력
+                console.warn(`[스팸 모델] ${jsonData.warning}`)
+              }
+            } else {
+              // JSON 형식이 아니고 경고 메시지가 아니면 출력
+              if (!line.includes('Some weights') && !line.includes('You should probably TRAIN') && line.trim()) {
+                console.log(`[스팸 모델] ${line.trim()}`)
+              }
+            }
+          } catch (e) {
+            // JSON 파싱 실패 시 일반 메시지로 출력 (경고 메시지 제외)
+            if (!line.includes('Some weights') && !line.includes('You should probably TRAIN') && line.trim()) {
+              console.log(`[스팸 모델] ${line.trim()}`)
+            }
+          }
         }
       })
 
