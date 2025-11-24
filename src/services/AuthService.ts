@@ -1,4 +1,4 @@
-import type { LoginCredentials, SignupData, User } from '../types/auth'
+import type { LoginCredentials, SignupData, User, UserRole } from '../types/auth'
 import type { Category } from '../types/events'
 import { categoryMap } from './EventService'
 import apiRequest from '../config/api'
@@ -11,7 +11,7 @@ interface LoginResponse {
     name: string | null
     phone: string | null
     sports: string | null
-    manager: boolean
+    manager: number  // 0: 일반, 1: 주최자, 2: 마스터
     is_verified: boolean
     created_at: string
   }
@@ -26,7 +26,7 @@ interface UserResponse {
     name: string | null
     phone: string | null
     sports: string | null
-    manager: boolean
+    manager: number  // 0: 일반, 1: 주최자, 2: 마스터
     is_verified: boolean
     created_at: string
   }
@@ -34,8 +34,8 @@ interface UserResponse {
 
 // DB User를 프론트엔드 User 타입으로 변환
 function transformUser(dbUser: LoginResponse['user'] | UserResponse['user']): User {
-  // manager 필드를 숫자로 변환 (0: 일반 사용자, 1: 행사 주최자, 2: master)
-  const manager = typeof dbUser.manager === 'number' ? dbUser.manager : (dbUser.manager ? 1 : 0)
+  // manager 필드는 이미 숫자 (0: 일반 사용자, 1: 행사 주최자, 2: master)
+  const manager = dbUser.manager
   
   // 한글 스포츠 이름을 카테고리 ID로 변환
   let interests: Category[] | undefined = undefined
@@ -267,7 +267,7 @@ export const AuthService = {
   /**
    * 사용자 정보 업데이트 (소셜 로그인 후 추가 정보 입력용)
    */
-  async updateUserInfo(data: { manager?: boolean; sports?: string | null }): Promise<User> {
+  async updateUserInfo(data: { manager?: number; sports?: string | null }): Promise<User> {
     try {
       const response = await apiRequest<UserResponse>('/auth/me', {
         method: 'PATCH',
