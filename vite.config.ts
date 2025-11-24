@@ -33,6 +33,8 @@ export default defineConfig({
   },
   // 개발 서버 최적화
   server: {
+    // 브라우저 자동 열기 비활성화
+    open: false,
     // HMR 최적화
     hmr: {
       overlay: true,

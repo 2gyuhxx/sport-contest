@@ -720,24 +720,6 @@ export function MyPage() {
                 <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
               </button>
             </div>
-
-            {/* 설정 (하단) - 관리자는 전체 너비 */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">설정</h2>
-              <button
-                type="button"
-                onClick={handleOpenChangePassword}
-                className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
-              >
-                <div>
-                  <p className="font-semibold">내 계정 관리</p>
-                  <p className="mt-1 text-xs text-slate-600">
-                    계정 비밀번호를 변경하거나 회원탈퇴를 할 수 있습니다.
-                  </p>
-                </div>
-                <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
-              </button>
-            </div>
           </div>
         ) : (
           /* 일반 사용자: 찜 목록을 상단에, 계정 관리를 하단에 배치 */

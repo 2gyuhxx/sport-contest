@@ -202,7 +202,7 @@ export function SearchPage() {
     })
 
     // 대한민국 외 모든 지역 가리기 (바다, 북한, 주변국 포함)
-    const overlayColor = '#FFF3E0'
+    const overlayColor = '#f0f4f7'
     
     fetch('/korea-regions.geojson')
       .then(response => response.json())

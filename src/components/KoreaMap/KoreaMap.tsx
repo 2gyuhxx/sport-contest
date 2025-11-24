@@ -253,7 +253,7 @@ function transformSvg(svgMarkup: string, regions: RegionMeta[]) {
 
   const highlightCss = `
     .region-shape { cursor: pointer; }
-    .region-shape .st0 { transition: fill 0.25s ease; }
+    .region-shape .st0 { transition: fill 0.25s ease; fill: #f5f1e7; }
     .region-shape.is-active .st0 { fill: #22c55e !important; }
     .region-shape:hover .st0 { fill: #2563eb !important; }
   `
