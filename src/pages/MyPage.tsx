@@ -290,8 +290,32 @@ export function MyPage() {
     }
   }
 
-  // 날짜 포맷팅
+  // 날짜 포맷팅 (타임존 문제 해결)
   const formatDate = (dateString: string) => {
+    // 날짜 부분만 추출 (YYYY-MM-DD)
+    let dateOnly = dateString
+    
+    // ISO 형식(YYYY-MM-DDTHH:mm:ss)인 경우 날짜 부분만 추출
+    if (dateString.includes('T')) {
+      dateOnly = dateString.split('T')[0]
+    }
+    // 공백으로 구분된 형식(YYYY-MM-DD HH:mm:ss)인 경우
+    else if (dateString.includes(' ')) {
+      dateOnly = dateString.split(' ')[0]
+    }
+    
+    // YYYY-MM-DD 형식인 경우 로컬 시간대로 파싱
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    }
+    
+    // 다른 형식인 경우 기존 방식 사용 (fallback)
     const date = new Date(dateString)
     return date.toLocaleDateString('ko-KR', {
       year: 'numeric',
@@ -778,7 +802,7 @@ export function MyPage() {
                             
                             <div className="flex items-center gap-2 text-xs text-slate-600">
                               <Calendar className="h-3 w-3 flex-shrink-0" />
-                              <span>{new Date(event.start_at).toLocaleDateString('ko-KR')}</span>
+                              <span>{formatDate(event.start_at)}</span>
                             </div>
                           </div>
                         </Link>

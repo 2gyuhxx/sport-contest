@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AuthService } from '../services/AuthService'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventService } from '../services/EventService'
+import { formatDate } from '../utils/formatDate'
 import { TestTube, User, Shield, LogIn, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Eye, Calendar, MapPin, X, ExternalLink } from 'lucide-react'
 
 // 테스트 계정 목록
@@ -355,7 +356,7 @@ export function DevTestPage() {
                           {event.start_at && (
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3.5 w-3.5" />
-                              <span>{new Date(event.start_at).toLocaleDateString('ko-KR')}</span>
+                              <span>{formatDate(event.start_at.split('T')[0])}</span>
                             </div>
                           )}
                           {event.region && (
@@ -505,8 +506,8 @@ export function DevTestPage() {
                   <div className="grid gap-1">
                     <dt className="font-semibold text-slate-600">행사 일시</dt>
                     <dd className="text-slate-900">
-                      {selectedEvent.start_at && new Date(selectedEvent.start_at).toLocaleString('ko-KR')}
-                      {selectedEvent.end_at && ` ~ ${new Date(selectedEvent.end_at).toLocaleString('ko-KR')}`}
+                      {selectedEvent.start_at && formatDate(selectedEvent.start_at.split('T')[0])}
+                      {selectedEvent.end_at && ` ~ ${formatDate(selectedEvent.end_at.split('T')[0])}`}
                     </dd>
                   </div>
                   <div className="grid gap-1">

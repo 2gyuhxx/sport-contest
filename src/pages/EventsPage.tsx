@@ -9,6 +9,7 @@ import type { Category, Event } from '../types/events'
 import { getCategoryLabel } from '../utils/categoryLabels'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
 import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 type SortOption = 'latest' | 'popular' | 'date' | 'title' | 'recommended'
 
@@ -28,6 +29,9 @@ export function EventsPage() {
   
   const { state: authState } = useAuthContext()
   const { isAuthenticated, user } = authState
+
+  // 훅은 항상 같은 순서로 호출되어야 하므로 조건문 이전에 호출
+  const isMobile = useIsMobile()
 
   const [sortBy, setSortBy] = useState<SortOption>('latest')
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
@@ -308,6 +312,162 @@ export function EventsPage() {
     )
   }
 
+  // 모바일 레이아웃
+  if (isMobile) {
+    return (
+      <div className="pb-12">
+        <div className="mx-auto max-w-content px-4">
+          {/* 필터 및 정렬 - 모바일 버전 */}
+          <div className="mb-4 rounded-2xl border border-surface-subtle bg-white p-4 shadow-sm">
+            {/* 정렬 옵션 - 모바일에서는 세로 스크롤 */}
+            <div className="mb-4">
+              <span className="mb-2 block text-xs font-semibold text-slate-700">정렬</span>
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {SORT_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  const requiresAuth = option.requiresAuth || false
+                  const isDisabled = requiresAuth && !isAuthenticated
+                  
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        if (isDisabled) {
+                          alert('추천 기능은 로그인 후 이용할 수 있습니다.')
+                          return
+                        }
+                        setSortBy(option.value)
+                      }}
+                      disabled={isDisabled}
+                      className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap flex-shrink-0 ${
+                        sortBy === option.value
+                          ? 'bg-brand-primary text-white'
+                          : isDisabled
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-surface text-slate-700'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 필터 영역 - 모바일에서는 세로 배치 */}
+            {sortBy !== 'recommended' && (
+              <div className="space-y-3 border-t border-surface-subtle pt-4">
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    종목 대분류
+                  </label>
+                  <select
+                    value={selectedSportCategoryId || ''}
+                    onChange={(e) => setSelectedSportCategoryId(e.target.value ? parseInt(e.target.value) : null)}
+                    disabled={isLoadingCategories}
+                    className="w-full appearance-none rounded-lg border border-surface-subtle bg-white px-3 py-2 pr-8 text-xs text-slate-900 transition focus:border-brand-primary focus:outline-none"
+                  >
+                    <option value="">{isLoadingCategories ? '로딩 중...' : '전체 대분류'}</option>
+                    {sportCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    종목 소분류
+                  </label>
+                  <select
+                    value={selectedSubSportCategoryId || ''}
+                    onChange={(e) => setSelectedSubSportCategoryId(e.target.value ? parseInt(e.target.value) : null)}
+                    disabled={!selectedSportCategoryId || subSportCategories.length === 0}
+                    className="w-full appearance-none rounded-lg border border-surface-subtle bg-white px-3 py-2 pr-8 text-xs text-slate-900 transition focus:border-brand-primary focus:outline-none"
+                  >
+                    <option value="">
+                      {!selectedSportCategoryId 
+                        ? '먼저 대분류를 선택해주세요' 
+                        : subSportCategories.length === 0 
+                        ? '소분류가 없습니다' 
+                        : '전체 소분류'}
+                    </option>
+                    {subSportCategories.map((subCategory) => (
+                      <option key={subCategory.id} value={subCategory.id}>
+                        {subCategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    지역
+                  </label>
+                  <select
+                    value={selectedRegion || ''}
+                    onChange={(e) => setSelectedRegion(e.target.value || null)}
+                    className="w-full appearance-none rounded-lg border border-surface-subtle bg-white px-3 py-2 pr-8 text-xs text-slate-900 transition focus:border-brand-primary focus:outline-none"
+                  >
+                    <option value="">전체 지역</option>
+                    {regions.map((region) => (
+                      <option key={region.id} value={region.id}>
+                        {region.shortName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(selectedSportCategoryId || selectedSubSportCategoryId || selectedRegion) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSportCategoryId(null)
+                      setSelectedSubSportCategoryId(null)
+                      setSelectedRegion(null)
+                    }}
+                    className="w-full rounded-lg border border-surface-subtle bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-brand-primary hover:text-brand-primary"
+                  >
+                    필터 초기화
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 결과 개수 - 모바일 */}
+          <div className="mb-3">
+            <p className="text-xs text-slate-600">
+              총 <span className="font-semibold text-brand-primary">{filteredAndSortedEvents.length}</span>개의 행사
+            </p>
+          </div>
+
+          {/* 행사 목록 - 모바일에서는 리스트만 */}
+          <div className="rounded-2xl border border-surface-subtle bg-white p-4 shadow-sm">
+            <EventList
+              events={filteredAndSortedEvents}
+              layout="stack"
+              columns={2}
+              cardVariant="compact"
+              emptyMessage={
+                sortBy === 'recommended' && isAuthenticated
+                  ? user?.interests && user.interests.length > 0
+                    ? '관심 종목과 일치하는 행사가 없습니다.'
+                    : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
+                  : '조건에 맞는 행사가 없습니다.'
+              }
+              detailHrefBase="/events/"
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 데스크톱 레이아웃
   return (
     <div className="pb-12">
       <div className="mx-auto max-w-content px-6">

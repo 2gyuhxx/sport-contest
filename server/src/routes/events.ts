@@ -32,6 +32,39 @@ const formatEndAt = (dateStr: string): string => {
 }
 
 /**
+ * Date 객체를 MySQL datetime 형식 문자열로 변환 (YYYY-MM-DD HH:MM:SS)
+ * 타임존 문제를 해결하기 위해 로컬 시간을 사용
+ */
+const formatDateForResponse = (date: Date | string | null): string | null => {
+  if (!date) return null
+  
+  if (date instanceof Date) {
+    // 로컬 시간을 사용하여 YYYY-MM-DD HH:MM:SS 형식으로 변환
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  }
+  
+  // 이미 문자열인 경우 그대로 반환 (ISO 형식이면 변환)
+  if (typeof date === 'string') {
+    // ISO 형식 (YYYY-MM-DDTHH:mm:ss.sssZ)인 경우
+    if (date.includes('T')) {
+      const [datePart, timePart] = date.split('T')
+      const timeOnly = timePart.split('.')[0].split('Z')[0]
+      return `${datePart} ${timeOnly}`
+    }
+    // 이미 YYYY-MM-DD HH:MM:SS 형식인 경우
+    return date
+  }
+  
+  return String(date)
+}
+
+/**
  * 행사 생성
  */
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
@@ -198,7 +231,17 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/', async (req, res) => {
   try {
     const events = await EventModel.findAll()
-    res.json({ events })
+    
+    // Date 객체를 문자열로 변환하여 타임존 문제 해결
+    const formattedEvents = events.map(event => ({
+      ...event,
+      start_at: formatDateForResponse(event.start_at),
+      end_at: formatDateForResponse(event.end_at),
+      created_at: formatDateForResponse(event.created_at),
+      updated_at: formatDateForResponse(event.updated_at),
+    }))
+    
+    res.json({ events: formattedEvents })
   } catch (error: any) {
     console.error('행사 목록 조회 오류:', error)
     res.status(500).json({ error: '행사 목록 조회 중 오류가 발생했습니다' })
@@ -218,15 +261,26 @@ router.get('/my/events', authenticateToken, async (req: AuthRequest, res) => {
     // 사용자 역할 확인
     const user = await UserModel.findById(req.userId)
     
+    let events: EventRow[]
+    
     // manager = 2 (개발자/master): 모든 행사 목록 반환
     if (user && user.manager === 2) {
-      const events = await EventModel.findAllForAdmin()
-      return res.json({ events })
+      events = await EventModel.findAllForAdmin()
+    } else {
+      // manager = 1 (행사 주최자) 또는 manager = 0 (일반 사용자): 자신이 등록한 행사만 반환
+      events = await EventModel.findByOrganizerId(req.userId)
     }
 
-    // manager = 1 (행사 주최자) 또는 manager = 0 (일반 사용자): 자신이 등록한 행사만 반환
-    const events = await EventModel.findByOrganizerId(req.userId)
-    res.json({ events })
+    // Date 객체를 문자열로 변환하여 타임존 문제 해결
+    const formattedEvents = events.map(event => ({
+      ...event,
+      start_at: formatDateForResponse(event.start_at),
+      end_at: formatDateForResponse(event.end_at),
+      created_at: formatDateForResponse(event.created_at),
+      updated_at: formatDateForResponse(event.updated_at),
+    }))
+
+    res.json({ events: formattedEvents })
   } catch (error: any) {
     console.error('내 행사 목록 조회 오류:', error)
     res.status(500).json({ error: '행사 목록 조회 중 오류가 발생했습니다' })

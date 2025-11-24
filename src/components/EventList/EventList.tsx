@@ -9,7 +9,7 @@ interface EventListProps {
   activeEventId?: string | null
   emptyMessage?: string
   layout?: 'grid' | 'stack'
-  columns?: 2 | 3 | 4
+  columns?: 1 | 2 | 3 | 4
   cardVariant?: 'default' | 'compact'
   showDetailOnSelect?: boolean
   detailHrefBase?: string
@@ -28,8 +28,9 @@ export const EventList = memo(function EventList({
 }: EventListProps) {
   const [detailEvent, setDetailEvent] = useState<Event | null>(null)
 
-  const columnClasses: Record<2 | 3 | 4, string> = useMemo(
+  const columnClasses: Record<1 | 2 | 3 | 4, string> = useMemo(
     () => ({
+      1: 'grid-cols-1',
       2: 'grid-cols-1 sm:grid-cols-2',
       3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
       4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',

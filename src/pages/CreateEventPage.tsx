@@ -91,7 +91,26 @@ export function CreateEventPage() {
           const event = await EventService.getEventById(parseInt(eventId, 10))
           
           // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환)
+          // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환, 타임존 문제 해결)
           const formatDate = (dateString: string) => {
+            // 날짜 부분만 추출 (YYYY-MM-DD)
+            let dateOnly = dateString
+            
+            // ISO 형식(YYYY-MM-DDTHH:mm:ss)인 경우 날짜 부분만 추출
+            if (dateString.includes('T')) {
+              dateOnly = dateString.split('T')[0]
+            }
+            // 공백으로 구분된 형식(YYYY-MM-DD HH:mm:ss)인 경우
+            else if (dateString.includes(' ')) {
+              dateOnly = dateString.split(' ')[0]
+            }
+            
+            // 이미 YYYY-MM-DD 형식이면 그대로 반환
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+              return dateOnly
+            }
+            
+            // 다른 형식인 경우 Date 객체로 파싱 (fallback)
             const date = new Date(dateString)
             const year = date.getFullYear()
             const month = String(date.getMonth() + 1).padStart(2, '0')
