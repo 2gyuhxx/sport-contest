@@ -30,6 +30,16 @@ export interface Event {
   sport?: string // DB의 스포츠 종목 (소분류 우선, 없으면 대분류)
   sub_sport?: string | null // DB의 소분류 이름
   event_status?: 'active' | 'inactive' // 행사 상태 (eraser 필드에서 변환)
+  reports_count?: number // 신고 횟수
+  reports_state?: 'normal' | 'pending' | 'blocked' // 신고 상태 (기본값: normal)
+}
+
+export interface EventReport {
+  id?: number
+  user_id: number
+  events_id: number
+  report_reason: string
+  created_at?: string
 }
 
 export interface RegionMeta {

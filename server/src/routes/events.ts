@@ -1,6 +1,6 @@
 import express from 'express'
 import pool from '../config/database.js'
-import { EventModel } from '../models/Event.js'
+import { EventModel, EventRow } from '../models/Event.js'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { checkSpamAsync } from '../utils/spamCheckerAsync.js'
 
@@ -247,6 +247,21 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: '행사를 수정할 권한이 없습니다' })
     }
 
+    // 스팸 판정 중인 행사는 수정 불가
+    if (existingEvent.status === 'pending') {
+      return res.status(403).json({ error: '스팸 판정 중인 행사는 수정할 수 없습니다' })
+    }
+
+    // 신고 pending 상태인 행사는 수정 불가
+    if (existingEvent.reports_state === 'pending') {
+      return res.status(403).json({ error: '신고 처리 중인 행사는 수정할 수 없습니다' })
+    }
+
+    // blocked된 행사는 수정 불가
+    if (existingEvent.reports_state === 'blocked') {
+      return res.status(403).json({ error: '차단 처리된 행사는 수정할 수 없습니다' })
+    }
+
     const { title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, organizer_user_name } = req.body
 
     console.log('[행사 수정 API] 요청 데이터:', { 
@@ -486,6 +501,16 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: '행사를 삭제할 권한이 없습니다' })
     }
 
+    // 스팸 판정 중인 행사는 삭제 불가
+    if (event.status === 'pending') {
+      return res.status(403).json({ error: '스팸 판정 중인 행사는 삭제할 수 없습니다' })
+    }
+
+    // 신고 pending 상태인 행사는 삭제 불가 (blocked는 삭제 가능)
+    if (event.reports_state === 'pending') {
+      return res.status(403).json({ error: '신고 처리 중인 행사는 삭제할 수 없습니다' })
+    }
+
     // 행사 삭제
     await EventModel.delete(eventId)
 
@@ -502,6 +527,362 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     res.status(500).json({ 
       error: error.message || '행사 삭제 중 오류가 발생했습니다'
+    })
+  }
+})
+
+/**
+ * 행사 신고
+ */
+router.post('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    const { report_reason } = req.body
+    if (!report_reason || !report_reason.trim()) {
+      return res.status(400).json({ error: '신고 사유를 입력해주세요' })
+    }
+
+    // 행사 존재 확인
+    const event = await EventModel.findById(eventId)
+    if (!event) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 이미 신고했는지 확인 (실제 테이블 컬럼명: report_id, event_id 사용)
+    const [existingReports] = await pool.execute(
+      'SELECT report_id FROM events_reports WHERE user_id = ? AND event_id = ?',
+      [req.userId, eventId]
+    )
+    if (Array.isArray(existingReports) && existingReports.length > 0) {
+      return res.status(400).json({ error: '이미 신고한 행사입니다' })
+    }
+
+    // events_reports 테이블에 신고 저장 (실제 테이블 컬럼명: event_id 사용)
+    await pool.execute(
+      'INSERT INTO events_reports (user_id, event_id, report_reason) VALUES (?, ?, ?)',
+      [req.userId, eventId, report_reason.trim()]
+    )
+
+    // events 테이블의 reports_count 증가
+    await pool.execute(
+      'UPDATE events SET reports_count = COALESCE(reports_count, 0) + 1 WHERE id = ?',
+      [eventId]
+    )
+
+    // 업데이트된 행사 정보 가져오기
+    const [updatedRows] = await pool.execute(
+      'SELECT reports_count, reports_state FROM events WHERE id = ?',
+      [eventId]
+    )
+    const updatedEvent = Array.isArray(updatedRows) && updatedRows.length > 0 ? updatedRows[0] as { reports_count: number; reports_state: string } : null
+
+    if (!updatedEvent) {
+      return res.status(500).json({ error: '행사 정보를 가져올 수 없습니다' })
+    }
+
+    // reports_count가 1 이상이면 reports_state를 'pending'으로 변경 (테스트용: 1회로 설정)
+    if (updatedEvent.reports_count >= 1) {
+      await pool.execute(
+        'UPDATE events SET reports_state = ? WHERE id = ?',
+        ['pending', eventId]
+      )
+      updatedEvent.reports_state = 'pending'
+    }
+
+    // 최종 업데이트된 정보 가져오기
+    const [finalRows] = await pool.execute(
+      'SELECT reports_count, reports_state FROM events WHERE id = ?',
+      [eventId]
+    )
+    const finalEvent = Array.isArray(finalRows) && finalRows.length > 0 ? finalRows[0] as { reports_count: number; reports_state: string } : updatedEvent
+
+    // 신고 정보 가져오기 (실제 테이블 컬럼명: report_id, event_id 사용)
+    const [reportRows] = await pool.execute(
+      'SELECT report_id, user_id, event_id, report_reason, created_at FROM events_reports WHERE user_id = ? AND event_id = ? ORDER BY created_at DESC LIMIT 1',
+      [req.userId, eventId]
+    )
+    const report = Array.isArray(reportRows) && reportRows.length > 0 ? reportRows[0] : null
+
+    res.json({
+      report: report ? {
+        id: (report as any).report_id,
+        user_id: (report as any).user_id,
+        events_id: (report as any).event_id,
+        report_reason: (report as any).report_reason,
+        created_at: (report as any).created_at,
+      } : null,
+      event: {
+        reports_count: finalEvent.reports_count,
+        reports_state: finalEvent.reports_state || 'normal',
+      },
+    })
+  } catch (error: any) {
+    console.error('행사 신고 오류:', error)
+    console.error('에러 상세:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+      stack: error.stack,
+    })
+    
+    // 더 자세한 오류 메시지 반환 (개발 환경)
+    const errorMessage = process.env.NODE_ENV === 'production'
+      ? '행사 신고 중 오류가 발생했습니다'
+      : error.message || error.sqlMessage || '행사 신고 중 오류가 발생했습니다'
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV !== 'production' ? {
+        code: error.code,
+        sqlState: error.sqlState,
+        sqlMessage: error.sqlMessage,
+      } : undefined,
+    })
+  }
+})
+
+/**
+ * 행사 신고 취소
+ */
+router.delete('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 행사 존재 확인
+    const event = await EventModel.findById(eventId)
+    if (!event) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 신고 기록 확인 (실제 테이블 컬럼명: report_id, event_id 사용)
+    const [existingReports] = await pool.execute(
+      'SELECT report_id FROM events_reports WHERE user_id = ? AND event_id = ?',
+      [req.userId, eventId]
+    )
+    if (!Array.isArray(existingReports) || existingReports.length === 0) {
+      return res.status(404).json({ error: '신고 기록을 찾을 수 없습니다' })
+    }
+
+    // events_reports 테이블에서 신고 삭제 (실제 테이블 컬럼명: event_id 사용)
+    await pool.execute(
+      'DELETE FROM events_reports WHERE user_id = ? AND event_id = ?',
+      [req.userId, eventId]
+    )
+
+    // events 테이블의 reports_count 감소
+    await pool.execute(
+      'UPDATE events SET reports_count = GREATEST(COALESCE(reports_count, 0) - 1, 0) WHERE id = ?',
+      [eventId]
+    )
+
+    // 업데이트된 행사 정보 가져오기
+    const [updatedRows] = await pool.execute(
+      'SELECT reports_count, reports_state FROM events WHERE id = ?',
+      [eventId]
+    )
+    const updatedEvent = Array.isArray(updatedRows) && updatedRows.length > 0 ? updatedRows[0] as { reports_count: number; reports_state: string } : null
+
+    if (!updatedEvent) {
+      return res.status(500).json({ error: '행사 정보를 가져올 수 없습니다' })
+    }
+
+    // reports_count가 1 미만이면 reports_state를 'normal'로 변경
+    if (updatedEvent.reports_count < 1) {
+      await pool.execute(
+        'UPDATE events SET reports_state = ? WHERE id = ?',
+        ['normal', eventId]
+      )
+      updatedEvent.reports_state = 'normal'
+    }
+
+    res.json({
+      event: {
+        reports_count: updatedEvent.reports_count,
+        reports_state: updatedEvent.reports_state || 'normal',
+      },
+    })
+  } catch (error: any) {
+    console.error('행사 신고 취소 오류:', error)
+    console.error('에러 상세:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+    })
+    
+    const errorMessage = process.env.NODE_ENV === 'production'
+      ? '행사 신고 취소 중 오류가 발생했습니다'
+      : error.message || error.sqlMessage || '행사 신고 취소 중 오류가 발생했습니다'
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV !== 'production' ? {
+        code: error.code,
+        sqlState: error.sqlState,
+        sqlMessage: error.sqlMessage,
+      } : undefined,
+    })
+  }
+})
+
+/**
+ * 사용자가 해당 행사를 신고했는지 확인
+ */
+router.get('/:id/report/check', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    // 신고 기록 확인 (실제 테이블 컬럼명: report_id, event_id 사용)
+    const [reportRows] = await pool.execute(
+      'SELECT report_id, user_id, event_id, report_reason, created_at FROM events_reports WHERE user_id = ? AND event_id = ? ORDER BY created_at DESC LIMIT 1',
+      [req.userId, eventId]
+    )
+    const report = Array.isArray(reportRows) && reportRows.length > 0 ? reportRows[0] : null
+
+    res.json({
+      report: report ? {
+        id: (report as any).report_id,
+        user_id: (report as any).user_id,
+        events_id: (report as any).event_id,
+        report_reason: (report as any).report_reason,
+        created_at: (report as any).created_at,
+      } : null,
+    })
+  } catch (error: any) {
+    console.error('신고 확인 오류:', error)
+    console.error('에러 상세:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+    })
+    
+    const errorMessage = process.env.NODE_ENV === 'production'
+      ? '신고 확인 중 오류가 발생했습니다'
+      : error.message || error.sqlMessage || '신고 확인 중 오류가 발생했습니다'
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV !== 'production' ? {
+        code: error.code,
+        sqlState: error.sqlState,
+        sqlMessage: error.sqlMessage,
+      } : undefined,
+    })
+  }
+})
+
+/**
+ * 관리자: pending 상태인 행사 목록 조회
+ */
+router.get('/admin/pending', async (req, res) => {
+  try {
+    const [rows] = await pool.execute<EventRow[]>(
+      `SELECT e.*, 
+              COUNT(er.report_id) as reports_count
+       FROM events e
+       LEFT JOIN events_reports er ON e.id = er.event_id
+       WHERE e.reports_state = 'pending'
+       GROUP BY e.id
+       ORDER BY e.created_at DESC`
+    )
+
+    // 신고 정보도 함께 가져오기
+    const eventsWithReports = await Promise.all(
+      rows.map(async (event) => {
+        const [reportRows] = await pool.execute<any[]>(
+          `SELECT er.*, u.name as user_name, u.email as user_email
+           FROM events_reports er
+           LEFT JOIN users u ON er.user_id = u.id
+           WHERE er.event_id = ?
+           ORDER BY er.created_at DESC`,
+          [event.id]
+        )
+        return {
+          ...event,
+          reports: reportRows,
+        }
+      })
+    )
+
+    res.json({ events: eventsWithReports })
+  } catch (error: any) {
+    console.error('관리자 pending 행사 조회 오류:', error)
+    res.status(500).json({ 
+      error: 'pending 행사 조회 중 오류가 발생했습니다',
+      details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+    })
+  }
+})
+
+/**
+ * 관리자: 행사의 reports_state 변경
+ */
+router.patch('/admin/:id/report-state', async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    const { reports_state } = req.body
+
+    if (!eventId || isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!reports_state || !['normal', 'pending', 'blocked'].includes(reports_state)) {
+      return res.status(400).json({ error: '유효하지 않은 reports_state 값입니다. normal, pending, blocked 중 하나여야 합니다' })
+    }
+
+    // 행사 존재 확인
+    const event = await EventModel.findById(eventId)
+    if (!event) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // reports_state 업데이트
+    await pool.execute(
+      `UPDATE events 
+       SET reports_state = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [reports_state, eventId]
+    )
+
+    // 업데이트된 행사 정보 반환
+    const updatedEvent = await EventModel.findById(eventId)
+
+    res.json({ 
+      message: '행사 상태가 변경되었습니다',
+      event: updatedEvent,
+    })
+  } catch (error: any) {
+    console.error('관리자 reports_state 변경 오류:', error)
+    res.status(500).json({ 
+      error: '행사 상태 변경 중 오류가 발생했습니다',
+      details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
     })
   }
 })

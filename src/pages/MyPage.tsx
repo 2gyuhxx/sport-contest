@@ -30,6 +30,8 @@ interface MyEvent {
   end_at: string
   status: 'pending' | 'approved' | 'spam'
   eraser: 'active' | 'inactive' | null
+  reports_count?: number
+  reports_state?: 'normal' | 'pending' | 'blocked'
   created_at: string
   updated_at: string | null
 }
@@ -161,7 +163,8 @@ export function MyPage() {
       setIsLoading(true)
       setError(null)
       const myEvents = await EventService.getMyEvents()
-      setEvents(myEvents)
+      // DBEvent를 MyEvent 타입으로 변환 (타입 호환)
+      setEvents(myEvents as MyEvent[])
     } catch (err) {
       console.error('내 행사 목록 로딩 오류:', err)
       const errorMessage = err instanceof Error ? err.message : '행사 목록을 불러오는데 실패했습니다'
@@ -187,7 +190,7 @@ export function MyPage() {
         const myEvents = await EventService.getMyEvents()
         const stillHasPending = myEvents.some((event) => event.status === 'pending')
         if (stillHasPending) {
-          setEvents(myEvents)
+          setEvents(myEvents as MyEvent[])
         }
       } catch (err) {
         // 조용히 실패 (에러는 표시하지 않음)
@@ -198,9 +201,29 @@ export function MyPage() {
     return () => clearInterval(interval)
   }, [isAuthenticated, isManager, events])
 
-  // 상태에 따른 배지 스타일
-  const getStatusBadge = (status: MyEvent['status']) => {
-    switch (status) {
+  // 상태에 따른 배지 스타일 (reports_state 우선 확인)
+  const getStatusBadge = (event: MyEvent) => {
+    // reports_state가 'pending'이면 신고 처리로 표시
+    if (event.reports_state === 'pending') {
+      return {
+        icon: AlertCircle,
+        text: '신고 처리',
+        color: 'bg-orange-100 text-orange-800 border-orange-300',
+        iconColor: 'text-orange-600',
+      }
+    }
+    // reports_state가 'blocked'이면 차단 처리로 표시 (super 계정 판단)
+    if (event.reports_state === 'blocked') {
+      return {
+        icon: XCircle,
+        text: '차단 처리',
+        color: 'bg-red-100 text-red-800 border-red-300',
+        iconColor: 'text-red-600',
+      }
+    }
+    
+    // reports_state가 'normal'이거나 없으면 기존 status 기준으로 표시
+    switch (event.status) {
       case 'pending':
         return {
           icon: Loader2,
@@ -563,7 +586,7 @@ export function MyPage() {
               ) : (
                 <div className={`grid gap-4 md:grid-cols-2 ${events.length > 6 ? 'max-h-[600px] overflow-y-auto' : ''}`}>
                   {events.map((event) => {
-                    const statusBadge = getStatusBadge(event.status)
+                    const statusBadge = getStatusBadge(event)
                     const StatusIcon = statusBadge.icon
                     const eraserBadge = getEraserBadge(event.eraser)
                     const EraserIcon = eraserBadge?.icon
@@ -622,22 +645,44 @@ export function MyPage() {
 
                         {/* 수정/삭제 버튼 - 맨 아래 오른쪽 */}
                         <div className="mt-auto flex items-center justify-end gap-2">
-                          <Link
-                            to={`/events/edit/${event.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-3 py-1.5 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                            수정
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEvent(event.id, event.title)}
-                            disabled={deletingEventId === event.id}
-                            className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            {deletingEventId === event.id ? '삭제 중...' : '삭제'}
-                          </button>
+                          {/* 스팸 판정 중이거나 신고 pending 상태인 행사는 수정/삭제 불가 */}
+                          {(event.status === 'pending' || event.reports_state === 'pending') ? (
+                            <div className="text-xs text-slate-500">
+                              {event.status === 'pending' && '판정 중인 행사는 수정/삭제할 수 없습니다'}
+                              {event.status !== 'pending' && event.reports_state === 'pending' && 
+                               '신고 처리 중인 행사는 수정/삭제할 수 없습니다'}
+                            </div>
+                          ) : event.reports_state === 'blocked' ? (
+                            // blocked된 행사는 수정 불가, 삭제만 가능
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(event.id, event.title)}
+                              disabled={deletingEventId === event.id}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {deletingEventId === event.id ? '삭제 중...' : '삭제'}
+                            </button>
+                          ) : (
+                            <>
+                              <Link
+                                to={`/admin/events/edit/${event.id}`}
+                                className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-3 py-1.5 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                                수정
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEvent(event.id, event.title)}
+                                disabled={deletingEventId === event.id}
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                {deletingEventId === event.id ? '삭제 중...' : '삭제'}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )

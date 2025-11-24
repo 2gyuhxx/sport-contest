@@ -487,6 +487,8 @@ export function SearchPage() {
       .filter((event) => {
         // 종료된 행사 제외
         const isActive = event.event_status !== 'inactive'
+        // reports_state가 'normal'이 아닌 행사는 보이지 않게 필터링
+        const isNormal = !event.reports_state || event.reports_state === 'normal'
         const regionMatch = selectedRegion ? event.region === selectedRegion : true
         const cityMatch = selectedCity ? event.city === selectedCity : true
         const categoryMatch =
@@ -497,7 +499,7 @@ export function SearchPage() {
               .toLowerCase()
               .includes(term)
           : true
-        return isActive && regionMatch && cityMatch && categoryMatch && keywordMatch
+        return isActive && isNormal && regionMatch && cityMatch && categoryMatch && keywordMatch
       })
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [categoryFilter, events, searchTerm, selectedCity, selectedRegion])

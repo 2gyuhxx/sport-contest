@@ -164,8 +164,10 @@ export function EventsPage() {
             const isActive = event.event_status !== 'inactive'
             const hasSubSport = !!event.sub_sport
             const matchesSubSport = allTargetSports.includes(event.sub_sport || '')
+            // reports_state가 'normal'이 아닌 행사는 제외
+            const isNormal = !event.reports_state || event.reports_state === 'normal'
             
-            return isActive && hasSubSport && matchesSubSport
+            return isActive && hasSubSport && matchesSubSport && isNormal
           })
           
           console.log('[찜 추천] 최종 추천 행사:', recommendedEvents.length, '개')
@@ -188,8 +190,14 @@ export function EventsPage() {
 
   // 필터링 및 정렬
   const filteredAndSortedEvents = useMemo(() => {
-    // 종료된 행사 제외
-    let filtered = events.filter(event => event.event_status !== 'inactive')
+    // 종료된 행사 제외 및 신고 처리된 행사 제외
+    let filtered = events.filter(event => {
+      // 종료된 행사 제외
+      if (event.event_status === 'inactive') return false
+      // reports_state가 'normal'이 아닌 행사는 보이지 않게 필터링
+      if (event.reports_state && event.reports_state !== 'normal') return false
+      return true
+    })
 
     // 추천 정렬일 때는 카테고리 필터를 무시 (사용자 관심사 기반으로만 필터링)
     const isRecommendedSort = sortBy === 'recommended'

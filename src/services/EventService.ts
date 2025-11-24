@@ -1,6 +1,6 @@
 import { events } from '../data/events'
 import { regions } from '../data/regions'
-import type { Category, Event, EventFilters, RegionMeta } from '../types/events'
+import type { Category, Event, EventFilters, RegionMeta, EventReport } from '../types/events'
 import apiRequest from '../config/api'
 import { AuthService } from './AuthService'
 
@@ -66,6 +66,8 @@ interface DBEvent {
   image: string | null // 오브젝트 스토리지 이미지 URL
   status: 'pending' | 'approved' | 'spam'
   eraser: 'active' | 'inactive' | null
+  reports_count?: number // 신고 횟수
+  reports_state?: 'normal' | 'pending' | 'blocked' // 신고 상태 (기본값: normal)
   created_at: string
   updated_at: string | null
 }
@@ -154,7 +156,7 @@ export const categoryToKoreanMap: Record<Category, string> = {
 }
 
 // DB 행사 데이터를 프론트엔드 Event 타입으로 변환
-function transformDBEventToEvent(dbEvent: DBEvent): Event {
+export function transformDBEventToEvent(dbEvent: DBEvent): Event {
   // sport를 Category로 매핑 (SearchPage의 SPORT_CATEGORIES와 일치)
   let category: Category = 'other' // 기본값
   
@@ -207,6 +209,8 @@ function transformDBEventToEvent(dbEvent: DBEvent): Event {
     sport: dbEvent.sub_sport || dbEvent.sport, // 소분류가 있으면 소분류, 없으면 대분류 사용
     sub_sport: dbEvent.sub_sport || null, // 소분류 이름 (별도 필드로 저장)
     event_status: (dbEvent.eraser === 'active' || dbEvent.eraser === 'inactive') ? dbEvent.eraser : undefined, // eraser를 event_status로 변환
+    reports_count: dbEvent.reports_count || 0, // 신고 횟수
+    reports_state: dbEvent.reports_state || 'normal', // 신고 상태 (기본값: normal)
   }
 }
 
@@ -603,6 +607,89 @@ export const EventService = {
       )
     } catch (error) {
       console.error('행사 삭제 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 행사 신고
+   */
+  async reportEvent(eventId: number, reason: string): Promise<{ report: EventReport; event: { reports_count: number; reports_state: string } }> {
+    try {
+      const response = await apiRequest<{ 
+        report: EventReport
+        event: { reports_count: number; reports_state: string }
+      }>(`/events/${eventId}/report`, {
+        method: 'POST',
+        body: JSON.stringify({ report_reason: reason }),
+      })
+      return response
+    } catch (error) {
+      console.error('행사 신고 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 행사 신고 취소
+   */
+  async cancelReport(eventId: number): Promise<{ event: { reports_count: number; reports_state: string } }> {
+    try {
+      const response = await apiRequest<{ 
+        event: { reports_count: number; reports_state: string }
+      }>(`/events/${eventId}/report`, {
+        method: 'DELETE',
+      })
+      return response
+    } catch (error) {
+      console.error('행사 신고 취소 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 사용자가 해당 행사를 신고했는지 확인
+   */
+  async checkUserReport(eventId: number): Promise<EventReport | null> {
+    try {
+      const response = await apiRequest<{ report: EventReport | null }>(`/events/${eventId}/report/check`)
+      return response.report
+    } catch (error) {
+      console.error('신고 확인 오류:', error)
+      return null
+    }
+  },
+
+  /**
+   * 관리자: pending 상태인 행사 목록 조회
+   */
+  async getPendingEvents(): Promise<Array<DBEvent & { reports: Array<EventReport & { user_name?: string; user_email?: string }> }>> {
+    try {
+      const response = await apiRequest<{ 
+        events: Array<DBEvent & { reports: Array<EventReport & { user_name?: string; user_email?: string }> }> 
+      }>('/events/admin/pending')
+      return response.events
+    } catch (error) {
+      console.error('pending 행사 조회 오류:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 관리자: 행사의 reports_state 변경
+   */
+  async updateEventReportState(eventId: number, reports_state: 'normal' | 'pending' | 'blocked'): Promise<DBEvent> {
+    try {
+      const response = await apiRequest<{ 
+        message: string
+        event: DBEvent 
+      }>(`/events/admin/${eventId}/report-state`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reports_state }),
+      })
+      return response.event
+    } catch (error) {
+      console.error('행사 상태 변경 오류:', error)
       throw error
     }
   },

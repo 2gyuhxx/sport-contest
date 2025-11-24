@@ -23,6 +23,8 @@ export interface EventRow extends RowDataPacket {
   views: number
   status: EventStatus
   eraser: EventLifecycleStatus | null
+  reports_count?: number
+  reports_state?: 'normal' | 'pending' | 'blocked'
   created_at: Date
   updated_at: Date | null
 }
@@ -199,9 +201,15 @@ export class EventModel {
   /**
    * 모든 행사 가져오기 (승인된 행사만)
    */
+  /**
+   * 모든 행사 가져오기 (승인된 행사만, reports_state가 'normal'인 행사만)
+   */
   static async findAll(): Promise<EventRow[]> {
     const [rows] = await pool.execute<EventRow[]>(
-      'SELECT * FROM events WHERE status = ? ORDER BY created_at DESC',
+      `SELECT * FROM events 
+       WHERE status = ? 
+       AND (reports_state IS NULL OR reports_state = 'normal')
+       ORDER BY created_at DESC`,
       ['approved']
     )
     return rows

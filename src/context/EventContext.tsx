@@ -36,6 +36,16 @@ function eventReducer(state: EventState, action: EventAction): EventState {
       return { ...state, activeEventId: action.payload }
     case 'SET_EVENTS':
       return { ...state, events: action.payload }
+    case 'ADD_EVENT':
+      // 이미 존재하는 행사면 업데이트, 없으면 추가
+      const existingIndex = state.events.findIndex((e) => e.id === action.payload.id)
+      if (existingIndex >= 0) {
+        return {
+          ...state,
+          events: state.events.map((e, i) => (i === existingIndex ? action.payload : e)),
+        }
+      }
+      return { ...state, events: [...state.events, action.payload] }
     case 'INCREMENT_EVENT_VIEWS':
       // 특정 이벤트의 조회수만 +1 (로컬 상태 업데이트)
       return {
@@ -50,6 +60,20 @@ function eventReducer(state: EventState, action: EventAction): EventState {
         ...state,
         events: state.events.map((event) =>
           event.id === action.payload.eventId ? { ...event, views: action.payload.views } : event
+        ),
+      }
+    case 'UPDATE_EVENT_REPORTS':
+      // 신고 정보 업데이트 (reports_count, reports_state)
+      return {
+        ...state,
+        events: state.events.map((event) =>
+          event.id === action.payload.eventId
+            ? {
+                ...event,
+                reports_count: action.payload.reports_count,
+                reports_state: action.payload.reports_state as 'normal' | 'pending' | 'blocked',
+              }
+            : event
         ),
       }
     default:
@@ -94,6 +118,10 @@ export function EventProvider({ children }: { children: ReactNode }) {
     const lowerKeyword = keyword ? keyword.toLowerCase() : null
 
     return state.events.filter((event) => {
+      // reports_state가 'normal'이 아닌 이벤트는 다른 사용자에게 보이지 않게 필터링
+      // (pending: 신고 5회 이상, blocked: super 계정 판단)
+      if (event.reports_state && event.reports_state !== 'normal') return false
+      
       if (region && event.region !== region) return false
       if (category && event.category !== category) return false
       if (lowerKeyword) {
