@@ -363,8 +363,9 @@ export function SearchPage() {
         fillOpacity: 0.05,
       })
 
-      // 각 폴리곤에 원래 opacity 저장
+      // 각 폴리곤에 원래 opacity와 strokeColor 저장
       ;(polygon as any)._originalOpacity = 0.05
+      ;(polygon as any)._originalStrokeColor = '#10b981'
       
       // mouseover, mousemove, mouseout 이벤트 제거 (시/도는 hover 효과 없음)
 
@@ -389,13 +390,18 @@ export function SearchPage() {
           mapRef.current.setLevel(coords.level)
         }
         
-        // 선택된 지역은 숨기고, 나머지 지역들은 뿌옇게 표시
+        // 선택된 지역은 숨기고, 나머지 지역들은 뿌옇게 표시하고 테두리를 흰색으로 변경
         polygonsRef.current.forEach(({ polygon: p, regionId: rid }) => {
           if (rid === regionId) {
             p.setMap(null) // 선택된 지역은 숨김
           } else {
             p.setMap(mapRef.current) // 다른 지역은 표시
-            p.setOptions({ fillColor: '#fff', fillOpacity: 0.5 }) // 뿌옇게
+            p.setOptions({ 
+              fillColor: '#fff', 
+              fillOpacity: 0.5, // 뿌옇게
+              strokeColor: '#ffffff', // 테두리를 흰색으로
+              strokeOpacity: 0.9
+            })
             ;(p as any)._originalOpacity = 0.5 // 원래 opacity 업데이트
           }
         })
@@ -1008,7 +1014,14 @@ export function SearchPage() {
     if (!mapRef.current) return
     polygonsRef.current.forEach(({ polygon }) => {
       polygon.setMap(mapRef.current)
-      polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.05 }) // 투명하게 복원
+      const originalStrokeColor = (polygon as any)._originalStrokeColor ?? '#10b981'
+      // 모든 지역을 동일한 스타일로 복원 (이전 선택 상태와 무관하게)
+      polygon.setOptions({ 
+        fillColor: '#fff', 
+        fillOpacity: 0.05, // 항상 동일한 투명도로 복원
+        strokeColor: originalStrokeColor, // 원래 테두리 색상 복원
+        strokeOpacity: 0.9
+      })
       ;(polygon as any)._originalOpacity = 0.05 // 원래 opacity 복원
     })
   }, [])

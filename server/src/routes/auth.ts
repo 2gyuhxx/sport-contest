@@ -64,13 +64,13 @@ router.post('/signup', async (req, res) => {
       sport3
     )
 
-    // manager 필드 업데이트 (행사 관리자인 경우)
+    // manager 필드 업데이트 (행사 주최자인 경우 manager = 1로 설정)
     if (manager) {
       await pool.execute(
-        'UPDATE users SET manager = true WHERE id = ?',
+        'UPDATE users SET manager = 1 WHERE id = ?',
         [user.id]
       )
-      user.manager = true
+      user.manager = 1
     }
 
     // JWT 토큰 생성
@@ -351,8 +351,8 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: '사용자를 찾을 수 없습니다' })
     }
 
-    // manager 필드 업데이트
-    if (typeof manager === 'boolean') {
+    // manager 필드 업데이트 (0: 일반 사용자, 1: 행사 주최자, 2: master)
+    if (typeof manager === 'number' && (manager === 0 || manager === 1 || manager === 2)) {
       await pool.execute(
         'UPDATE users SET manager = ? WHERE id = ?',
         [manager, req.userId]

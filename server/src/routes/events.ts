@@ -1,6 +1,7 @@
 import express from 'express'
 import pool from '../config/database.js'
 import { EventModel, EventRow } from '../models/Event.js'
+import { UserModel } from '../models/User.js'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { checkSpamAsync } from '../utils/spamCheckerAsync.js'
 
@@ -214,6 +215,16 @@ router.get('/my/events', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: '인증이 필요합니다' })
     }
 
+    // 사용자 역할 확인
+    const user = await UserModel.findById(req.userId)
+    
+    // manager = 2 (개발자/master): 모든 행사 목록 반환
+    if (user && user.manager === 2) {
+      const events = await EventModel.findAllForAdmin()
+      return res.json({ events })
+    }
+
+    // manager = 1 (행사 주최자) 또는 manager = 0 (일반 사용자): 자신이 등록한 행사만 반환
     const events = await EventModel.findByOrganizerId(req.userId)
     res.json({ events })
   } catch (error: any) {
@@ -242,23 +253,62 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
     }
 
-    // 권한 확인
-    if (existingEvent.organizer_user_id !== req.userId) {
+    // 권한 확인 (행사 주최자 또는 master만 수정 가능)
+    const currentUser = await UserModel.findById(req.userId!)
+    if (!currentUser) {
+      console.log('[행사 수정 권한 거부] 사용자를 찾을 수 없음', { userId: req.userId })
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다' })
+    }
+    
+    // 타입 안전성을 위해 명시적으로 숫자로 변환
+    const userId = Number(req.userId)
+    const organizerUserId = Number(existingEvent.organizer_user_id)
+    const managerValue = Number(currentUser.manager)
+    
+    const isMaster = managerValue === 2 // manager = 2: master/개발자
+    const isOrganizer = managerValue === 1 // manager = 1: 행사 주최자
+    
+    console.log('[행사 수정 권한 체크]', {
+      userId,
+      organizerUserId,
+      isMaster,
+      isOrganizer,
+      managerValue,
+      managerType: typeof currentUser.manager,
+      userIdType: typeof userId,
+      organizerUserIdType: typeof organizerUserId,
+      currentUserExists: !!currentUser
+    })
+    
+    // master는 모든 행사 수정 가능, 행사 주최자는 자신이 등록한 행사만 수정 가능
+    const isOwner = organizerUserId === userId
+    if (!isOwner && !isMaster) {
+      console.log('[행사 수정 권한 거부]', { 
+        isOwner, 
+        isMaster, 
+        userId, 
+        organizerUserId,
+        managerValue,
+        reason: !isOwner ? '소유자가 아님' : '',
+        reason2: !isMaster ? 'master가 아님' : ''
+      })
       return res.status(403).json({ error: '행사를 수정할 권한이 없습니다' })
     }
+    
+    console.log('[행사 수정 권한 허용]', { isOwner, isMaster, userId, organizerUserId, managerValue })
 
-    // 스팸 판정 중인 행사는 수정 불가
-    if (existingEvent.status === 'pending') {
+    // 스팸 판정 중인 행사는 수정 불가 (master는 제외)
+    if (existingEvent.status === 'pending' && !isMaster) {
       return res.status(403).json({ error: '스팸 판정 중인 행사는 수정할 수 없습니다' })
     }
 
-    // 신고 pending 상태인 행사는 수정 불가
-    if (existingEvent.reports_state === 'pending') {
+    // 신고 pending 상태인 행사는 수정 불가 (master는 제외)
+    if (existingEvent.reports_state === 'pending' && !isMaster) {
       return res.status(403).json({ error: '신고 처리 중인 행사는 수정할 수 없습니다' })
     }
 
-    // blocked된 행사는 수정 불가
-    if (existingEvent.reports_state === 'blocked') {
+    // blocked된 행사는 수정 불가 (master는 제외)
+    if (existingEvent.reports_state === 'blocked' && !isMaster) {
       return res.status(403).json({ error: '차단 처리된 행사는 수정할 수 없습니다' })
     }
 
@@ -422,6 +472,98 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * 행사 이미지만 업데이트 (pending 상태 체크 없음 - 행사 생성 직후 이미지 업로드용)
+ * 보안: 행사 생성 후 10분 이내에만 사용 가능 (악용 방지)
+ */
+router.patch('/:id/image', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10)
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: '유효하지 않은 행사 ID입니다' })
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ error: '인증이 필요합니다' })
+    }
+
+    const { image } = req.body
+    if (!image) {
+      return res.status(400).json({ error: '이미지 URL이 필요합니다' })
+    }
+
+    // 기존 행사 데이터 가져오기
+    const existingEvent = await EventModel.findById(eventId)
+    if (!existingEvent) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    // 권한 확인 (행사 주최자 또는 master만 이미지 수정 가능)
+    const currentUser = await UserModel.findById(req.userId!)
+    const isMaster = currentUser?.manager === 2 // manager = 2: master/개발자
+    
+    // 타입 안전성을 위해 명시적으로 숫자로 변환
+    const userId = Number(req.userId)
+    const organizerUserId = Number(existingEvent.organizer_user_id)
+    
+    console.log('[이미지 수정 권한 체크]', {
+      userId,
+      organizerUserId,
+      isMaster,
+      manager: currentUser?.manager
+    })
+    
+    // master는 모든 행사 이미지 수정 가능, 행사 주최자는 자신이 등록한 행사만 수정 가능
+    const isOwner = organizerUserId === userId
+    if (!isOwner && !isMaster) {
+      console.log('[이미지 수정 권한 거부]', { isOwner, isMaster, userId, organizerUserId })
+      return res.status(403).json({ error: '행사를 수정할 권한이 없습니다' })
+    }
+    
+    console.log('[이미지 수정 권한 허용]', { isOwner, isMaster, userId, organizerUserId })
+
+    // 보안: 행사 생성 후 10분 이내에만 이미지 업로드 허용 (악용 방지)
+    // 단, master는 시간 제한 없이 업로드 가능
+    if (!isMaster) {
+      const createdDate = new Date(existingEvent.created_at)
+      const now = new Date()
+      const minutesSinceCreation = (now.getTime() - createdDate.getTime()) / (1000 * 60)
+      
+      if (minutesSinceCreation > 10) {
+        // 10분이 지난 경우 일반 수정 API 사용 필요
+        return res.status(403).json({ 
+          error: '행사 생성 후 일정 시간이 지나 일반 수정 방법을 사용해주세요' 
+        })
+      }
+    }
+
+    // 이미지만 업데이트 (pending 상태 체크 없음)
+    await pool.execute(
+      'UPDATE events SET image = ?, updated_at = NOW() WHERE id = ?',
+      [image, eventId]
+    )
+
+    // 업데이트된 행사 반환
+    const updatedEvent = await EventModel.findById(eventId)
+    if (!updatedEvent) {
+      return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
+    }
+
+    res.json({ 
+      success: true,
+      event: {
+        id: updatedEvent.id,
+        image: updatedEvent.image,
+      }
+    })
+  } catch (error: any) {
+    console.error('행사 이미지 업데이트 오류:', error)
+    res.status(500).json({ 
+      error: error.message || '행사 이미지 업데이트 중 오류가 발생했습니다'
+    })
+  }
+})
+
+/**
  * 특정 행사 가져오기
  */
 router.get('/:id', async (req, res) => {
@@ -496,18 +638,37 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: '행사를 찾을 수 없습니다' })
     }
 
-    // 권한 확인 (행사 주최자만 삭제 가능)
-    if (event.organizer_user_id !== req.userId) {
+    // 권한 확인 (행사 주최자 또는 master만 삭제 가능)
+    const currentUser = await UserModel.findById(req.userId!)
+    const isMaster = currentUser?.manager === 2 // manager = 2: master/개발자
+    
+    // 타입 안전성을 위해 명시적으로 숫자로 변환
+    const userId = Number(req.userId)
+    const organizerUserId = Number(event.organizer_user_id)
+    
+    console.log('[행사 삭제 권한 체크]', {
+      userId,
+      organizerUserId,
+      isMaster,
+      manager: currentUser?.manager
+    })
+    
+    // master는 모든 행사 삭제 가능, 행사 주최자는 자신이 등록한 행사만 삭제 가능
+    const isOwner = organizerUserId === userId
+    if (!isOwner && !isMaster) {
+      console.log('[행사 삭제 권한 거부]', { isOwner, isMaster, userId, organizerUserId })
       return res.status(403).json({ error: '행사를 삭제할 권한이 없습니다' })
     }
+    
+    console.log('[행사 삭제 권한 허용]', { isOwner, isMaster, userId, organizerUserId })
 
-    // 스팸 판정 중인 행사는 삭제 불가
-    if (event.status === 'pending') {
+    // 스팸 판정 중인 행사는 삭제 불가 (master는 제외)
+    if (event.status === 'pending' && !isMaster) {
       return res.status(403).json({ error: '스팸 판정 중인 행사는 삭제할 수 없습니다' })
     }
 
-    // 신고 pending 상태인 행사는 삭제 불가 (blocked는 삭제 가능)
-    if (event.reports_state === 'pending') {
+    // 신고 pending 상태인 행사는 삭제 불가 (master는 제외, blocked는 삭제 가능)
+    if (event.reports_state === 'pending' && !isMaster) {
       return res.status(403).json({ error: '신고 처리 중인 행사는 삭제할 수 없습니다' })
     }
 

@@ -124,11 +124,11 @@ export function OAuthSignupPage() {
     try {
       // 사용자 정보 업데이트
       // 관심종목 수정 모드일 때는 manager 필드는 변경하지 않음 (현재 역할 유지)
-      const updateData: { manager?: boolean; sports?: string | null } = {}
+      const updateData: { manager?: number; sports?: string | null } = {}
       
       if (!isEditInterestsMode) {
-        // 신규 가입 모드일 때만 manager 업데이트
-        updateData.manager = role === 'organizer'
+        // 신규 가입 모드일 때만 manager 업데이트 (1: 행사 주최자, 0: 일반 사용자)
+        updateData.manager = role === 'organizer' ? 1 : 0
       }
       
       // 일반 사용자인 경우에만 관심종목 업데이트

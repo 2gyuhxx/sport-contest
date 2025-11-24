@@ -142,8 +142,8 @@ function AppHeader() {
           >
             지도 검색
           </NavLink>
-          {/* 행사 등록 메뉴는 행사 관리자만 표시 (manager가 true일 때만) */}
-          {isAuthenticated && !!user?.manager && (
+          {/* 행사 등록 메뉴는 행사 주최자(manager=1) 또는 master(manager=2)에게만 표시 */}
+          {isAuthenticated && (user?.manager === 1 || user?.manager === 2) && (
             <NavLink
               to="/admin/events/create"
               className={({ isActive }) =>

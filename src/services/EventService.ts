@@ -535,6 +535,21 @@ export const EventService = {
   },
 
   /**
+   * 행사 이미지만 업데이트 (pending 상태 체크 없음 - 행사 생성 직후 이미지 업로드용)
+   */
+  async updateEventImage(eventId: number, imageUrl: string): Promise<void> {
+    try {
+      await apiRequest<{ success: boolean }>(`/events/${eventId}/image`, {
+        method: 'PATCH',
+        body: JSON.stringify({ image: imageUrl }),
+      })
+    } catch (error) {
+      console.error('행사 이미지 업데이트 오류:', error)
+      throw error
+    }
+  },
+
+  /**
    * 특정 행사 가져오기
    */
   async getEventById(eventId: number): Promise<DBEvent> {

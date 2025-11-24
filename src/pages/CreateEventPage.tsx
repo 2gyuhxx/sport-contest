@@ -46,6 +46,7 @@ export function CreateEventPage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [imagePreview, setImagePreview] = useState<string>('')
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [originalImageUrl, setOriginalImageUrl] = useState<string>('') // 기존 이미지 URL 저장
   const [isUploading, setIsUploading] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -139,6 +140,7 @@ export function CreateEventPage() {
           // 이미지 미리보기 설정
           if (event.image) {
             setImagePreview(event.image)
+            setOriginalImageUrl(event.image) // 기존 이미지 URL 저장
           }
         } catch (err) {
           console.error('행사 데이터 로딩 오류:', err)
@@ -203,8 +205,17 @@ export function CreateEventPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) {
+      // 파일이 선택되지 않았을 때는 기존 이미지로 복원
       setImageFile(null)
-      setImagePreview('')
+      // 기존 이미지 URL이 있으면 복원
+      if (originalImageUrl) {
+        setImagePreview(originalImageUrl)
+      } else if (formData.image) {
+        setImagePreview(formData.image)
+        setOriginalImageUrl(formData.image) // formData에서도 가져와서 저장
+      } else {
+        setImagePreview('')
+      }
       return
     }
     
@@ -214,6 +225,12 @@ export function CreateEventPage() {
     if (!allowedTypes.includes(file.type)) {
       alert('이미지 파일만 업로드 가능합니다. (JPG, PNG, GIF, WEBP, BMP, TIFF)')
       e.target.value = ''
+      // 파일 선택 실패 시에도 기존 이미지 복원
+      if (originalImageUrl) {
+        setImagePreview(originalImageUrl)
+      } else if (formData.image) {
+        setImagePreview(formData.image)
+      }
       return
     }
 
@@ -222,6 +239,12 @@ export function CreateEventPage() {
     if (file.size > maxSize) {
       alert('파일 크기는 10MB 이하여야 합니다.')
       e.target.value = ''
+      // 파일 크기 초과 시에도 기존 이미지 복원
+      if (originalImageUrl) {
+        setImagePreview(originalImageUrl)
+      } else if (formData.image) {
+        setImagePreview(formData.image)
+      }
       return
     }
 
@@ -417,32 +440,14 @@ export function CreateEventPage() {
           organizer_user_name: formData.organizer, // 개최사
         })
 
-        // 이미지 파일이 있으면 업로드 후 이벤트 업데이트
+        // 이미지 파일이 있으면 업로드 후 이미지만 업데이트
         if (imageFile) {
           try {
             setIsUploading(true)
             const imageUrl = await EventService.uploadFile(imageFile, createdEvent.id)
 
-            // ID를 이름으로 변환
-            const sportCat = sportCategories.find(cat => cat.id === formData.sport_category_id)
-            const subSportCat = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
-
-            // 이벤트에 이미지 URL 업데이트
-            await EventService.updateEvent(createdEvent.id, {
-              title: formData.title,
-              description: formData.summary,
-              sport: sportCat?.name || '',
-              sub_sport: subSportCat?.name || '',
-              region: formData.region,
-              sub_region: formData.sub_region,
-              venue: combinedAddress || null,
-              address: formattedPostcode,
-              start_at: formData.start_at,
-              end_at: formData.end_at,
-              website: formData.link || null,
-              image: imageUrl,
-              organizer_user_name: formData.organizer,
-            })
+            // 행사 이미지만 업데이트 (pending 상태 체크 없음)
+            await EventService.updateEventImage(createdEvent.id, imageUrl)
           } catch (uploadError: any) {
             console.error('[행사 생성] 이미지 업로드 실패:', uploadError)
             setErrorModalMessage(`행사는 등록되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
@@ -515,8 +520,11 @@ export function CreateEventPage() {
     setShowErrorModal(false)
   }
 
-  // 권한 체크: 행사 관리자만 접근 가능 (manager 필드 확인)
-  if (!isAuthenticated || !user?.manager) {
+  // 권한 체크: 행사 주최자(manager=1) 또는 master(manager=2)만 행사 등록 가능
+  const isOrganizer = user?.manager === 1
+  const isMaster = user?.manager === 2
+  
+  if (!isAuthenticated || (!isOrganizer && !isMaster)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="mx-auto max-w-md text-center">
@@ -525,7 +533,7 @@ export function CreateEventPage() {
           </div>
           <h1 className="mb-2 text-2xl font-bold text-slate-900">접근 권한이 없습니다</h1>
           <p className="mb-6 text-slate-600">
-            행사 등록 페이지는 행사 관리자만 이용할 수 있습니다.
+            행사 등록 페이지는 행사 주최자 또는 관리자만 이용할 수 있습니다.
             {!isAuthenticated && ' 로그인 후 이용해주세요.'}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -535,14 +543,12 @@ export function CreateEventPage() {
             >
               홈으로 이동
             </Link>
-            {!isAuthenticated && (
-              <Link
-                to="/signup"
-                className="rounded-lg border border-brand-primary px-6 py-3 font-semibold text-brand-primary transition hover:bg-brand-primary/5"
-              >
-                행사 관리자로 회원가입
-              </Link>
-            )}
+            <Link
+              to="/login"
+              className="rounded-lg border border-brand-primary px-6 py-3 font-semibold text-brand-primary transition hover:bg-brand-primary/5"
+            >
+              로그인하기
+            </Link>
           </div>
         </div>
       </div>
@@ -845,6 +851,12 @@ export function CreateEventPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, BMP, TIFF, 최대 50MB)
                 </p>
+                {/* 기존 이미지 정보 표시 */}
+                {!imageFile && originalImageUrl && (
+                  <p className="mt-2 text-sm text-green-600">
+                    ✓ 기존 이미지가 등록되어 있습니다. 새 이미지를 선택하면 기존 이미지가 교체됩니다.
+                  </p>
+                )}
                 {isUploading && (
                   <p className="mt-2 text-sm text-blue-600">파일 업로드 중...</p>
                 )}
@@ -854,7 +866,16 @@ export function CreateEventPage() {
                       src={imagePreview}
                       alt="포스터 미리보기"
                       className="h-48 w-full object-cover"
-                      onError={() => setImagePreview('')}
+                      onError={() => {
+                        // 이미지 로드 실패 시에도 기존 이미지 URL 복원 시도
+                        if (originalImageUrl && imagePreview !== originalImageUrl) {
+                          setImagePreview(originalImageUrl)
+                        } else if (formData.image && imagePreview !== formData.image) {
+                          setImagePreview(formData.image)
+                        } else {
+                          setImagePreview('')
+                        }
+                      }}
                     />
                   </div>
                 )}

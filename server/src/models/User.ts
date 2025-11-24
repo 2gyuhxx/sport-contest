@@ -11,7 +11,7 @@ export interface UserRow extends RowDataPacket {
   sport2: string | null
   sport3: string | null
   is_verified: boolean
-  manager: boolean
+  manager: number // 0: 일반 사용자, 1: 행사 주최자, 2: 개발자(master)
   status: string
   created_at: Date
   updated_at: Date | null

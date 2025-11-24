@@ -40,7 +40,9 @@ export function MyPage() {
   const navigate = useNavigate()
   const { state, dispatch } = useAuthContext()
   const { user, isAuthenticated } = state
-  const isManager = !!user?.manager
+  const isMaster = user?.manager === 2 // manager = 2: master/개발자
+  const isOrganizer = user?.manager === 1 // manager = 1: 행사 주최자
+  const isManager = isMaster || isOrganizer // master 또는 행사 주최자
   const [events, setEvents] = useState<MyEvent[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -137,23 +139,26 @@ export function MyPage() {
     }
   }
 
-  // 페이지 로드 시 찜 목록 또는 행사 목록 로드
+  // 페이지 로드 시 찜 목록 및 행사 목록 로드
   useEffect(() => {
     if (isAuthenticated) {
-      if (isManager) {
-        // 관리자는 행사 목록 로드
+      if (isMaster) {
+        // master는 모든 행사 목록 로드
+        loadMyEvents()
+      } else if (isOrganizer) {
+        // 행사 주최자는 자신이 등록한 행사 목록 로드
         loadMyEvents()
       } else {
-        // 일반 사용자는 찜 목록 로드
+        // 일반 사용자는 찜 목록만 로드
         loadFavorites()
       }
     }
-  }, [isAuthenticated, isManager])
+  }, [isAuthenticated, isMaster, isOrganizer])
 
   // 행사 목록 로드 함수
   const loadMyEvents = async () => {
     // 로그인 안 했거나, 일반 사용자이면 행사 목록은 로딩하지 않음
-    if (!isAuthenticated || !isManager) {
+    if (!isAuthenticated || (!isMaster && !isOrganizer)) {
       setIsLoading(false)
       setEvents([])
       return
@@ -176,7 +181,7 @@ export function MyPage() {
 
   // pending 상태의 행사가 있으면 3초마다 자동 새로고침
   useEffect(() => {
-    if (!isAuthenticated || !isManager || events.length === 0) {
+    if (!isAuthenticated || (!isMaster && !isOrganizer) || events.length === 0) {
       return
     }
 
@@ -549,12 +554,19 @@ export function MyPage() {
         {/* 역할별 메인 섹션 */}
         <section className="space-y-8">
         
-        {/* 관리자와 일반 사용자 모두 동일한 레이아웃 */}
-        {isManager ? (
+        {/* master, 행사 주최자, 일반 사용자 레이아웃 */}
+        {(isMaster || isOrganizer) ? (
           <div className="space-y-6">
             {/* 등록한 행사 목록 (전체 너비) */}
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">등록한 행사 목록</h2>
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">
+                {isMaster ? '모든 행사 목록' : '내가 등록한 행사'}
+              </h2>
+              <p className="mb-4 text-sm text-slate-600">
+                {isMaster 
+                  ? 'master 계정으로 등록된 모든 행사를 확인할 수 있습니다.' 
+                  : '내가 등록한 행사를 확인하고 수정/삭제할 수 있습니다.'}
+              </p>
               
               {isLoading ? (
                 <div className="flex min-h-[300px] items-center justify-center">
@@ -708,6 +720,24 @@ export function MyPage() {
                 <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
               </button>
             </div>
+
+            {/* 설정 (하단) - 관리자는 전체 너비 */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">설정</h2>
+              <button
+                type="button"
+                onClick={handleOpenChangePassword}
+                className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
+              >
+                <div>
+                  <p className="font-semibold">내 계정 관리</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    계정 비밀번호를 변경하거나 회원탈퇴를 할 수 있습니다.
+                  </p>
+                </div>
+                <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
+              </button>
+            </div>
           </div>
         ) : (
           /* 일반 사용자: 찜 목록을 상단에, 계정 관리를 하단에 배치 */
@@ -715,117 +745,117 @@ export function MyPage() {
             {/* 찜 목록 관리 (전체 너비) */}
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold text-slate-900">찜 목록 관리</h2>
-              
-              {isLoadingFavorites ? (
-                <div className="flex min-h-[300px] items-center justify-center">
-                  <div className="text-center">
-                    <Loader2 className="mx-auto h-12 w-12 animate-spin text-brand-primary" />
-                    <p className="mt-4 text-slate-600">찜 목록을 불러오는 중...</p>
-                  </div>
-                </div>
-              ) : favoriteEvents.length === 0 ? (
-                <div className="flex min-h-[300px] items-center justify-center">
-                  <div className="text-center">
-                    <Heart className="mx-auto h-12 w-12 text-slate-300" />
-                    <p className="mt-4 text-slate-600">찜한 행사가 없습니다.</p>
-                    <Link
-                      to="/"
-                      className="mt-2 inline-block text-sm text-brand-primary hover:underline"
-                    >
-                      행사 둘러보기 →
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className={`grid gap-4 md:grid-cols-2 ${favoriteEvents.length > 6 ? 'max-h-[600px] overflow-y-auto' : ''}`}>
-                  {favoriteEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="group relative flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-primary hover:shadow-md"
-                    >
-                      <Link to={`/events/${event.id}`} className="flex-1 min-w-0">
-                        {/* 행사 정보 */}
-                        <div className="space-y-1.5">
-                          <h3 className="font-semibold text-slate-900 line-clamp-1">{event.title}</h3>
-                          
-                          <div className="flex items-center gap-2 text-xs text-slate-600">
-                            <Tag className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{event.sport}</span>
-                            {event.sub_sport && (
-                              <>
-                                <span>·</span>
-                                <span className="truncate">{event.sub_sport}</span>
-                              </>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-xs text-slate-600">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{event.region} {event.sub_region}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-xs text-slate-600">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span>{new Date(event.start_at).toLocaleDateString('ko-KR')}</span>
-                          </div>
-                        </div>
-                      </Link>
-                      
-                      {/* 찜 해제 버튼 */}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFavorite(event.id)}
-                        disabled={removingFavoriteId === event.id}
-                        className="ml-3 flex-shrink-0 rounded-full p-2 transition hover:bg-red-50 disabled:opacity-50"
-                        title="찜 해제"
-                      >
-                        {removingFavoriteId === event.id ? (
-                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                        ) : (
-                          <Heart className="h-5 w-5 fill-red-500 text-red-500" />
-                        )}
-                      </button>
+                
+                {isLoadingFavorites ? (
+                  <div className="flex min-h-[300px] items-center justify-center">
+                    <div className="text-center">
+                      <Loader2 className="mx-auto h-12 w-12 animate-spin text-brand-primary" />
+                      <p className="mt-4 text-slate-600">찜 목록을 불러오는 중...</p>
                     </div>
-                  ))}
+                  </div>
+                ) : favoriteEvents.length === 0 ? (
+                  <div className="flex min-h-[300px] items-center justify-center">
+                    <div className="text-center">
+                      <Heart className="mx-auto h-12 w-12 text-slate-300" />
+                      <p className="mt-4 text-slate-600">찜한 행사가 없습니다.</p>
+                      <Link
+                        to="/"
+                        className="mt-2 inline-block text-sm text-brand-primary hover:underline"
+                      >
+                        행사 둘러보기 →
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`grid gap-4 md:grid-cols-2 ${favoriteEvents.length > 6 ? 'max-h-[600px] overflow-y-auto' : ''}`}>
+                    {favoriteEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="group relative flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-primary hover:shadow-md"
+                      >
+                        <Link to={`/events/${event.id}`} className="flex-1 min-w-0">
+                          {/* 행사 정보 */}
+                          <div className="space-y-1.5">
+                            <h3 className="font-semibold text-slate-900 line-clamp-1">{event.title}</h3>
+                            
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <Tag className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{event.sport}</span>
+                              {event.sub_sport && (
+                                <>
+                                  <span>·</span>
+                                  <span className="truncate">{event.sub_sport}</span>
+                                </>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{event.region} {event.sub_region}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <Calendar className="h-3 w-3 flex-shrink-0" />
+                              <span>{new Date(event.start_at).toLocaleDateString('ko-KR')}</span>
+                            </div>
+                          </div>
+                        </Link>
+                        
+                        {/* 찜 해제 버튼 */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFavorite(event.id)}
+                          disabled={removingFavoriteId === event.id}
+                          className="ml-3 flex-shrink-0 rounded-full p-2 transition hover:bg-red-50 disabled:opacity-50"
+                          title="찜 해제"
+                        >
+                          {removingFavoriteId === event.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                          ) : (
+                            <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 설정 (하단) */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-semibold text-slate-900">설정</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenChangePassword}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
+                  >
+                    <div>
+                      <p className="font-semibold">내 계정 관리</p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        계정 비밀번호를 변경하거나 회원탈퇴를 할 수 있습니다.
+                      </p>
+                    </div>
+                    <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleChangeInterests}
+                    className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
+                  >
+                    <div>
+                      <p className="font-semibold">관심 종목 변경하기</p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        관심 있는 체육 종목과 사용자 유형을 다시 선택할 수 있습니다.
+                      </p>
+                    </div>
+                    <Tag className="h-5 w-5 flex-shrink-0 text-brand-primary" />
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {/* 내 계정 관리 (하단) */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">설정</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={handleOpenChangePassword}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
-                >
-                  <div>
-                    <p className="font-semibold">내 계정 관리</p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      계정 비밀번호를 변경하거나 회원탈퇴를 할 수 있습니다.
-                    </p>
-                  </div>
-                  <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleChangeInterests}
-                  className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
-                >
-                  <div>
-                    <p className="font-semibold">관심 종목 변경하기</p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      관심 있는 체육 종목과 사용자 유형을 다시 선택할 수 있습니다.
-                    </p>
-                  </div>
-                  <Tag className="h-5 w-5 flex-shrink-0 text-brand-primary" />
-                </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
       </section>
 
       {/* 회원 탈퇴 모달 */}

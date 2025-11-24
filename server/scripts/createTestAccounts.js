@@ -23,33 +23,34 @@ const pool = mysql.createPool({
 })
 
 // 테스트 계정 목록
+// manager 값: 0 = 일반 사용자, 1 = 행사 주최자, 2 = 개발자(master)
 const testAccounts = [
   {
     email: 'admin@test.com',
     password: 'admin123',
     name: '관리자',
-    manager: true,
+    manager: 2, // master/개발자: 모든 행사 관리 가능
     sports: ['구기·팀', '레저·환경', '무도·격투'],
   },
   {
     email: 'user1@test.com',
     password: 'user123',
     name: '일반사용자1',
-    manager: false,
+    manager: 0, // 일반 사용자: 행사 등록 불가
     sports: ['구기·팀', '라켓·볼'],
   },
   {
     email: 'user2@test.com',
     password: 'user123',
     name: '일반사용자2',
-    manager: false,
+    manager: 0, // 일반 사용자: 행사 등록 불가
     sports: ['레저·환경', '수상·해양'],
   },
   {
     email: 'organizer@test.com',
     password: 'org123',
     name: '행사주최자',
-    manager: true,
+    manager: 1, // 행사 주최자: 자신이 등록한 행사만 관리
     sports: ['체력·기술', '정밀·기술'],
   },
 ]

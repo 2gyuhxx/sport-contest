@@ -97,10 +97,19 @@ export function DevTestPage() {
     try {
       const user = await AuthService.login({ email, password })
       dispatch({ type: 'LOGIN', payload: user })
-      setMessage('✅ 로그인 성공! 홈으로 이동합니다...')
-      setTimeout(() => {
-        navigate('/')
-      }, 1000)
+      
+      // master 또는 행사 주최자 계정인 경우 마이페이지로 이동
+      if (user.manager === 2 || user.manager === 1) {
+        setMessage('✅ 로그인 성공! 마이페이지로 이동합니다...')
+        setTimeout(() => {
+          navigate('/mypage')
+        }, 1000)
+      } else {
+        setMessage('✅ 로그인 성공! 홈으로 이동합니다...')
+        setTimeout(() => {
+          navigate('/')
+        }, 1000)
+      }
     } catch (err) {
       setMessage(`❌ 로그인 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`)
       setIsLoading(null)

@@ -216,6 +216,17 @@ export class EventModel {
   }
 
   /**
+   * 관리자용: 모든 행사 가져오기 (상태 필터링 없이 전체)
+   */
+  static async findAllForAdmin(): Promise<EventRow[]> {
+    const [rows] = await pool.execute<EventRow[]>(
+      `SELECT * FROM events 
+       ORDER BY created_at DESC`
+    )
+    return rows
+  }
+
+  /**
    * 조회수 증가
    */
   static async incrementViews(eventId: number): Promise<void> {

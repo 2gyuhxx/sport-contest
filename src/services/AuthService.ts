@@ -34,8 +34,8 @@ interface UserResponse {
 
 // DB User를 프론트엔드 User 타입으로 변환
 function transformUser(dbUser: LoginResponse['user'] | UserResponse['user']): User {
-  // MySQL에서 boolean이 0/1로 반환될 수 있으므로 명시적으로 boolean으로 변환
-  const manager = Boolean(dbUser.manager)
+  // manager 필드를 숫자로 변환 (0: 일반 사용자, 1: 행사 주최자, 2: master)
+  const manager = typeof dbUser.manager === 'number' ? dbUser.manager : (dbUser.manager ? 1 : 0)
   
   // 한글 스포츠 이름을 카테고리 ID로 변환
   let interests: Category[] | undefined = undefined
@@ -50,12 +50,15 @@ function transformUser(dbUser: LoginResponse['user'] | UserResponse['user']): Us
     }
   }
   
+  // role 결정: manager = 2 또는 1이면 organizer, 0이면 user
+  const role: UserRole = (manager === 1 || manager === 2) ? 'organizer' : 'user'
+  
   return {
     id: dbUser.id.toString(),
     email: dbUser.email,
     name: dbUser.name || '',
-    role: manager ? 'organizer' : 'user',
-    manager: manager, // manager 필드 직접 포함 (명시적 boolean 변환)
+    role,
+    manager, // manager 필드 직접 포함 (숫자)
     interests,
     createdAt: dbUser.created_at,
   }
@@ -154,7 +157,7 @@ export const AuthService = {
           email,
           password,
           name,
-          manager: role === 'organizer',
+          manager: role === 'organizer' ? 1 : 0, // 1: 행사 주최자, 0: 일반 사용자
           sports: sportsValue,
         }),
       })

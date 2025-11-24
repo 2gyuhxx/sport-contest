@@ -10,7 +10,7 @@ export interface User {
   email: string
   name: string
   role: UserRole // 사용자 역할 (일반 사용자 또는 행사 관리자)
-  manager: boolean // 행사 관리자 여부 (DB의 manager 필드)
+  manager: number // 0: 일반 사용자, 1: 행사 주최자, 2: 개발자(master)
   interests?: SportCategory[] // 관심 있는 체육 종목 (일반 사용자만 해당)
   createdAt: string
 }
