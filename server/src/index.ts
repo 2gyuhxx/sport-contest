@@ -56,8 +56,8 @@ app.use(cors({
   preflightContinue: false,
   optionsSuccessStatus: 204,
 }))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // 요청 로깅 (개발용)
 if (process.env.NODE_ENV !== 'production') {
