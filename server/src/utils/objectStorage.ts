@@ -4,6 +4,7 @@ import fs from 'fs'
 const IDENTITY_URL = 'https://api-identity-infrastructure.nhncloudservice.com/v2.0/tokens'
 const OBJECT_STORAGE_BASE_URL = 'https://kr1-api-object-storage.nhncloudservice.com/v1/AUTH_691dba506e2740d8bcfca8bca5f8ecc9/sport-contest/photo/'
 
+
 /**
  * NHN Cloud Object Storage 인증 토큰 발급
  */

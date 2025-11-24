@@ -7,6 +7,7 @@ import { ExternalLink, CheckCircle2, XCircle, Heart, AlertTriangle, X, HelpCircl
 import { EventService, categoryToKoreanMap, transformDBEventToEvent } from '../services/EventService'
 import { FavoriteService } from '../services/FavoriteService'
 import { FavoriteModal } from '../components/FavoriteModal'
+import type { Event } from '../types/events'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -40,7 +41,7 @@ export function EventDetailPage() {
   const [isLoadingEvent, setIsLoadingEvent] = useState(false)
   
   const eventFromContext = useMemo(() => events.find((item) => item.id === eventId), [eventId, events])
-  const event = eventFromContext || fetchedEvent
+  const event: Event | null = eventFromContext || fetchedEvent
   
   const regionLabel = useMemo(
     () => regions.find((region) => region.id === event?.region)?.name ?? event?.region,

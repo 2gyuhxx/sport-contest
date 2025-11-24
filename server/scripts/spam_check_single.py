@@ -18,6 +18,7 @@ MODEL_NAME = "klue/roberta-base"
 MAX_LEN = 512
 
 # 클라우드 스토리지 URL
+
 MODEL_TITLE_URL = "https://kr1-api-object-storage.nhncloudservice.com/v1/AUTH_691dba506e2740d8bcfca8bca5f8ecc9/sport-contest/model/spam_model_title.pth"
 MODEL_DESCRIBE_URL = "https://kr1-api-object-storage.nhncloudservice.com/v1/AUTH_691dba506e2740d8bcfca8bca5f8ecc9/sport-contest/model/spam_model_describe.pth"
 

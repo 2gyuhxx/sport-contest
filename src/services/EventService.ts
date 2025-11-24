@@ -537,9 +537,9 @@ export const EventService = {
   /**
    * 특정 행사 가져오기
    */
-  async getEventById(eventId: number): Promise<CreateEventResponse['event']> {
+  async getEventById(eventId: number): Promise<DBEvent> {
     try {
-      const response = await apiRequest<{ event: CreateEventResponse['event'] }>(`/events/${eventId}`)
+      const response = await apiRequest<{ event: DBEvent }>(`/events/${eventId}`)
       return response.event
     } catch (error) {
       console.error('행사 조회 오류:', error)
