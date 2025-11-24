@@ -61,7 +61,7 @@ async function checkSingleText(text: string, timeout: number = 600000): Promise<
         stderr += errorData
         
         // JSON 형식의 info 메시지 파싱 및 표시
-        const lines = errorData.split('\n').filter(line => line.trim())
+        const lines = errorData.split('\n').filter((line: string) => line.trim())
         for (const line of lines) {
           try {
             // JSON 형식인지 확인
