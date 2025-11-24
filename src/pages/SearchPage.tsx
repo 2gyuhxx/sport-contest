@@ -70,6 +70,11 @@ export function SearchPage() {
   
   // 시/군/구 경계선 ref
   const detailPolygonsRef = useRef<any[]>([])
+  
+  // 툴팁 상태 관리용 ref (클로저 문제 해결)
+  const currentTooltipNameRef = useRef<string | null>(null)
+  const mouseoutTimeoutRef = useRef<number | null>(null)
+  const activePolygonNameRef = useRef<string | null>(null)
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [showDetailMap, setShowDetailMap] = useState(false)
@@ -656,6 +661,17 @@ export function SearchPage() {
     // 이전 시/군/구 경계선 제거
     detailPolygonsRef.current.forEach(polygon => polygon.setMap(null))
     detailPolygonsRef.current = []
+    
+    // 상태 초기화
+    currentTooltipNameRef.current = null
+    if (mouseoutTimeoutRef.current) {
+      clearTimeout(mouseoutTimeoutRef.current)
+      mouseoutTimeoutRef.current = null
+    }
+    activePolygonNameRef.current = null
+    
+    // 같은 이름을 가진 polygon들을 그룹으로 관리 (지도 깜빡임 방지)
+    const polygonGroups: Record<string, any[]> = {}
 
     // 시/군/구 GeoJSON 로드 및 필터링
     fetch('/korea-sigungu.geojson')
@@ -721,33 +737,88 @@ export function SearchPage() {
                     fillOpacity: 0.05, // 매우 투명하게
                   })
 
-                  // mouseover 이벤트
+                  // 같은 이름의 polygon 그룹에 추가
+                  if (!polygonGroups[sigunguName]) {
+                    polygonGroups[sigunguName] = []
+                  }
+                  polygonGroups[sigunguName].push(detailPolygon)
+
+                  // mouseover 이벤트 - 툴팁 표시 및 스타일 변경
                   window.kakao.maps.event.addListener(detailPolygon, 'mouseover', function() {
-                    detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
-                  })
-                  
-                  // mousemove 이벤트 - 지역 이름 표시 (throttling 적용)
-                  let lastMoveTime = 0
-                  window.kakao.maps.event.addListener(detailPolygon, 'mousemove', function(mouseEvent: any) {
-                    const now = Date.now()
-                    if (now - lastMoveTime < 30) return // 30ms throttle (약 33fps)
-                    lastMoveTime = now
+                    // 기존 mouseout 타이머 취소
+                    if (mouseoutTimeoutRef.current) {
+                      clearTimeout(mouseoutTimeoutRef.current)
+                      mouseoutTimeoutRef.current = null
+                    }
                     
-                    if (sigunguOverlayRef.current) {
-                      const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap;">${sigunguName}</div>`
-                      sigunguOverlayRef.current.setContent(content)
-                      sigunguOverlayRef.current.setPosition(mouseEvent.latLng)
-                      sigunguOverlayRef.current.setMap(mapRef.current)
+                    // 이미 같은 이름의 툴팁이 표시되어 있으면 건너뛰기
+                    if (currentTooltipNameRef.current === sigunguName && sigunguOverlayRef.current) {
+                      return
+                    }
+                    
+                    // 다른 이름이 활성화되어 있으면 먼저 비활성화
+                    if (activePolygonNameRef.current && activePolygonNameRef.current !== sigunguName && polygonGroups[activePolygonNameRef.current]) {
+                      polygonGroups[activePolygonNameRef.current].forEach((poly: any) => {
+                        poly.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
+                      })
+                    }
+                    
+                    // 같은 이름의 모든 polygon의 스타일을 함께 변경
+                    if (polygonGroups[sigunguName]) {
+                      polygonGroups[sigunguName].forEach((poly: any) => {
+                        poly.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
+                      })
+                    }
+                    
+                    activePolygonNameRef.current = sigunguName
+                    
+                    // CustomOverlay를 표시하고 내용 설정 (중앙 위치에 고정)
+                    if (sigunguOverlayRef.current && mapRef.current) {
+                      // 폴리곤의 중심점 계산
+                      let centerLat = 0
+                      let centerLng = 0
+                      let pointCount = 0
+                      
+                      polygonPath.forEach((latlng: any) => {
+                        centerLat += latlng.getLat()
+                        centerLng += latlng.getLng()
+                        pointCount++
+                      })
+                      
+                      if (pointCount > 0) {
+                        centerLat /= pointCount
+                        centerLng /= pointCount
+                        const centerPosition = new window.kakao.maps.LatLng(centerLat, centerLng)
+                        
+                        const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`
+                        sigunguOverlayRef.current.setContent(content)
+                        sigunguOverlayRef.current.setPosition(centerPosition)
+                        sigunguOverlayRef.current.setMap(mapRef.current)
+                        currentTooltipNameRef.current = sigunguName
+                      }
                     }
                   })
 
                   // mouseout 이벤트
                   window.kakao.maps.event.addListener(detailPolygon, 'mouseout', function() {
-                    detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
-                    // CustomOverlay 숨기기
-                    if (sigunguOverlayRef.current) {
-                      sigunguOverlayRef.current.setMap(null)
-                    }
+                    // 약간의 지연 후 색상 복원 및 툴팁 숨기기 (다른 polygon으로 빠르게 이동할 때 깜빡임 방지)
+                    mouseoutTimeoutRef.current = setTimeout(() => {
+                      // 같은 이름의 polygon이 여전히 활성화되어 있지 않으면 색상 복원
+                      if (activePolygonNameRef.current === sigunguName) {
+                        if (polygonGroups[sigunguName]) {
+                          polygonGroups[sigunguName].forEach((poly: any) => {
+                            poly.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
+                          })
+                        }
+                        activePolygonNameRef.current = null
+                      }
+                      
+                      if (sigunguOverlayRef.current) {
+                        sigunguOverlayRef.current.setMap(null)
+                        currentTooltipNameRef.current = null
+                      }
+                      mouseoutTimeoutRef.current = null
+                    }, 50) as unknown as number // 지연 시간을 줄여서 더 빠르게 반응
                   })
 
                   // click 이벤트 - 해당 시/군/구로 확대
@@ -783,31 +854,88 @@ export function SearchPage() {
                   fillOpacity: 0.05, // 매우 투명하게
                 })
 
+                // 같은 이름의 polygon 그룹에 추가
+                if (!polygonGroups[sigunguName]) {
+                  polygonGroups[sigunguName] = []
+                }
+                polygonGroups[sigunguName].push(detailPolygon)
+
+                // mouseover 이벤트 - 툴팁 표시 및 스타일 변경
                 window.kakao.maps.event.addListener(detailPolygon, 'mouseover', function() {
-                  detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
-                })
-                
-                // mousemove 이벤트 - 지역 이름 표시 (throttling 적용)
-                let lastMoveTime = 0
-                window.kakao.maps.event.addListener(detailPolygon, 'mousemove', function(mouseEvent: any) {
-                  const now = Date.now()
-                  if (now - lastMoveTime < 30) return // 30ms throttle (약 33fps)
-                  lastMoveTime = now
+                  // 기존 mouseout 타이머 취소
+                  if (mouseoutTimeoutRef.current) {
+                    clearTimeout(mouseoutTimeoutRef.current)
+                    mouseoutTimeoutRef.current = null
+                  }
                   
-                  if (sigunguOverlayRef.current) {
-                    const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap;">${sigunguName}</div>`
-                    sigunguOverlayRef.current.setContent(content)
-                    sigunguOverlayRef.current.setPosition(mouseEvent.latLng)
-                    sigunguOverlayRef.current.setMap(mapRef.current)
+                  // 이미 같은 이름의 툴팁이 표시되어 있으면 건너뛰기
+                  if (currentTooltipNameRef.current === sigunguName && sigunguOverlayRef.current) {
+                    return
+                  }
+                  
+                  // 다른 이름이 활성화되어 있으면 먼저 비활성화
+                  if (activePolygonNameRef.current && activePolygonNameRef.current !== sigunguName && polygonGroups[activePolygonNameRef.current]) {
+                    polygonGroups[activePolygonNameRef.current].forEach((poly: any) => {
+                      poly.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
+                    })
+                  }
+                  
+                  // 같은 이름의 모든 polygon의 스타일을 함께 변경
+                  if (polygonGroups[sigunguName]) {
+                    polygonGroups[sigunguName].forEach((poly: any) => {
+                      poly.setOptions({ fillColor: '#10b981', fillOpacity: 0.6 })
+                    })
+                  }
+                  
+                  activePolygonNameRef.current = sigunguName
+                  
+                  // CustomOverlay를 표시하고 내용 설정 (중앙 위치에 고정)
+                  if (sigunguOverlayRef.current && mapRef.current) {
+                    // 폴리곤의 중심점 계산
+                    let centerLat = 0
+                    let centerLng = 0
+                    let pointCount = 0
+                    
+                    polygonPath.forEach((latlng: any) => {
+                      centerLat += latlng.getLat()
+                      centerLng += latlng.getLng()
+                      pointCount++
+                    })
+                    
+                    if (pointCount > 0) {
+                      centerLat /= pointCount
+                      centerLng /= pointCount
+                      const centerPosition = new window.kakao.maps.LatLng(centerLat, centerLng)
+                      
+                      const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`
+                      sigunguOverlayRef.current.setContent(content)
+                      sigunguOverlayRef.current.setPosition(centerPosition)
+                      sigunguOverlayRef.current.setMap(mapRef.current)
+                      currentTooltipNameRef.current = sigunguName
+                    }
                   }
                 })
 
+                // mouseout 이벤트
                 window.kakao.maps.event.addListener(detailPolygon, 'mouseout', function() {
-                  detailPolygon.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
-                  // CustomOverlay 숨기기
-                  if (sigunguOverlayRef.current) {
-                    sigunguOverlayRef.current.setMap(null)
-                  }
+                  // 약간의 지연 후 색상 복원 및 툴팁 숨기기 (다른 polygon으로 빠르게 이동할 때 깜빡임 방지)
+                  mouseoutTimeoutRef.current = setTimeout(() => {
+                    // 같은 이름의 polygon이 여전히 활성화되어 있지 않으면 색상 복원
+                    if (activePolygonNameRef.current === sigunguName) {
+                      if (polygonGroups[sigunguName]) {
+                        polygonGroups[sigunguName].forEach((poly: any) => {
+                          poly.setOptions({ fillColor: '#10b981', fillOpacity: 0.05 })
+                        })
+                      }
+                      activePolygonNameRef.current = null
+                    }
+                    
+                    if (sigunguOverlayRef.current) {
+                      sigunguOverlayRef.current.setMap(null)
+                      currentTooltipNameRef.current = null
+                    }
+                    mouseoutTimeoutRef.current = null
+                  }, 50) as unknown as number // 지연 시간을 줄여서 더 빠르게 반응
                 })
 
                 window.kakao.maps.event.addListener(detailPolygon, 'click', function() {

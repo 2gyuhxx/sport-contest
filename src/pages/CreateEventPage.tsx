@@ -207,11 +207,12 @@ export function CreateEventPage() {
       setImagePreview('')
       return
     }
+    
 
     // 파일 타입 검증 (이미지만 허용)
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/tif']
     if (!allowedTypes.includes(file.type)) {
-      alert('이미지 파일만 업로드 가능합니다. (JPG, PNG, GIF, WEBP)')
+      alert('이미지 파일만 업로드 가능합니다. (JPG, PNG, GIF, WEBP, BMP, TIFF)')
       e.target.value = ''
       return
     }
@@ -842,7 +843,7 @@ export function CreateEventPage() {
                   className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-primary file:text-white hover:file:bg-brand-secondary"
                 />
                 <p className="mt-1 text-xs text-slate-500">
-                  이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, 최대 10MB)
+                  이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, BMP, TIFF, 최대 50MB)
                 </p>
                 {isUploading && (
                   <p className="mt-2 text-sm text-blue-600">파일 업로드 중...</p>
