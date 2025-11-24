@@ -177,8 +177,14 @@ export function AppShell() {
           </main>
 
           <footer className="border-t border-surface-subtle bg-white">
-            <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-7 text-xs text-slate-500 md:flex-row md:items-center md:justify-between">
-              <span>© 어디서하니</span>
+            <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-3 text-xs text-slate-500 md:flex-row md:items-center md:justify-between">
+              <span>Copyright 2025 by Shift+Delete</span>
+              <div className="text-right space-y-0 leading-tight">
+                <div>안유리 - PL&PM Email - ahnyuri4900@gmail.com</div>
+                <div>하승연 - BA&PM Email - haa020206@gmail.com</div>
+                <div>이규현 - AA&TA Email - home543095@naver.com</div>
+                <div>임형근 - DA&AA Email - lhgdream4@naver.com</div>
+              </div>
             </div>
           </footer>
         </div>

@@ -60,7 +60,7 @@ export const EventCard = memo(function EventCard({
     >
       <div className={imageClasses}>
         <img
-          src={event.image}
+          src={(event.image && event.image.trim() !== '') ? event.image : '/images/main_logo.png'}
           alt={event.title}
           className={classNames(
             'h-full w-full object-cover transition duration-200 group-hover:scale-105',

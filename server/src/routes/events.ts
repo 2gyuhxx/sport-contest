@@ -387,7 +387,10 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     // 종료일 포맷팅: 시간이 없거나 00:00:00이면 23:59:59로 설정
     const finalEndAt = formatEndAt(finalEndAtRaw)
     const finalWebsite = website !== undefined ? (website || null) : existingEvent.website
-    const finalImage = image !== undefined ? (image && image.trim() ? image.trim() : null) : (existingEvent.image || null)
+    // 이미지 처리: undefined면 기존 이미지 유지, null이나 빈 문자열이면 null로 설정, 값이 있으면 그대로 사용
+    const finalImage = image !== undefined 
+      ? (image && typeof image === 'string' && image.trim() ? image.trim() : null)
+      : (existingEvent.image || null)
     const finalOrganizerName = hasValue(organizer_user_name) ? String(organizer_user_name).trim() : (existingEvent.organizer_user_name || '')
 
     console.log('[행사 수정 API] 최종 업데이트 데이터:', { 
@@ -758,8 +761,8 @@ router.post('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(500).json({ error: '행사 정보를 가져올 수 없습니다' })
     }
 
-    // reports_count가 1 이상이면 reports_state를 'pending'으로 변경 (테스트용: 1회로 설정)
-    if (updatedEvent.reports_count >= 1) {
+    // reports_count가 4 이상이면 reports_state를 'pending'으로 변경 (4회 신고 시 웹에서 사라짐)
+    if (updatedEvent.reports_count >= 4) {
       await pool.execute(
         'UPDATE events SET reports_state = ? WHERE id = ?',
         ['pending', eventId]
@@ -873,8 +876,8 @@ router.delete('/:id/report', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(500).json({ error: '행사 정보를 가져올 수 없습니다' })
     }
 
-    // reports_count가 1 미만이면 reports_state를 'normal'로 변경
-    if (updatedEvent.reports_count < 1) {
+    // reports_count가 4 미만이면 reports_state를 'normal'로 변경 (4회 미만이면 다시 웹에 나타남)
+    if (updatedEvent.reports_count < 4) {
       await pool.execute(
         'UPDATE events SET reports_state = ? WHERE id = ?',
         ['normal', eventId]

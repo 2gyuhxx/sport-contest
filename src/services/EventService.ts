@@ -177,20 +177,6 @@ export function transformDBEventToEvent(dbEvent: DBEvent): Event {
     regionId = regionMeta.id
   }
   
-  // 기본 이미지 (카테고리별)
-  const defaultImages: Record<Category, string> = {
-    'team-ball': 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=60',
-    'racket-ball': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=900&q=60',
-    'martial-arts': 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=900&q=60',
-    'fitness-skill': 'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&w=900&q=60',
-    'precision': 'https://images.unsplash.com/photo-1601924357840-3a7cc826a7ca?auto=format&fit=crop&w=900&q=60',
-    'ice-snow': 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=900&q=60',
-    'water': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=900&q=60',
-    'leisure': 'https://images.unsplash.com/photo-1502818364360-24d9bff88ec5?auto=format&fit=crop&w=900&q=60',
-    'mind': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=900&q=60',
-    'other': 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=60',
-  }
-
   return {
     id: dbEvent.id.toString(),
     title: dbEvent.title,
@@ -201,7 +187,7 @@ export function transformDBEventToEvent(dbEvent: DBEvent): Event {
     address: dbEvent.address || dbEvent.venue || '', // 주소 (없으면 장소명)
     category,
     date: dbEvent.start_at.split('T')[0], // YYYY-MM-DD 형식으로 변환
-    image: dbEvent.image || defaultImages[category], // DB 이미지 우선, 없으면 기본 이미지
+    image: (dbEvent.image && dbEvent.image.trim() !== '') ? dbEvent.image : '', // DB 이미지가 있으면 사용, 없으면 빈 문자열
     views: dbEvent.views || 0, // DB의 views 값 사용
     organizer: dbEvent.organizer_user_name || undefined,
     link: dbEvent.website || undefined,

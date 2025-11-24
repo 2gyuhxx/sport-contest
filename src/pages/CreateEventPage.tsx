@@ -389,7 +389,8 @@ export function CreateEventPage() {
         const subSportCategory = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
 
         // 수정 모드: 모든 필드를 전송 (빈 문자열이어도 전송, 서버에서 기존 값으로 처리)
-        const updateData = {
+        // 이미지: 새 파일이 업로드되면 그 URL 사용, 없으면 기존 이미지 URL을 그대로 보내서 유지
+        const updateData: any = {
           title: formData.title || '',
           description: formData.summary || '',
           sport: sportCategory?.name || '',
@@ -401,9 +402,18 @@ export function CreateEventPage() {
           start_at: formData.start_at || '',
           end_at: formData.end_at || '',
           website: formData.link || null,
-          image: imageUrl || null,
           organizer_user_name: formData.organizer || '',
         }
+        
+        // 이미지 처리: 새 이미지가 업로드되었으면 그 URL 사용, 아니면 기존 이미지 URL을 그대로 전송
+        if (imageUrl) {
+          // 새 이미지가 업로드됨
+          updateData.image = imageUrl
+        } else if (originalImageUrl) {
+          // 새 이미지가 없고 기존 이미지가 있으면 기존 이미지 URL을 그대로 전송
+          updateData.image = originalImageUrl
+        }
+        // 둘 다 없으면 image 필드를 아예 보내지 않음 (서버에서 기존 값 유지)
         
         await EventService.updateEvent(parseInt(eventId, 10), updateData)
         // 성공 메시지 표시 (수정 모드일 때만)

@@ -577,20 +577,24 @@ export function EventsPage() {
               </button>
             </div>
           ) : (
-            <EventList
-              events={filteredAndSortedEvents}
-              layout={layoutMode}
-              columns={layoutMode === 'grid' ? 3 : 2}
-              cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
-              emptyMessage={
-                sortBy === 'recommended' && isAuthenticated
-                  ? user?.interests && user.interests.length > 0
-                    ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
-                    : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
-                  : '조건에 맞는 행사가 없습니다.'
-              }
-              detailHrefBase="/events/"
-            />
+            <div className={filteredAndSortedEvents.length > 6 ? 'max-h-[850px] overflow-y-auto -mr-6 md:-mr-8' : ''}>
+              <div className={filteredAndSortedEvents.length > 6 ? 'pr-6 md:pr-8' : ''}>
+                <EventList
+                  events={filteredAndSortedEvents}
+                  layout={layoutMode}
+                  columns={layoutMode === 'grid' ? 3 : 2}
+                  cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
+                  emptyMessage={
+                    sortBy === 'recommended' && isAuthenticated
+                      ? user?.interests && user.interests.length > 0
+                        ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
+                        : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
+                      : '조건에 맞는 행사가 없습니다.'
+                  }
+                  detailHrefBase="/events/"
+                />
+              </div>
+            </div>
           )}
         </div>
 

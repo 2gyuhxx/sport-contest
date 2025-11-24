@@ -27,7 +27,7 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
       <div className="w-full max-w-md rounded-2xl bg-white shadow-elevate md:relative md:max-w-none md:shadow-none">
         <div className="relative h-48 w-full overflow-hidden rounded-t-2xl md:rounded-xl">
           <img
-            src={event.image}
+            src={(event.image && event.image.trim() !== '') ? event.image : '/images/main_logo.png'}
             alt={event.title}
             className="h-full w-full object-cover"
             loading="lazy"

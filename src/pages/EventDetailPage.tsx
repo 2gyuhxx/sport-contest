@@ -307,7 +307,7 @@ export function EventDetailPage() {
           <div className="flex flex-col gap-6">
             <div className="overflow-hidden rounded-3xl">
               <img
-                src={event.image}
+                src={(event.image && event.image.trim() !== '') ? event.image : '/images/main_logo.png'}
                 alt={event.title}
                 className="h-full w-full object-cover"
                 loading="lazy"
