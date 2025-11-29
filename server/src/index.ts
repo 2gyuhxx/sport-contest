@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import compression from 'compression'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import googleAuthRoutes from './routes/googleAuth.js'
@@ -16,6 +17,17 @@ dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+// 압축 미들웨어 (응답 크기 감소)
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false
+    }
+    return compression.filter(req, res)
+  },
+  level: 6, // 압축 레벨 (1-9, 6이 권장)
+}))
 
 // 미들웨어
 // CORS 설정: 개발 환경과 프로덕션 환경 모두 지원
@@ -58,6 +70,14 @@ app.use(cors({
 }))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+
+// 정적 파일 제공 (캐싱 최적화)
+app.use('/uploads', express.static('temp-uploads', {
+  maxAge: '1y', // 1년 캐싱
+  etag: true, // ETag 활성화
+  lastModified: true, // Last-Modified 헤더 활성화
+  immutable: true, // 변경 불가능한 파일 (이미지 등)
+}))
 
 // 요청 로깅 (개발용)
 if (process.env.NODE_ENV !== 'production') {

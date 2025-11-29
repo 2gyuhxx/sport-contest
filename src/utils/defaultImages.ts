@@ -58,8 +58,8 @@ export const sportDefaultImages: Record<string, string> = {
   '배드민턴': 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&q=80',
   '탁구': 'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?w=800&q=80',
   '스쿼시': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&q=80',
-  '볼링': 'https://images.unsplash.com/photo-1632758827208-bbd36c30ad8a?w=800&q=80',
-  '당구': 'https://images.unsplash.com/photo-1626315869436-32b7b6f2e3ce?w=800&q=80',
+  '볼링': 'https://images.unsplash.com/photo-1614713568397-b31b779d0498?w=800&q=80',
+  '당구': 'https://images.unsplash.com/photo-1575553939928-d03b21323afe?w=800&q=80',
   '기타(라켓·볼)': 'https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&q=80',
   
   // 무도·격투
