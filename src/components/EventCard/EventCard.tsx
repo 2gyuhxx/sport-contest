@@ -200,7 +200,7 @@ export const EventCard = memo(function EventCard({
           </div>
           <div className={classNames('text-slate-600', isCompact ? 'text-xs sm:text-sm' : 'text-sm')}>
             <p className="font-medium break-words">
-              📅 {event.city}
+              {isCompact ? '📍' : '📅'} {event.city}
             </p>
             <p className="text-xs mt-0.5 break-words">
               {isCompact ? (
@@ -222,10 +222,13 @@ export const EventCard = memo(function EventCard({
           </div>
         </header>
         <footer className="mt-auto flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1.5 truncate text-slate-700 font-medium">
-            <span aria-hidden="true">📍</span>
-            <span className="truncate">{isCompact ? (event.venue || event.address) : (event.venue || event.address)}</span>
-          </span>
+          {!isCompact && (
+            <span className="flex items-center gap-1.5 truncate text-slate-700 font-medium">
+              <span aria-hidden="true">📍</span>
+              <span className="truncate">{event.venue || event.address}</span>
+            </span>
+          )}
+          {isCompact && <span></span>}
           <span className="flex items-center gap-1.5 text-slate-600 flex-shrink-0 font-medium">
             <span aria-hidden="true">👁</span>
             {event.views.toLocaleString()}
