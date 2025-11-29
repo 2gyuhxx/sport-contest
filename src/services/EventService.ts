@@ -536,7 +536,7 @@ export const EventService = {
       const formData = new FormData()
       formData.append('file', file)
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'http://wherehani.com/api' : 'http://localhost:3001/api')
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
       const uploadUrl = eventId
         ? `${API_BASE_URL}/upload?eventId=${eventId}`
         : `${API_BASE_URL}/upload`

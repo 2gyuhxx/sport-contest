@@ -1,5 +1,5 @@
 // API 기본 URL 설정
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'http://wherehani.com/api' : 'http://localhost:3001/api')
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
 
 // API 요청 헬퍼 함수
 async function apiRequest<T>(

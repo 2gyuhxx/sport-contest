@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3001
 // CORS 설정: 개발 환경과 프로덕션 환경 모두 지원
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173', 'http://wherehani.com']
+  : ['http://localhost:5173', 'https://wherehani.com', 'http://wherehani.com']
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -142,7 +142,7 @@ async function startServer() {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`)
-    console.log(`🌐 CORS 허용 Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5173, http://wherehani.com'}`)
+    console.log(`🌐 CORS 허용 Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5173, https://wherehani.com'}`)
   })
 }
 
