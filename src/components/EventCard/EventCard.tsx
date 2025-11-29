@@ -1,7 +1,7 @@
 import { memo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import type { Event } from '../../types/events'
-import { formatDate } from '../../utils/formatDate'
+import { formatDate, formatDateShort } from '../../utils/formatDate'
 import { classNames } from '../../utils/classNames'
 import { CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { categoryToKoreanMap } from '../../services/EventService'
@@ -198,11 +198,25 @@ export const EventCard = memo(function EventCard({
               </span>
             )}
           </div>
-          <div className={classNames('text-slate-600', isCompact ? 'text-sm' : 'text-sm')}>
-            <p className="font-medium">
-              📅 {event.city} · {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
-              {event.end_at && event.start_at !== event.end_at && (
-                <> ~ {formatDate(event.end_at)}</>
+          <div className={classNames('text-slate-600', isCompact ? 'text-xs sm:text-sm' : 'text-sm')}>
+            <p className="font-medium break-words">
+              📅 {event.city}
+            </p>
+            <p className="text-xs mt-0.5 break-words">
+              {isCompact ? (
+                <>
+                  {event.start_at ? formatDateShort(event.start_at) : formatDateShort(event.date)}
+                  {event.end_at && event.start_at !== event.end_at && (
+                    <> ~ {formatDateShort(event.end_at)}</>
+                  )}
+                </>
+              ) : (
+                <>
+                  {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
+                  {event.end_at && event.start_at !== event.end_at && (
+                    <> ~ {formatDate(event.end_at)}</>
+                  )}
+                </>
               )}
             </p>
           </div>
