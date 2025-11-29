@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { Calendar, X, ArrowLeft } from 'lucide-react'
+import { Calendar, X, ArrowLeft, Star } from 'lucide-react'
 import { useEventContext } from '../context/useEventContext'
+import { useAuthContext } from '../context/useAuthContext'
 import type { Category, Event } from '../types/events'
 import { formatDate } from '../utils/formatDate'
 import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
 import { KOREA_REGION_PATHS } from '../data/koreaRegionPaths'
+import { FavoriteService } from '../services/FavoriteService'
+import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
 import '../types/kakao.d.ts'
 
 type CategoryFilter = 'all' | Category
@@ -51,7 +54,7 @@ const CATEGORY_LABELS: Record<CategoryFilter, string> = {
 }
 
 const Tag = ({ label }: { label: string }) => (
-  <span className="inline-block rounded-full border border-surface-subtle bg-white px-2 py-0.5 text-xs text-slate-600">
+  <span className="inline-block rounded-full border border-surface-subtle bg-white px-1.5 py-0.5 text-[10px] text-slate-600 md:px-2 md:text-xs">
     {label}
   </span>
 )
@@ -60,6 +63,8 @@ export function SearchPage() {
   // EventContext에서 상태와 디스패치 가져오기
   const { state, dispatch, isLoading } = useEventContext()
   const { events } = state
+  const { state: authState } = useAuthContext()
+  const { user, isAuthenticated } = authState
 
   // 카카오맵 관련 ref
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -86,6 +91,9 @@ export function SearchPage() {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(initialRegion)
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(initialCategory)
   const [searchTerm, setSearchTerm] = useState(initialKeyword)
+  
+  // 맞춤 추천 관련 state
+  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
 
   // Polygon과 CustomOverlay ref
   const polygonsRef = useRef<{ polygon: any; regionId: string }[]>([])
@@ -515,6 +523,96 @@ export function SearchPage() {
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [categoryFilter, events, searchTerm, selectedCity, selectedRegion])
 
+  // 맞춤 추천 로직 (관심사 기반 + 찜 기반)
+  useEffect(() => {
+    const loadRecommendations = async () => {
+      if (isAuthenticated && user) {
+        let interestBasedEvents: Event[] = []
+        let favoriteBasedEvents: Event[] = []
+        
+        // 1. 관심사 기반 추천 (user.interests - 대분류 카테고리)
+        if (user.interests && user.interests.length > 0) {
+          const userInterests = user.interests as Category[]
+          
+          interestBasedEvents = filteredEvents.filter(event => {
+            const isActive = event.event_status !== 'inactive'
+            const isNormal = !event.reports_state || event.reports_state === 'normal'
+            const matchesInterest = userInterests.includes(event.category)
+            
+            return isActive && isNormal && matchesInterest
+          })
+        }
+        
+        // 2. 찜 기반 추천 (소분류 + 코사인 유사도)
+        try {
+          const favorites = await FavoriteService.getMyFavorites()
+          
+          const myFavoriteSports = [
+            ...new Set(
+              favorites
+                .map((fav: any) => fav.sub_sport)
+                .filter((sub: string | null) => sub !== null)
+            )
+          ]
+          
+          if (myFavoriteSports.length > 0) {
+            const { matrix, users, sports } = await FavoriteService.getUserSportMatrix()
+            const similarUsers = findSimilarUsers(Number(user.id), matrix, users, sports, 5)
+            const recommendedSportsList = recommendSportsFromSimilarUsers(
+              similarUsers,
+              matrix,
+              sports,
+              myFavoriteSports
+            )
+            
+            const topRecommendedSports = recommendedSportsList.slice(0, 3).map(item => item.sport)
+            const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
+            
+            favoriteBasedEvents = filteredEvents.filter(event => {
+              const isActive = event.event_status !== 'inactive'
+              const hasSubSport = !!event.sub_sport
+              const matchesSubSport = allTargetSports.includes(event.sub_sport || '')
+              const isNormal = !event.reports_state || event.reports_state === 'normal'
+              
+              return isActive && hasSubSport && matchesSubSport && isNormal
+            })
+          }
+        } catch (err: any) {
+          // 인증 오류는 조용히 처리
+          if (err?.status !== 403 && err?.status !== 401) {
+            console.error('찜 목록 로드 오류:', err)
+          }
+        }
+        
+        // 3. 관심사 기반 + 찜 기반 행사를 합치고 중복 제거
+        const allRecommended = [
+          ...interestBasedEvents,
+          ...favoriteBasedEvents
+        ]
+        
+        // 중복 제거 (id 기준)
+        const uniqueRecommended = Array.from(
+          new Map(allRecommended.map(event => [event.id, event])).values()
+        )
+        
+        // 마감일 순으로 정렬
+        uniqueRecommended.sort((a, b) => {
+          const deadlineA = a.registration_deadline || a.end_at || a.date
+          const deadlineB = b.registration_deadline || b.end_at || b.date
+          const dateA = new Date(deadlineA).getTime()
+          const dateB = new Date(deadlineB).getTime()
+          return dateA - dateB
+        })
+        
+        setRecommendedEvents(uniqueRecommended)
+      } else {
+        setRecommendedEvents([])
+      }
+    }
+    
+    loadRecommendations()
+  }, [isAuthenticated, user, filteredEvents])
+
   const handleEventSelect = useCallback((event: Event) => {
     dispatch({ type: 'SET_ACTIVE_EVENT', payload: event.id })
   }, [dispatch])
@@ -540,13 +638,32 @@ export function SearchPage() {
 
     const geocoder = new window.kakao.maps.services.Geocoder()
     
+    // 추천 이벤트 ID 세트 (빠른 조회용)
+    const recommendedEventIds = new Set(recommendedEvents.map(e => e.id))
+    
     // 마커 생성 헬퍼 함수
     const createMarker = (event: Event, coords: any) => {
-      const marker = new window.kakao.maps.Marker({
+      // 추천 이벤트인지 확인
+      const isRecommended = recommendedEventIds.has(event.id)
+      
+      // 마커 옵션 설정
+      const markerOptions: any = {
         map: mapRef.current,
         position: coords,
         title: event.title,
-      })
+      }
+      
+      // 추천 이벤트면 노란색 마커 이미지 사용
+      if (isRecommended) {
+        const imageSize = new window.kakao.maps.Size(24, 35)
+        const markerImage = new window.kakao.maps.MarkerImage(
+          'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+          imageSize
+        )
+        markerOptions.image = markerImage
+      }
+      
+      const marker = new window.kakao.maps.Marker(markerOptions)
 
       // 마커 클릭 이벤트
       window.kakao.maps.event.addListener(marker, 'click', () => {
@@ -556,8 +673,13 @@ export function SearchPage() {
           return
         }
         
+        const recommendBadge = isRecommended 
+          ? '<span style="display:inline-block;background:#fbbf24;color:white;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:4px;margin-bottom:4px;">⭐ 추천</span><br/>'
+          : ''
+        
         const content = `
           <div style="padding:10px;min-width:200px;">
+            ${recommendBadge}
             <a href="/events/${event.id}" style="font-weight:bold;margin-bottom:5px;color:#2563eb;text-decoration:none;display:block;cursor:pointer;">
               ${event.title}
             </a>
@@ -617,7 +739,7 @@ export function SearchPage() {
         }
       })
     })
-  }, [filteredEvents, handleEventSelect, selectedRegion, kakaoMapsLoaded])
+  }, [filteredEvents, handleEventSelect, selectedRegion, kakaoMapsLoaded, recommendedEvents])
 
   useEffect(() => {
     setCategoryFilter(initialCategory)
@@ -1027,15 +1149,15 @@ export function SearchPage() {
 
   return (
     <div className="pb-12">
-      <section className="mx-auto grid max-w-content grid-cols-1 gap-6 px-6 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
-        <div className="relative flex flex-col gap-5">
-          <div className="rounded-3xl border border-surface-subtle bg-white p-5 shadow-sm md:p-7 lg:p-8 overflow-hidden">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900 md:text-xl">
+      <section className="mx-auto grid max-w-content grid-cols-1 gap-4 px-4 md:gap-6 md:px-6 md:grid-cols-[minmax(0,4.2fr)_minmax(320px,1.2fr)] lg:gap-10">
+        <div className="relative flex flex-col gap-3 md:gap-5">
+          <div className="rounded-2xl border border-surface-subtle bg-white p-4 shadow-sm md:rounded-3xl md:p-7 lg:p-8 overflow-hidden">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 md:mb-4 md:gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base font-semibold text-slate-900 md:text-lg lg:text-xl truncate">
                   대한민국 지역 지도
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs text-slate-600 md:text-sm truncate">
                   {selectedRegion && REGION_INFO[selectedRegion]
                     ? `${REGION_INFO[selectedRegion].name} 선택됨`
                     : '지도를 탐색하고 원하는 위치를 검색해보세요.'}
@@ -1045,9 +1167,10 @@ export function SearchPage() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 md:px-3 md:py-1"
                 >
-                  <X className="h-3 w-3" /> 초기화
+                  <X className="h-3 w-3" /> 
+                  <span className="hidden sm:inline">초기화</span>
                 </button>
               )}
             </div>
@@ -1056,7 +1179,7 @@ export function SearchPage() {
             <div className="relative">
               {/* 뒤로 가기 버튼 (지역 선택 시에만 표시) */}
               {showDetailMap && selectedRegion && (
-                <div className="absolute top-4 left-4 z-10">
+                <div className="absolute top-2 left-2 z-10 md:top-4 md:left-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -1105,11 +1228,11 @@ export function SearchPage() {
                         showAllRegionPolygons()
                       }
                     }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white hover:bg-slate-50 transition-colors shadow-lg border border-slate-200"
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-white hover:bg-slate-50 transition-colors shadow-lg border border-slate-200 text-xs md:gap-2 md:px-4 md:py-2 md:text-sm"
                     title="뒤로 가기"
                   >
-                    <ArrowLeft className="h-5 w-5 text-slate-700" />
-                    <span className="text-sm font-medium text-slate-700">
+                    <ArrowLeft className="h-4 w-4 text-slate-700 md:h-5 md:w-5" />
+                    <span className="font-medium text-slate-700 max-w-[100px] truncate md:max-w-none">
                       {selectedCity ? REGION_INFO[selectedRegion]?.name : '전체 지도'}
                     </span>
                   </button>
@@ -1118,29 +1241,28 @@ export function SearchPage() {
 
               {/* 지역 정보 라벨 (지역 선택 시에만 표시) */}
               {showDetailMap && selectedRegion && (
-                <div className="absolute top-4 right-4 z-10">
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg border border-slate-200">
-                    <span className="text-xl">{REGION_INFO[selectedRegion]?.emoji}</span>
-                    <span className="text-sm font-bold text-slate-900">
+                <div className="absolute top-2 right-2 z-10 md:top-4 md:right-4">
+                  <div className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-white shadow-lg border border-slate-200 md:gap-2 md:px-4 md:py-2">
+                    <span className="text-base md:text-xl">{REGION_INFO[selectedRegion]?.emoji}</span>
+                    <span className="text-xs font-bold text-slate-900 max-w-[100px] truncate md:text-sm md:max-w-none">
                       {selectedCity || REGION_INFO[selectedRegion]?.name}
                     </span>
-            </div>
-          </div>
+                  </div>
+                </div>
               )}
               
               <div 
                 ref={mapContainerRef}
-                className="relative overflow-hidden rounded-3xl border border-surface-subtle"
-                style={{ width: '100%', height: '600px' }}
+                className="relative overflow-hidden rounded-2xl border border-surface-subtle h-[350px] md:h-[500px] lg:h-[600px] md:rounded-3xl"
               />
               </div>
               
             </div>
         </div>
 
-        <aside className="flex flex-col gap-4 lg:gap-6">
-          <div className="rounded-3xl border border-surface-subtle bg-white p-5 shadow-sm md:p-6">
-            <div className="grid grid-cols-3 gap-2">
+        <aside className="flex flex-col gap-3 md:gap-4 lg:gap-6">
+          <div className="rounded-2xl border border-surface-subtle bg-white p-4 shadow-sm md:rounded-3xl md:p-5 lg:p-6">
+            <div className="grid grid-cols-3 gap-1.5 md:gap-2">
               {categoryOptions.map((option) => {
                 const categoryInfo = option === 'all' 
                   ? { label: '전체', emoji: '🌐' }
@@ -1151,71 +1273,116 @@ export function SearchPage() {
                   key={option}
                   type="button"
                   onClick={() => handleCategoryChange(option)}
-                    className={`flex items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs transition whitespace-nowrap ${
+                    className={`flex items-center justify-center gap-0.5 rounded-full border px-2 py-1.5 text-xs transition md:gap-1 md:px-3 md:py-2 ${
                     categoryFilter === option
                       ? 'border-brand-primary bg-brand-primary text-white'
                       : 'border-surface-subtle text-slate-600 hover:border-brand-primary hover:text-brand-primary'
                   }`}
                 >
-                    {categoryInfo?.emoji && <span className="text-sm flex-shrink-0">{categoryInfo.emoji}</span>}
-                    <span>{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
+                    {categoryInfo?.emoji && <span className="text-xs md:text-sm flex-shrink-0">{categoryInfo.emoji}</span>}
+                    <span className="text-[10px] md:text-xs truncate">{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
                 </button>
                 )
               })}
             </div>
           </div>
 
-          <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                <Calendar className="h-4 w-4 text-brand-primary" />
-                행사 목록
-              </h2>
-              <span className="text-xs text-slate-500">{filteredEvents.length}건</span>
-            </div>
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-brand-primary border-t-transparent"></div>
-                <p className="text-sm text-slate-500">행사를 불러오는 중...</p>
+          {/* 맞춤 추천 행사 */}
+          {isAuthenticated && recommendedEvents.length > 0 && (
+            <div className="rounded-2xl border border-surface-subtle bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm md:rounded-3xl md:p-6 lg:p-8">
+              <div className="mb-2 flex items-center justify-between md:mb-3">
+                <h2 className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 md:gap-2 md:text-sm">
+                  <Star className="h-3.5 w-3.5 text-amber-500 md:h-4 md:w-4" fill="currentColor" />
+                  맞춤 추천
+                </h2>
+                <span className="text-[10px] text-amber-600 md:text-xs">{recommendedEvents.length}건</span>
               </div>
-            ) : (
-            <div className="max-h-[445px] overflow-y-auto">
-            <ul className="flex flex-col divide-y divide-surface-subtle">
-              {filteredEvents.length ? (
-                filteredEvents.map((event) => {
+              <div className="max-h-[200px] overflow-y-auto md:max-h-[250px]">
+                <ul className="flex flex-col divide-y divide-surface-subtle">
+                  {recommendedEvents.map((event) => {
                     const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
-                  return (
-                    <li key={event.id} className="py-3">
+                    return (
+                      <li key={event.id} className="py-2 md:py-3">
                         <div className="w-full text-left">
-                        <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-0.5 md:gap-1">
                             <a
                               href={`/events/${event.id}`}
-                              className="text-sm font-semibold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer"
+                              className="text-xs font-semibold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer line-clamp-2 md:text-sm md:line-clamp-none"
                             >
-                            {event.title}
+                              {event.title}
                             </a>
-                          <span className="text-xs text-slate-500">
-                            {regionLabel} · {event.city} · {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
-                            {event.end_at && event.start_at !== event.end_at && (
-                              <> ~ {formatDate(event.end_at)}</>
-                            )}
-                          </span>
-                          <div className="mt-1 flex items-center gap-2">
-                            <Tag label={CATEGORY_LABELS[event.category]} />
+                            <span className="text-[10px] text-slate-500 md:text-xs">
+                              {regionLabel} · {event.city} · {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
+                              {event.end_at && event.start_at !== event.end_at && (
+                                <> ~ {formatDate(event.end_at)}</>
+                              )}
+                            </span>
+                            <div className="mt-0.5 flex items-center gap-1 md:mt-1 md:gap-2">
+                              <Tag label={CATEGORY_LABELS[event.category]} />
+                            </div>
+                            <p className="text-[10px] text-slate-500 line-clamp-2 md:text-xs">{event.summary}</p>
                           </div>
-                          <p className="text-xs text-slate-500">{event.summary}</p>
                         </div>
-                        </div>
-                    </li>
-                  )
-                })
-              ) : (
-                <li className="py-6 text-center text-sm text-slate-500">
-                  조건에 맞는 행사가 없습니다.
-                </li>
-              )}
-            </ul>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
             </div>
+          )}
+
+          {/* 전체 행사 목록 */}
+          <div className="rounded-2xl border border-surface-subtle bg-white p-4 shadow-sm md:rounded-3xl md:p-6 lg:p-8">
+            <div className="mb-2 flex items-center justify-between md:mb-3">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 md:gap-2 md:text-sm">
+                <Calendar className="h-3.5 w-3.5 text-brand-primary md:h-4 md:w-4" />
+                전체 행사
+              </h2>
+              <span className="text-[10px] text-slate-500 md:text-xs">{filteredEvents.length}건</span>
+            </div>
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-8 md:py-12">
+                <div className="mb-2 h-6 w-6 animate-spin rounded-full border-4 border-brand-primary border-t-transparent md:mb-3 md:h-8 md:w-8"></div>
+                <p className="text-xs text-slate-500 md:text-sm">행사를 불러오는 중...</p>
+              </div>
+            ) : (
+              <div className="max-h-[300px] overflow-y-auto md:max-h-[445px]">
+                <ul className="flex flex-col divide-y divide-surface-subtle">
+                  {filteredEvents.length ? (
+                    filteredEvents.map((event) => {
+                      const regionLabel = REGION_INFO[event.region]?.name?.replace(/특별자치도|특별자치시|특별시|광역시|도/g, '') ?? event.region
+                      return (
+                        <li key={event.id} className="py-2 md:py-3">
+                          <div className="w-full text-left">
+                            <div className="flex flex-col gap-0.5 md:gap-1">
+                              <a
+                                href={`/events/${event.id}`}
+                                className="text-xs font-semibold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer line-clamp-2 md:text-sm md:line-clamp-none"
+                              >
+                                {event.title}
+                              </a>
+                              <span className="text-[10px] text-slate-500 md:text-xs">
+                                {regionLabel} · {event.city} · {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
+                                {event.end_at && event.start_at !== event.end_at && (
+                                  <> ~ {formatDate(event.end_at)}</>
+                                )}
+                              </span>
+                              <div className="mt-0.5 flex items-center gap-1 md:mt-1 md:gap-2">
+                                <Tag label={CATEGORY_LABELS[event.category]} />
+                              </div>
+                              <p className="text-[10px] text-slate-500 line-clamp-2 md:text-xs">{event.summary}</p>
+                            </div>
+                          </div>
+                        </li>
+                      )
+                    })
+                  ) : (
+                    <li className="py-4 text-center text-xs text-slate-500 md:py-6 md:text-sm">
+                      조건에 맞는 행사가 없습니다.
+                    </li>
+                  )}
+                </ul>
+              </div>
             )}
           </div>
         </aside>

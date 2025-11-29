@@ -7,6 +7,8 @@ declare global {
         LatLng: new (lat: number, lng: number) => any
         LatLngBounds: new () => any
         Marker: new (options: any) => any
+        MarkerImage: new (src: string, size: any, options?: any) => any
+        Size: new (width: number, height: number) => any
         InfoWindow: new (options: any) => any
         MarkerClusterer: new (options: any) => any
         Polygon: new (options: any) => any
