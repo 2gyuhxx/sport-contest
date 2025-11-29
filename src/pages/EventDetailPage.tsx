@@ -264,8 +264,8 @@ export function EventDetailPage() {
         onClose={handleCloseModal}
       />
 
-      <div className="bg-surface pb-20 pt-10">
-        <div className="mx-auto flex max-w-content flex-col gap-10 px-4 lg:gap-12">
+      <div className="bg-surface pb-4 pt-2">
+        <div className="mx-auto flex max-w-content flex-col gap-3 px-4 lg:gap-4">
           <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">{event.title}</h1>
