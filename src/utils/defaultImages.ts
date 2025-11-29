@@ -90,7 +90,7 @@ export const sportDefaultImages: Record<string, string> = {
   '체조': 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=800&q=80',
   '에어로빅': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&q=80',
   '힙합': 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=800&q=80',
-  '댄스스포츠': 'https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?w=800&q=80',
+  '댄스스포츠': 'https://images.unsplash.com/photo-1750863773786-52e7d30d6ed9?w=800&q=80',
   '줄넘기': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&q=80',
   '줄다리기': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80',
   '기타(체력·기술)': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80',
