@@ -57,7 +57,7 @@ export const EventCard = memo(function EventCard({
   const containerClasses = classNames(
     'group relative overflow-hidden transition duration-200',
     isCompact
-      ? 'rounded-xl border-2 border-slate-200 bg-white hover:border-brand-primary hover:shadow-md flex flex-row'
+      ? 'rounded-lg md:rounded-xl border-2 border-slate-200 bg-white hover:border-brand-primary hover:shadow-md flex flex-row'
       : 'rounded-2xl border bg-white shadow-sm hover:shadow-elevate',
     !isCompact && 'hover:border-brand-primary',
     isActive ? 'ring-2 ring-brand-primary' : '',
@@ -73,7 +73,7 @@ export const EventCard = memo(function EventCard({
         : 'h-44 w-full',
   )
 
-  const bodyPadding = isCompact ? 'p-3 sm:p-4 md:p-5' : 'p-5'
+  const bodyPadding = isCompact ? 'p-2.5 sm:p-4 md:p-5' : 'p-5'
 
   const card = (
     <article
@@ -135,7 +135,7 @@ export const EventCard = memo(function EventCard({
           />
         </div>
       )}
-      <div className={classNames('flex flex-col', bodyPadding, isCompact ? 'gap-2 flex-1' : 'gap-2 flex-1')}>
+      <div className={classNames('flex flex-col', bodyPadding, isCompact ? 'gap-1.5 flex-1' : 'gap-2 flex-1')}>
         {/* compact 모드일 때: 카테고리와 진행 상태 배지 */}
         {isCompact && (
           <div className="flex items-center gap-2 flex-wrap">

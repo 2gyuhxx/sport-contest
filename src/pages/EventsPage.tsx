@@ -438,10 +438,10 @@ export function EventsPage() {
   // 데스크톱 레이아웃
   return (
     <div className="pb-12">
-      <div className="mx-auto max-w-content px-3 sm:px-4 md:px-6">
+      <div className="mx-auto max-w-content px-2 sm:px-4 md:px-6">
         {/* 모바일 추천 빠른 접근 배너 */}
         {isMobile && isAuthenticated && favoriteBasedEvents.length > 0 && sortBy !== 'recommended' && (
-          <div className="mb-3 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-3 shadow-md">
+          <div className="mb-2.5 rounded-lg border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-2.5 shadow-md">
             <div className="flex items-center justify-between gap-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -467,7 +467,7 @@ export function EventsPage() {
         )}
         
         {/* 필터 및 정렬 */}
-        <div className="mb-4 sm:mb-6 rounded-2xl sm:rounded-3xl border border-surface-subtle bg-white p-3 sm:p-4 md:p-6 shadow-sm">
+        <div className="mb-3 sm:mb-6 rounded-xl sm:rounded-3xl border border-surface-subtle bg-white p-2.5 sm:p-4 md:p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* 정렬 옵션 */}
             <div className="flex items-center gap-2 overflow-hidden">
