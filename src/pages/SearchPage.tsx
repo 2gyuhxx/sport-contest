@@ -1253,7 +1253,7 @@ export function SearchPage() {
               
               <div 
                 ref={mapContainerRef}
-                className="relative overflow-hidden rounded-2xl border border-surface-subtle h-[350px] md:h-[500px] lg:h-[600px] md:rounded-3xl"
+                className="relative overflow-hidden rounded-2xl border border-surface-subtle h-[450px] md:h-[500px] lg:h-[600px] md:rounded-3xl"
               />
               </div>
               

@@ -130,7 +130,7 @@ export const EventCard = memo(function EventCard({
             <h3
               className={classNames(
                 'font-bold text-slate-900 flex-1',
-                isCompact ? 'text-lg leading-tight line-clamp-2' : 'text-lg md:text-xl min-h-[3.5rem] line-clamp-2',
+                isCompact ? 'text-base sm:text-lg leading-snug line-clamp-3' : 'text-lg md:text-xl min-h-[3.5rem] line-clamp-2',
               )}
             >
               {event.title}

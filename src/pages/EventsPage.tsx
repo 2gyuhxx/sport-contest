@@ -439,13 +439,40 @@ export function EventsPage() {
   return (
     <div className="pb-12">
       <div className="mx-auto max-w-content px-6">
+        {/* 모바일 추천 빠른 접근 배너 */}
+        {isMobile && isAuthenticated && (filteredAndSortedEventsBasedOnInterests.length > 0 || favoriteBasedEvents.length > 0) && sortBy !== 'recommended' && (
+          <div className="mb-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 shadow-md">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="h-5 w-5 text-amber-600" fill="currentColor" />
+                  <h3 className="text-sm font-bold text-slate-900">나를 위한 맞춤 추천</h3>
+                </div>
+                <p className="text-xs text-slate-600">
+                  {filteredAndSortedEventsBasedOnInterests.length + favoriteBasedEvents.length}개의 추천 행사를 확인하세요!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSortBy('recommended')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-md transition hover:bg-amber-600 active:scale-95"
+              >
+                보기 <Sparkles className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* 필터 및 정렬 */}
         <div className="mb-6 rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* 정렬 옵션 */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-700">정렬:</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="text-sm font-semibold text-slate-700 flex-shrink-0">정렬:</span>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
                 {SORT_OPTIONS.map((option) => {
                   const Icon = option.icon
                   const requiresAuth = option.requiresAuth || false
@@ -463,7 +490,7 @@ export function EventsPage() {
                           setSortBy(option.value)
                         }}
                         disabled={isDisabled}
-                        className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs md:px-4 md:py-2 md:text-sm font-semibold transition whitespace-nowrap ${
                           sortBy === option.value
                             ? 'bg-brand-primary text-white'
                             : isDisabled
@@ -472,10 +499,10 @@ export function EventsPage() {
                         }`}
                         title={isDisabled ? '로그인 필요' : ''}
                       >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         {option.label}
                         {requiresAuth && (
-                          <span className={`text-xs ${sortBy === option.value ? 'text-white/70' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] md:text-xs ${sortBy === option.value ? 'text-white/70' : 'text-slate-500'}`}>
                             🔒
                           </span>
                         )}
