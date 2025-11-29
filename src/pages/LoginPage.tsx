@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
 import { useAuthContext } from '../context/useAuthContext'
 import { AuthService } from '../services/AuthService'
+import { API_BASE_URL } from '../config/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -32,14 +33,12 @@ export function LoginPage() {
 
   // Google 로그인 시작
   const handleGoogleLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
-    window.location.href = `${apiBaseUrl}/auth/google`
+    window.location.href = `${API_BASE_URL}/auth/google`
   }
 
   // 카카오 로그인 시작
   const handleKakaoLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
-    window.location.href = `${apiBaseUrl}/auth/kakao`
+    window.location.href = `${API_BASE_URL}/auth/kakao`
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
