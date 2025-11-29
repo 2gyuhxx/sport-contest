@@ -57,6 +57,8 @@ interface DBEvent {
   sub_region: string
   venue: string | null
   address: string | null
+  lat: number | null
+  lng: number | null
   start_at: string
   end_at: string
   website: string | null
@@ -195,6 +197,10 @@ export function transformDBEventToEvent(dbEvent: DBEvent): Event {
     event_status: (dbEvent.eraser === 'active' || dbEvent.eraser === 'inactive') ? dbEvent.eraser : undefined, // eraser를 event_status로 변환
     reports_count: dbEvent.reports_count || 0, // 신고 횟수
     reports_state: dbEvent.reports_state || 'normal', // 신고 상태 (기본값: normal)
+    start_at: dbEvent.start_at, // 행사 시작일
+    end_at: dbEvent.end_at, // 행사 종료일
+    lat: dbEvent.lat ? Number(dbEvent.lat) : undefined, // 위도
+    lng: dbEvent.lng ? Number(dbEvent.lng) : undefined, // 경도
   }
 }
 

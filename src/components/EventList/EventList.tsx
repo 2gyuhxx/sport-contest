@@ -42,7 +42,7 @@ export const EventList = memo(function EventList({
     () =>
       layout === 'grid'
         ? `grid gap-5 auto-rows-fr ${columnClasses[columns]}`
-        : 'flex flex-col gap-4',
+        : 'flex flex-col gap-6',
     [layout, columnClasses, columns]
   )
 

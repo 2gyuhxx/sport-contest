@@ -539,110 +539,79 @@ export function SearchPage() {
     }
 
     const geocoder = new window.kakao.maps.services.Geocoder()
+    
+    // 마커 생성 헬퍼 함수
+    const createMarker = (event: Event, coords: any) => {
+      const marker = new window.kakao.maps.Marker({
+        map: mapRef.current,
+        position: coords,
+        title: event.title,
+      })
 
-    // 필터링된 행사들의 주소로 마커 생성
+      // 마커 클릭 이벤트
+      window.kakao.maps.event.addListener(marker, 'click', () => {
+        if (currentMarkerRef.current === marker) {
+          infowindowRef.current.close()
+          currentMarkerRef.current = null
+          return
+        }
+        
+        const content = `
+          <div style="padding:10px;min-width:200px;">
+            <a href="/events/${event.id}" style="font-weight:bold;margin-bottom:5px;color:#2563eb;text-decoration:none;display:block;cursor:pointer;">
+              ${event.title}
+            </a>
+            <div style="font-size:12px;color:#666;">
+              ${event.sport || ''}<br/>
+              ${event.venue || event.address || ''}
+            </div>
+          </div>
+        `
+        infowindowRef.current.setContent(content)
+        infowindowRef.current.open(mapRef.current, marker)
+        currentMarkerRef.current = marker
+        handleEventSelect(event)
+      })
+
+      markersRef.current.push(marker)
+    }
+    
+    // 필터링된 행사들의 마커 생성
     filteredEvents.forEach((event) => {
+      // 1순위: DB 좌표 사용
+      if (event.lat && event.lng) {
+        const coords = new window.kakao.maps.LatLng(event.lat, event.lng)
+        createMarker(event, coords)
+        return
+      }
+
+      // 2순위: Geocoding (DB에 좌표가 없는 경우만)
       const address = event.address || event.venue
       if (!address) {
         return
       }
 
-      // 주소가 우편번호만 있거나 짧은 경우 지역+도시로 검색
-      let searchQuery = address
+      // 주소 정제
+      let cleanAddress = address.replace(/\([^)]*\)/g, '').trim()
+      let searchQuery = cleanAddress
       
-      if (address.length < 10 || /^\d{5}$/.test(address)) {
-        // 지역 ID를 한글 이름으로 변환
+      if (cleanAddress.length < 10 || /^\d{5}$/.test(cleanAddress)) {
         const regionName = REGION_INFO[event.region]?.name || event.region
         searchQuery = `${regionName} ${event.city}`
       }
 
-      // 먼저 주소로 검색
+      // 주소 검색
       geocoder.addressSearch(searchQuery, (result: any[], status: string) => {
-
         if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
           const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x)
-          
-          // 마커 생성
-          const marker = new window.kakao.maps.Marker({
-            map: mapRef.current, // 지도에 바로 표시
-            position: coords,
-            title: event.title,
-          })
-
-
-          // 마커 클릭 이벤트 - 공유 InfoWindow 사용
-          window.kakao.maps.event.addListener(marker, 'click', () => {
-            // 같은 마커를 다시 클릭한 경우 토글 (닫기)
-            if (currentMarkerRef.current === marker) {
-              infowindowRef.current.close()
-              currentMarkerRef.current = null
-              return
-            }
-            
-            // 다른 마커를 클릭한 경우 InfoWindow 내용 업데이트
-            const content = `
-              <div style="padding:10px;min-width:200px;">
-                <a href="/events/${event.id}" style="font-weight:bold;margin-bottom:5px;color:#2563eb;text-decoration:none;display:block;cursor:pointer;">
-                  ${event.title}
-                </a>
-                <div style="font-size:12px;color:#666;">
-                  ${event.sport || ''}<br/>
-                  ${event.venue || address}
-                </div>
-              </div>
-            `
-            infowindowRef.current.setContent(content)
-            infowindowRef.current.open(mapRef.current, marker)
-            currentMarkerRef.current = marker
-            handleEventSelect(event)
-          })
-
-          markersRef.current.push(marker)
+          createMarker(event, coords)
         } else {
-          // 주소 검색 실패 시 장소 검색 시도
+          // 장소 검색
           const places = new window.kakao.maps.services.Places()
           places.keywordSearch(searchQuery, (placeResult: any[], placeStatus: string) => {
-
             if (placeStatus === window.kakao.maps.services.Status.OK && placeResult.length > 0) {
               const coords = new window.kakao.maps.LatLng(placeResult[0].y, placeResult[0].x)
-              
-              // 마커 생성
-              const marker = new window.kakao.maps.Marker({
-                map: mapRef.current,
-                position: coords,
-                title: event.title,
-              })
-
-
-              // 마커 클릭 이벤트 - 공유 InfoWindow 사용
-              window.kakao.maps.event.addListener(marker, 'click', () => {
-                // 같은 마커를 다시 클릭한 경우 토글 (닫기)
-                if (currentMarkerRef.current === marker) {
-                  infowindowRef.current.close()
-                  currentMarkerRef.current = null
-                  return
-                }
-                
-                // 다른 마커를 클릭한 경우 InfoWindow 내용 업데이트
-                const content = `
-                  <div style="padding:10px;min-width:200px;">
-                    <a href="/events/${event.id}" style="font-weight:bold;margin-bottom:5px;color:#2563eb;text-decoration:none;display:block;cursor:pointer;">
-                      ${event.title}
-                    </a>
-                    <div style="font-size:12px;color:#666;">
-                      ${event.sport || ''}<br/>
-                      ${event.venue || address}
-                    </div>
-                  </div>
-                `
-                infowindowRef.current.setContent(content)
-                infowindowRef.current.open(mapRef.current, marker)
-                currentMarkerRef.current = marker
-                handleEventSelect(event)
-              })
-
-              markersRef.current.push(marker)
-            } else {
+              createMarker(event, coords)
             }
           })
         }
@@ -1226,7 +1195,10 @@ export function SearchPage() {
                             {event.title}
                             </a>
                           <span className="text-xs text-slate-500">
-                            {regionLabel} · {event.city} · {formatDate(event.date)}
+                            {regionLabel} · {event.city} · {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
+                            {event.end_at && event.start_at !== event.end_at && (
+                              <> ~ {formatDate(event.end_at)}</>
+                            )}
                           </span>
                           <div className="mt-1 flex items-center gap-2">
                             <Tag label={CATEGORY_LABELS[event.category]} />

@@ -2,6 +2,7 @@ import { formatDate } from '../../utils/formatDate'
 import type { Event } from '../../types/events'
 import { ExternalLink } from 'lucide-react'
 import { categoryToKoreanMap } from '../../services/EventService'
+import { getDefaultImage } from '../../utils/defaultImages'
 
 interface EventDetailDrawerProps {
   event: Event | null
@@ -27,7 +28,9 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
       <div className="w-full max-w-md rounded-2xl bg-white shadow-elevate md:relative md:max-w-none md:shadow-none">
         <div className="relative h-48 w-full overflow-hidden rounded-t-2xl md:rounded-xl">
           <img
-            src={(event.image && event.image.trim() !== '') ? event.image : '/images/main_logo.png'}
+            src={(event.image && event.image.trim() !== '') 
+              ? event.image 
+              : getDefaultImage(event.sub_sport, event.sport, event.category)}
             alt={event.title}
             className="h-full w-full object-cover"
             loading="lazy"
@@ -46,7 +49,12 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
             <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase text-brand-primary">
               {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category}
             </span>
-            <span className="text-xs text-slate-500">{formatDate(event.date)}</span>
+            <span className="text-xs text-slate-500">
+              {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
+              {event.end_at && event.start_at !== event.end_at && (
+                <> ~ {formatDate(event.end_at)}</>
+              )}
+            </span>
           </div>
           <h3 className="text-xl font-semibold text-slate-900">{event.title}</h3>
           <p className="text-sm text-slate-600">{event.summary}</p>

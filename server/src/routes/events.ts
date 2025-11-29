@@ -4,6 +4,7 @@ import { EventModel, EventRow } from '../models/Event.js'
 import { UserModel } from '../models/User.js'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { checkSpamAsync } from '../utils/spamCheckerAsync.js'
+import { geocodeAddress } from '../utils/geocoding.js'
 
 const router = express.Router()
 
@@ -118,6 +119,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     // 종료일 포맷팅: 시간이 없거나 00:00:00이면 23:59:59로 설정
     const formattedEndAt = formatEndAt(end_at)
 
+    // 주소가 있으면 좌표로 변환
+    let lat: number | null = null
+    let lng: number | null = null
+    
+    if (venue || address) {
+      // venue가 있으면 venue 사용 (실제 주소 포함)
+      // address는 우편번호만 있어서 geocoding 불가
+      const geocodeTarget = venue || address
+      const coords = await geocodeAddress(geocodeTarget!)
+      if (coords) {
+        lat = coords.lat
+        lng = coords.lng
+      }
+    }
+
     console.log('[행사 생성 API] EventModel.create 호출:', {
       organizerUserId: req.userId,
       title,
@@ -128,6 +144,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       subRegion: sub_region,
       venue: venue || null,
       address: formattedAddress,
+      lat,
+      lng,
       startAt: start_at,
       endAt: formattedEndAt,
       website: website || null,
@@ -147,6 +165,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       sub_region,
       venue || null,
       formattedAddress,
+      lat,
+      lng,
       start_at,
       formattedEndAt,
       website || null,

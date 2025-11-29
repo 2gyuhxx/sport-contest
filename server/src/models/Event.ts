@@ -16,6 +16,8 @@ export interface EventRow extends RowDataPacket {
   sub_region: string
   venue: string | null
   address: string | null
+  lat: number | null
+  lng: number | null
   start_at: Date
   end_at: Date
   website: string | null
@@ -54,6 +56,8 @@ export class EventModel {
     subRegion: string,
     venue: string | null,
     address: string | null,
+    lat: number | null,
+    lng: number | null,
     startAt: string,
     endAt: string,
     website: string | null,
@@ -72,6 +76,8 @@ export class EventModel {
       subRegion,
       venue,
       address,
+      lat,
+      lng,
       startAt,
       endAt,
       website,
@@ -93,9 +99,9 @@ export class EventModel {
     })
 
     const [result] = await pool.execute(
-      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, sub_sport, region, sub_region, venue, address, start_at, end_at, website, image, status, eraser)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [organizerUserId, organizerUserName, title, description, sport, subSport || null, region, subRegion, venue || null, address || null, startAt, endAt, website || null, image || null, status, eraser]
+      `INSERT INTO events (organizer_user_id, organizer_user_name, title, description, sport, sub_sport, region, sub_region, venue, address, lat, lng, start_at, end_at, website, image, status, eraser)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [organizerUserId, organizerUserName, title, description, sport, subSport || null, region, subRegion, venue || null, address || null, lat, lng, startAt, endAt, website || null, image || null, status, eraser]
     )
 
     console.log('[EventModel.create] INSERT 결과:', result)

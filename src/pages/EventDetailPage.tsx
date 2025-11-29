@@ -8,6 +8,7 @@ import { EventService, categoryToKoreanMap, transformDBEventToEvent } from '../s
 import { FavoriteService } from '../services/FavoriteService'
 import { FavoriteModal } from '../components/FavoriteModal'
 import type { Event } from '../types/events'
+import { getDefaultImage } from '../utils/defaultImages'
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -307,7 +308,9 @@ export function EventDetailPage() {
           <div className="flex flex-col gap-6">
             <div className="overflow-hidden rounded-3xl">
               <img
-                src={(event.image && event.image.trim() !== '') ? event.image : '/images/main_logo.png'}
+                src={(event.image && event.image.trim() !== '') 
+                  ? event.image 
+                  : getDefaultImage(event.sub_sport, event.sport, event.category)}
                 alt={event.title}
                 className="h-full w-full object-cover"
                 loading="lazy"
@@ -372,7 +375,13 @@ export function EventDetailPage() {
                   <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     행사 일시
                   </dt>
-                  <dd className="break-words text-slate-900">{formatDate(event.date)}</dd>
+                  <dd className="break-words text-slate-900">
+                    {event.start_at && formatDate(event.start_at)}
+                    {event.end_at && event.start_at !== event.end_at && (
+                      <> ~ {formatDate(event.end_at)}</>
+                    )}
+                    {!event.start_at && formatDate(event.date)}
+                  </dd>
                 </div>
                 <div className="grid gap-1">
                   <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">

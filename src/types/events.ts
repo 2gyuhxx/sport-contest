@@ -32,6 +32,11 @@ export interface Event {
   event_status?: 'active' | 'inactive' // 행사 상태 (eraser 필드에서 변환)
   reports_count?: number // 신고 횟수
   reports_state?: 'normal' | 'pending' | 'blocked' // 신고 상태 (기본값: normal)
+  start_at?: string // 행사 시작일
+  end_at?: string // 행사 종료일
+  registration_deadline?: string // 신청 마감일
+  lat?: number // 위도
+  lng?: number // 경도
 }
 
 export interface EventReport {

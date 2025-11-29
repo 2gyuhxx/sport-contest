@@ -1,21 +1,20 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventList } from '../components/EventList/EventList'
-import { EventCard } from '../components/EventCard'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
 import { FavoriteService } from '../services/FavoriteService'
 import type { Category, Event } from '../types/events'
 import { getCategoryLabel } from '../utils/categoryLabels'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
-import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Filter, TrendingUp, Calendar, Clock, ChevronDown, Sparkles, Heart, LayoutGrid, List } from 'lucide-react'
 import { useIsMobile } from '../hooks/useMediaQuery'
 
 type SortOption = 'latest' | 'popular' | 'date' | 'title' | 'recommended'
 
 const SORT_OPTIONS = [
   { value: 'recommended' as const, label: '추천', icon: Sparkles, requiresAuth: true },
-  { value: 'latest' as const, label: '최신순', icon: Clock },
+  { value: 'latest' as const, label: '마감일 순', icon: Clock },
   { value: 'popular' as const, label: '인기순', icon: TrendingUp },
   { value: 'date' as const, label: '행사일순', icon: Calendar },
   { value: 'title' as const, label: '이름순', icon: Filter },
@@ -48,37 +47,6 @@ export function EventsPage() {
   const [myFavorites, setMyFavorites] = useState<any[]>([])
   const [favoriteBasedEvents, setFavoriteBasedEvents] = useState<Event[]>([])
   const [recommendedSports, setRecommendedSports] = useState<string[]>([])
-
-  // 캐러셀 ref
-  const interestScrollRef = useRef<HTMLDivElement>(null)
-  const favoriteScrollRef = useRef<HTMLDivElement>(null)
-
-  // 캐러셀 스크롤 함수 (3개씩 이동)
-  const scrollCarousel = useCallback((ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
-    if (ref.current) {
-      const scrollAmount = ref.current.clientWidth
-      ref.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      })
-    }
-  }, [])
-
-  // 캐러셀 스크롤 래퍼 함수들
-  const scrollInterestLeft = useCallback(() => scrollCarousel(interestScrollRef, 'left'), [scrollCarousel])
-  const scrollInterestRight = useCallback(() => scrollCarousel(interestScrollRef, 'right'), [scrollCarousel])
-  const scrollFavoriteLeft = useCallback(() => scrollCarousel(favoriteScrollRef, 'left'), [scrollCarousel])
-  const scrollFavoriteRight = useCallback(() => scrollCarousel(favoriteScrollRef, 'right'), [scrollCarousel])
-
-  // 캐러셀 초기 위치 설정
-  useEffect(() => {
-    if (interestScrollRef.current) {
-      interestScrollRef.current.scrollLeft = 0
-    }
-    if (favoriteScrollRef.current) {
-      favoriteScrollRef.current.scrollLeft = 0
-    }
-  }, [sortBy])
 
   // 대분류 카테고리 로드
   useEffect(() => {
@@ -120,15 +88,10 @@ export function EventsPage() {
   // 찜 목록 로드 및 코사인 유사도 기반 추천 (추천 모드일 때만)
   useEffect(() => {
     const loadFavoritesAndRecommend = async () => {
-      console.log('[찜 추천] 조건 체크 - isAuthenticated:', isAuthenticated, 'sortBy:', sortBy)
-      
       if (isAuthenticated && sortBy === 'recommended' && user) {
         try {
-          console.log('[찜 추천] API 호출 시작...')
-          
           // 1. 내 찜 목록 가져오기
           const favorites = await FavoriteService.getMyFavorites()
-          console.log('[찜 추천] 받은 찜 목록:', favorites)
           setMyFavorites(favorites)
           
           // 2. 내가 찜한 소분류 목록
@@ -137,15 +100,12 @@ export function EventsPage() {
               .map((fav: any) => fav.sub_sport)
               .filter((sub: string | null) => sub !== null)
           )]
-          console.log('[찜 추천] 내가 찜한 소분류:', myFavoriteSports)
           
           // 3. 사용자-종목 행렬 가져오기
           const { matrix, users, sports } = await FavoriteService.getUserSportMatrix()
-          console.log('[코사인 유사도] 행렬 로드 완료 - 사용자:', users.length, '종목:', sports.length)
           
           // 4. 나와 유사한 사용자 찾기
           const similarUsers = findSimilarUsers(Number(user.id), matrix, users, sports, 5)
-          console.log('[코사인 유사도] 유사한 사용자:', similarUsers)
           
           // 5. 유사한 사용자들이 찜한 종목 추천
           const recommendedSportsList = recommendSportsFromSimilarUsers(
@@ -154,7 +114,6 @@ export function EventsPage() {
             sports,
             myFavoriteSports
           )
-          console.log('[코사인 유사도] 추천 종목:', recommendedSportsList)
           
           // 6. 추천 종목 목록 저장
           const topRecommendedSports = recommendedSportsList.slice(0, 3).map(item => item.sport)
@@ -162,7 +121,6 @@ export function EventsPage() {
           
           // 7. 추천 종목 + 내가 찜한 종목의 행사 필터링
           const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
-          console.log('[찜 추천] 최종 타겟 종목:', allTargetSports)
           
           const recommendedEvents = events.filter(event => {
             const isActive = event.event_status !== 'inactive'
@@ -174,7 +132,15 @@ export function EventsPage() {
             return isActive && hasSubSport && matchesSubSport && isNormal
           })
           
-          console.log('[찜 추천] 최종 추천 행사:', recommendedEvents.length, '개')
+          // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
+          recommendedEvents.sort((a, b) => {
+            const deadlineA = a.registration_deadline || a.end_at || a.date
+            const deadlineB = b.registration_deadline || b.end_at || b.date
+            const dateA = new Date(deadlineA).getTime()
+            const dateB = new Date(deadlineB).getTime()
+            return dateA - dateB
+          })
+          
           setFavoriteBasedEvents(recommendedEvents)
         } catch (err) {
           console.error('찜 목록 로드 오류:', err)
@@ -183,7 +149,6 @@ export function EventsPage() {
           setRecommendedSports([])
         }
       } else {
-        console.log('[찜 추천] 조건 미충족으로 초기화')
         setMyFavorites([])
         setFavoriteBasedEvents([])
         setRecommendedSports([])
@@ -267,16 +232,13 @@ export function EventsPage() {
             return userInterests.includes(event.category)
           })
           
-          // 매칭된 행사들을 날짜 가중치 + 조회수로 정렬
+          // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
           filtered.sort((a, b) => {
-            const today = new Date().toISOString().split('T')[0]
-            const aDateScore = a.date >= today ? 500 : 0
-            const bDateScore = b.date >= today ? 500 : 0
-            
-            const aTotal = aDateScore + Math.log(a.views + 1) * 10
-            const bTotal = bDateScore + Math.log(b.views + 1) * 10
-            
-            return bTotal - aTotal
+            const deadlineA = a.registration_deadline || a.end_at || a.date
+            const deadlineB = b.registration_deadline || b.end_at || b.date
+            const dateA = new Date(deadlineA).getTime()
+            const dateB = new Date(deadlineB).getTime()
+            return dateA - dateB
           })
         } else {
           // 로그인하지 않았거나 관심사가 없으면 빈 배열 반환
@@ -284,8 +246,14 @@ export function EventsPage() {
         }
         break
       case 'latest':
-        // created_at이 없으므로 ID를 기준으로 (ID가 클수록 최신)
-        filtered.sort((a, b) => parseInt(b.id) - parseInt(a.id))
+        // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
+        filtered.sort((a, b) => {
+          const deadlineA = a.registration_deadline || a.end_at || a.date
+          const deadlineB = b.registration_deadline || b.end_at || b.date
+          const dateA = new Date(deadlineA).getTime()
+          const dateB = new Date(deadlineB).getTime()
+          return dateA - dateB
+        })
         break
       case 'popular':
         filtered.sort((a, b) => b.views - a.views)
@@ -528,29 +496,30 @@ export function EventsPage() {
 
             {/* 레이아웃 전환 */}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-700">보기:</span>
-              <div className="flex gap-2">
+              <div className="flex gap-1 rounded-lg border border-surface-subtle bg-white p-1">
                 <button
                   type="button"
                   onClick={() => setLayoutMode('grid')}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  className={`rounded-md p-2 transition ${
                     layoutMode === 'grid'
                       ? 'bg-brand-primary text-white'
-                      : 'bg-surface text-slate-700 hover:bg-slate-200'
+                      : 'text-slate-600 hover:bg-slate-100'
                   }`}
+                  title="그리드 보기"
                 >
-                  그리드
+                  <LayoutGrid size={18} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setLayoutMode('stack')}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  className={`rounded-md p-2 transition ${
                     layoutMode === 'stack'
                       ? 'bg-brand-primary text-white'
-                      : 'bg-surface text-slate-700 hover:bg-slate-200'
+                      : 'text-slate-600 hover:bg-slate-100'
                   }`}
+                  title="리스트 보기"
                 >
-                  리스트
+                  <List size={18} />
                 </button>
               </div>
             </div>
@@ -696,45 +665,24 @@ export function EventsPage() {
 
         {/* 행사 목록 */}
         <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-          {sortBy === 'recommended' && filteredAndSortedEvents.length > 4 ? (
-            <div className="relative">
-              {/* 왼쪽 화살표 */}
-              <button
-                onClick={scrollInterestLeft}
-                className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
-                aria-label="이전"
-              >
-                <ChevronLeft className="h-6 w-6 text-slate-700" />
-              </button>
-
-              {/* 스크롤 컨테이너 */}
-              <div
-                ref={interestScrollRef}
-                className="overflow-x-hidden scrollbar-hide"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                <div className="flex gap-5 pb-4 transition-transform duration-300">
-                  {filteredAndSortedEvents.map((event) => (
-                    <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)] h-[420px]">
-                      <EventCard
-                        event={event}
-                        layout="vertical"
-                        variant="default"
-                        detailHref={`/events/${event.id}`}
-                      />
-                    </div>
-                  ))}
-                </div>
+          {sortBy === 'recommended' ? (
+            <div className="max-h-[600px] overflow-y-auto -mr-6 md:-mr-8">
+              <div className="pr-6 md:pr-8">
+                <EventList
+                  events={filteredAndSortedEvents}
+                  layout="grid"
+                  columns={3}
+                  cardVariant="default"
+                  emptyMessage={
+                    isAuthenticated
+                      ? user?.interests && user.interests.length > 0
+                        ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
+                        : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
+                      : '조건에 맞는 행사가 없습니다.'
+                  }
+                  detailHrefBase="/events/"
+                />
               </div>
-
-              {/* 오른쪽 화살표 */}
-              <button
-                onClick={scrollInterestRight}
-                className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
-                aria-label="다음"
-              >
-                <ChevronRight className="h-6 w-6 text-slate-700" />
-              </button>
             </div>
           ) : (
             <div className={filteredAndSortedEvents.length > 6 ? 'max-h-[850px] overflow-y-auto -mr-6 md:-mr-8' : ''}>
@@ -744,13 +692,7 @@ export function EventsPage() {
                   layout={layoutMode}
                   columns={layoutMode === 'grid' ? 3 : 2}
                   cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
-                  emptyMessage={
-                    sortBy === 'recommended' && isAuthenticated
-                      ? user?.interests && user.interests.length > 0
-                        ? '관심 종목과 일치하는 행사가 없습니다. 다른 종목을 관심사에 추가해보세요.'
-                        : '관심 종목을 설정하면 맞춤 추천을 받을 수 있습니다.'
-                      : '조건에 맞는 행사가 없습니다.'
-                  }
+                  emptyMessage="조건에 맞는 행사가 없습니다."
                   detailHrefBase="/events/"
                 />
               </div>
@@ -792,56 +734,18 @@ export function EventsPage() {
 
             {/* 찜 기반 추천 행사 목록 */}
             <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-              {favoriteBasedEvents.length > 4 ? (
-                <div className="relative">
-                  {/* 왼쪽 화살표 */}
-                  <button
-                    onClick={scrollFavoriteLeft}
-                    className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
-                    aria-label="이전"
-                  >
-                    <ChevronLeft className="h-6 w-6 text-slate-700" />
-                  </button>
-
-                  {/* 스크롤 컨테이너 */}
-                  <div
-                    ref={favoriteScrollRef}
-                    className="overflow-x-hidden scrollbar-hide"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                  >
-                    <div className="flex gap-5 pb-4 transition-transform duration-300">
-                      {favoriteBasedEvents.map((event) => (
-                        <div key={event.id} className="flex-shrink-0 w-[calc(33.333%-0.85rem)] h-[420px]">
-                          <EventCard
-                            event={event}
-                            layout="vertical"
-                            variant="default"
-                            detailHref={`/events/${event.id}`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 오른쪽 화살표 */}
-                  <button
-                    onClick={scrollFavoriteRight}
-                    className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full bg-white p-3 shadow-lg transition hover:bg-slate-50 border border-slate-200"
-                    aria-label="다음"
-                  >
-                    <ChevronRight className="h-6 w-6 text-slate-700" />
-                  </button>
+              <div className="max-h-[600px] overflow-y-auto -mr-6 md:-mr-8">
+                <div className="pr-6 md:pr-8">
+                  <EventList
+                    events={favoriteBasedEvents}
+                    layout="grid"
+                    columns={3}
+                    cardVariant="default"
+                    emptyMessage="찜한 종목과 일치하는 새로운 행사가 없습니다."
+                    detailHrefBase="/events/"
+                  />
                 </div>
-              ) : (
-                <EventList
-                  events={favoriteBasedEvents}
-                  layout={layoutMode}
-                  columns={layoutMode === 'grid' ? 3 : 2}
-                  cardVariant={layoutMode === 'grid' ? 'default' : 'compact'}
-                  emptyMessage="찜한 종목과 일치하는 새로운 행사가 없습니다."
-                  detailHrefBase="/events/"
-                />
-              )}
+              </div>
             </div>
           </div>
         )}
