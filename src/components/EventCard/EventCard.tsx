@@ -67,7 +67,7 @@ export const EventCard = memo(function EventCard({
   const imageClasses = classNames(
     'relative overflow-hidden',
     isCompact
-      ? 'w-28 sm:w-32 md:w-40 h-auto flex-shrink-0 rounded-l-xl'
+      ? 'hidden md:flex md:w-32 lg:w-40 h-auto flex-shrink-0 rounded-l-xl'
       : effectiveLayout === 'horizontal'
         ? 'h-48 w-full md:h-auto md:basis-1/2 flex-shrink-0'
         : 'h-44 w-full',
@@ -83,48 +83,88 @@ export const EventCard = memo(function EventCard({
       tabIndex={onSelect ? 0 : undefined}
       aria-pressed={isActive || undefined}
     >
-      <div className={classNames(imageClasses, isCompact && 'bg-slate-50')}>
-        <img
-          src={(event.image && event.image.trim() !== '') 
-            ? event.image 
-            : getDefaultImage(event.sub_sport, event.sport, event.category)}
-          alt={event.title}
-          className={classNames(
-            'h-full w-full transition duration-200',
-            isCompact ? 'object-contain' : 'object-cover group-hover:scale-105',
+      {!isCompact && (
+        <div className={classNames(imageClasses, 'bg-slate-50')}>
+          <img
+            src={(event.image && event.image.trim() !== '') 
+              ? event.image 
+              : getDefaultImage(event.sub_sport, event.sport, event.category)}
+            alt={event.title}
+            className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+          />
+          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary shadow-sm bg-white/90">
+            {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category || ''}
+          </span>
+          {/* 진행/종료 상태 배지 */}
+          {event.event_status && (
+            <div className={classNames(
+              'absolute right-3 top-3 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm',
+              event.event_status === 'active'
+                ? 'bg-green-100/95 text-green-800 border-green-300'
+                : 'bg-gray-100/95 text-gray-800 border-gray-300'
+            )}>
+              {event.event_status === 'active' ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>진행</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-3 w-3" />
+                  <span>종료</span>
+                </>
+              )}
+            </div>
           )}
-          loading="lazy"
-          decoding="async"
-        />
-        <span className={classNames(
-          'absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold tracking-wide text-brand-secondary shadow-sm',
-          isCompact ? 'bg-white/95' : 'bg-white/90'
-        )}>
-          {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category || ''}
-        </span>
-        {/* 진행/종료 상태 배지 */}
-        {event.event_status && (
-          <div className={classNames(
-            'absolute right-3 top-3 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm',
-            event.event_status === 'active'
-              ? 'bg-green-100/95 text-green-800 border-green-300'
-              : 'bg-gray-100/95 text-gray-800 border-gray-300'
-          )}>
-            {event.event_status === 'active' ? (
-              <>
-                <CheckCircle2 className="h-3 w-3" />
-                <span>진행</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="h-3 w-3" />
-                <span>종료</span>
-              </>
+        </div>
+      )}
+      
+      {/* 데스크탑에서만 이미지 표시 (compact 모드) */}
+      {isCompact && (
+        <div className={classNames(imageClasses, 'bg-slate-50')}>
+          <img
+            src={(event.image && event.image.trim() !== '') 
+              ? event.image 
+              : getDefaultImage(event.sub_sport, event.sport, event.category)}
+            alt={event.title}
+            className="h-full w-full object-contain transition duration-200"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )}
+      <div className={classNames('flex flex-col', bodyPadding, isCompact ? 'gap-2 flex-1' : 'gap-2 flex-1')}>
+        {/* compact 모드일 때: 카테고리와 진행 상태 배지 */}
+        {isCompact && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide text-brand-secondary bg-blue-50 border border-blue-200">
+              {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category || ''}
+            </span>
+            {event.event_status && (
+              <div className={classNames(
+                'flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold',
+                event.event_status === 'active'
+                  ? 'bg-green-50 text-green-700 border-green-300'
+                  : 'bg-gray-50 text-gray-600 border-gray-300'
+              )}>
+                {event.event_status === 'active' ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3" />
+                    <span>진행</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3 w-3" />
+                    <span>종료</span>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}
-      </div>
-      <div className={classNames('flex flex-col', bodyPadding, isCompact ? 'gap-3 flex-1' : 'gap-2 flex-1')}>
+        
         <header className="flex flex-col gap-2">
           {/* 모바일: 제목과 배지를 세로로 배치, 데스크탑: 가로로 배치 */}
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
