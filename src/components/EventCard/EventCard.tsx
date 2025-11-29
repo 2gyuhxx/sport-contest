@@ -67,13 +67,13 @@ export const EventCard = memo(function EventCard({
   const imageClasses = classNames(
     'relative overflow-hidden',
     isCompact
-      ? 'w-48 h-auto flex-shrink-0 rounded-l-xl'
+      ? 'w-28 sm:w-32 md:w-40 h-auto flex-shrink-0 rounded-l-xl'
       : effectiveLayout === 'horizontal'
         ? 'h-48 w-full md:h-auto md:basis-1/2 flex-shrink-0'
         : 'h-44 w-full',
   )
 
-  const bodyPadding = isCompact ? 'p-5' : 'p-5'
+  const bodyPadding = isCompact ? 'p-3 sm:p-4 md:p-5' : 'p-5'
 
   const card = (
     <article
@@ -126,11 +126,14 @@ export const EventCard = memo(function EventCard({
       </div>
       <div className={classNames('flex flex-col', bodyPadding, isCompact ? 'gap-3 flex-1' : 'gap-2 flex-1')}>
         <header className="flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-3">
+          {/* 모바일: 제목과 배지를 세로로 배치, 데스크탑: 가로로 배치 */}
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
             <h3
               className={classNames(
-                'font-bold text-slate-900 flex-1',
-                isCompact ? 'text-base sm:text-lg leading-snug line-clamp-3' : 'text-lg md:text-xl min-h-[3.5rem] line-clamp-2',
+                'font-bold text-slate-900',
+                isCompact 
+                  ? 'text-base sm:text-lg leading-snug line-clamp-3 flex-1' 
+                  : 'text-base sm:text-lg md:text-xl leading-snug line-clamp-3 md:line-clamp-2 md:min-h-[3.5rem] flex-1',
               )}
             >
               {event.title}
@@ -139,8 +142,8 @@ export const EventCard = memo(function EventCard({
             {ddayInfo && (
               <span
                 className={classNames(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold whitespace-nowrap flex-shrink-0',
-                  isCompact ? 'text-sm' : 'text-xs',
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full font-bold whitespace-nowrap self-start md:flex-shrink-0',
+                  isCompact ? 'text-xs sm:text-sm' : 'text-xs',
                   ddayInfo.isPast
                     ? 'bg-gray-100 text-gray-600'
                     : ddayInfo.daysLeft === 0
@@ -150,7 +153,7 @@ export const EventCard = memo(function EventCard({
                         : 'bg-blue-500 text-white shadow-md'
                 )}
               >
-                <Clock className={classNames(isCompact ? 'h-4 w-4' : 'h-3 w-3')} />
+                <Clock className={classNames(isCompact ? 'h-3.5 w-3.5 sm:h-4 sm:w-4' : 'h-3 w-3')} />
                 {ddayInfo.text}
               </span>
             )}
