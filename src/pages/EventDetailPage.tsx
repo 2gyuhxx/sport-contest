@@ -268,7 +268,6 @@ export function EventDetailPage() {
         <div className="mx-auto flex max-w-content flex-col gap-10 px-4 lg:gap-12">
           <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-500">event detail</p>
             <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">{event.title}</h1>
             <p className="mt-2 text-sm text-slate-500">
               {regionLabel} · {event.city}
