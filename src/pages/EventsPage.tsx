@@ -440,7 +440,7 @@ export function EventsPage() {
     <div className="pb-12">
       <div className="mx-auto max-w-content px-6">
         {/* 모바일 추천 빠른 접근 배너 */}
-        {isMobile && isAuthenticated && (filteredAndSortedEventsBasedOnInterests.length > 0 || favoriteBasedEvents.length > 0) && sortBy !== 'recommended' && (
+        {isMobile && isAuthenticated && favoriteBasedEvents.length > 0 && sortBy !== 'recommended' && (
           <div className="mb-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 shadow-md">
             <div className="flex items-center justify-between gap-3">
               <div className="flex-1">
@@ -449,7 +449,7 @@ export function EventsPage() {
                   <h3 className="text-sm font-bold text-slate-900">나를 위한 맞춤 추천</h3>
                 </div>
                 <p className="text-xs text-slate-600">
-                  {filteredAndSortedEventsBasedOnInterests.length + favoriteBasedEvents.length}개의 추천 행사를 확인하세요!
+                  {favoriteBasedEvents.length}개의 추천 행사를 확인하세요!
                 </p>
               </div>
               <button
