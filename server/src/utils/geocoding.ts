@@ -1,28 +1,29 @@
 import axios from 'axios'
 
-const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY
+const NAVER_CLIENT_ID = process.env.NAVER_MAP_CLIENT_ID
+const NAVER_CLIENT_SECRET = process.env.NAVER_MAP_CLIENT_SECRET
 
-interface KakaoGeocodingResult {
-  address_name: string
+interface NaverGeocodingResult {
+  roadAddress: string
+  jibunAddress: string
   x: string // 경도
   y: string // 위도
 }
 
-interface KakaoGeocodingResponse {
-  documents: KakaoGeocodingResult[]
-  meta: {
-    total_count: number
-  }
+interface NaverGeocodingResponse {
+  status: string
+  addresses: NaverGeocodingResult[]
+  errorMessage?: string
 }
 
 /**
- * 카카오맵 API를 사용하여 주소를 좌표로 변환
+ * 네이버맵 API를 사용하여 주소를 좌표로 변환
  * @param address 주소 문자열
  * @returns {lat, lng} 또는 null (변환 실패 시)
  */
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  if (!KAKAO_REST_API_KEY) {
-    console.error('[Geocoding] KAKAO_REST_API_KEY가 설정되지 않았습니다.')
+  if (!NAVER_CLIENT_ID || !NAVER_CLIENT_SECRET) {
+    console.error('[Geocoding] NAVER_MAP_CLIENT_ID 또는 NAVER_MAP_CLIENT_SECRET이 설정되지 않았습니다.')
     return null
   }
 
@@ -35,18 +36,19 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
   const cleanAddress = address.replace(/\([^)]*\)/g, '').trim()
 
   try {
-    const response = await axios.get<KakaoGeocodingResponse>(
-      'https://dapi.kakao.com/v2/local/search/address.json',
+    const response = await axios.get<NaverGeocodingResponse>(
+      'https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode',
       {
         params: { query: cleanAddress },
         headers: {
-          Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
+          'X-NCP-APIGW-API-KEY-ID': NAVER_CLIENT_ID,
+          'X-NCP-APIGW-API-KEY': NAVER_CLIENT_SECRET,
         },
       }
     )
 
-    if (response.data.documents && response.data.documents.length > 0) {
-      const result = response.data.documents[0]
+    if (response.data.status === 'OK' && response.data.addresses && response.data.addresses.length > 0) {
+      const result = response.data.addresses[0]
       const lat = parseFloat(result.y)
       const lng = parseFloat(result.x)
       return { lat, lng }

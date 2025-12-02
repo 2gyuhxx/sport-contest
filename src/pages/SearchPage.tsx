@@ -8,7 +8,7 @@ import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
 import { KOREA_REGION_PATHS } from '../data/koreaRegionPaths'
 import { FavoriteService } from '../services/FavoriteService'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
-import '../types/kakao.d.ts'
+import '../types/naver.d.ts'
 
 type CategoryFilter = 'all' | Category
 
@@ -100,76 +100,127 @@ export function SearchPage() {
   const customOverlayRef = useRef<any>(null) // 시/도용 CustomOverlay
   const sigunguOverlayRef = useRef<any>(null) // 시/군/구용 CustomOverlay
   const koreaBoundsRef = useRef<any>(null) // 대한민국 경계 저장
-  const [kakaoMapsLoaded, setKakaoMapsLoaded] = useState(false)
+  const [naverMapsLoaded, setNaverMapsLoaded] = useState(false)
 
-  // 카카오맵 SDK 로드 확인
+  // 네이버맵 SDK 동적 로드 및 확인
   useEffect(() => {
-    const checkKakaoMaps = () => {
-      if (typeof window !== 'undefined' && window.kakao?.maps) {
-        console.log('[카카오맵] SDK 로드 완료')
-        setKakaoMapsLoaded(true)
+    const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+    
+    if (!clientId) {
+      return
+    }
+
+    const checkNaverMaps = () => {
+      if (typeof window !== 'undefined' && window.naver?.maps) {
+        setNaverMapsLoaded(true)
         return true
       }
       return false
     }
     
-    // 즉시 체크
-    if (checkKakaoMaps()) {
+    // 이미 로드되어 있으면 즉시 체크
+    if (checkNaverMaps()) {
       return
     }
-    
-    console.log('[카카오맵] SDK 로드 대기 중...')
-    
-    // 주기적으로 체크 (최대 10초)
-    let checkCount = 0
-    const maxChecks = 100 // 10초
-    
-    const interval = setInterval(() => {
-      checkCount++
-      if (checkKakaoMaps()) {
-        clearInterval(interval)
-      } else if (checkCount >= maxChecks) {
-        console.error('[카카오맵] SDK 로드 실패 - 10초 타임아웃')
-        console.error('[카카오맵] window.kakao:', window.kakao)
-        clearInterval(interval)
+
+    // 스크립트가 이미 로드 중인지 확인
+    const existingScript = document.querySelector(`script[src*="naver.com/openapi"]`)
+    if (existingScript) {
+      // 이미 스크립트가 있으면 주기적으로 체크
+      let checkCount = 0
+      const maxChecks = 100
+      const interval = setInterval(() => {
+        checkCount++
+        if (checkNaverMaps()) {
+          clearInterval(interval)
+        } else if (checkCount >= maxChecks) {
+          clearInterval(interval)
+        }
+      }, 100)
+      return () => clearInterval(interval)
+    }
+
+    // 스크립트 동적 로드
+    const script = document.createElement('script')
+    script.type = 'text/javascript'
+    // 신규 Maps API: ncpKeyId 사용 (기존 ncpClientId도 지원하지만 신규 API 권장)
+    // 공지사항에 따라 신규 API로 전환 시 ncpKeyId 사용
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`
+    script.async = true
+    script.onload = () => {
+      if (checkNaverMaps()) {
+        return
       }
-    }, 100)
-    
+      // 로드 후에도 주기적으로 체크
+      let checkCount = 0
+      const maxChecks = 100
+      const interval = setInterval(() => {
+        checkCount++
+        if (checkNaverMaps()) {
+          clearInterval(interval)
+        } else if (checkCount >= maxChecks) {
+          clearInterval(interval)
+        }
+      }, 100)
+    }
+    script.onerror = () => {
+      // 스크립트 로드 실패 시 조용히 처리
+    }
+    document.head.appendChild(script)
+
     return () => {
-      clearInterval(interval)
+      // cleanup은 스크립트는 제거하지 않음 (다른 곳에서 사용할 수 있음)
     }
   }, [])
 
-  // 카카오맵 초기화
+  // 네이버맵 초기화
   useEffect(() => {
-    if (!mapContainerRef.current || !kakaoMapsLoaded) return
-    
-    // LatLng 생성자가 사용 가능한지 확인
-    if (!window.kakao?.maps?.LatLng || typeof window.kakao.maps.LatLng !== 'function') {
+    if (!mapContainerRef.current || !naverMapsLoaded) {
       return
     }
+    
+    // 네이버맵 API 사용 가능 여부 확인
+    if (!window.naver?.maps || !window.naver.maps.Map || !window.naver.maps.LatLng) {
+      return
+    }
+    
     const container = mapContainerRef.current
+    
+    // 네이버맵은 container ID 문자열 또는 HTMLElement를 받습니다
     const options = {
-      center: new window.kakao.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
-      level: 13, // 대한민국 전체가 보이는 레벨
+      center: new window.naver.maps.LatLng(36.5, 127.8), // 대한민국 중심 (제주 포함)
+      zoom: 7, // 대한민국 전체가 보이는 줌 레벨 (네이버맵은 0-21, 카카오맵 level 13과 유사)
+      minZoom: 6, // 최소 줌 레벨 (숫자가 작을수록 확대)
+      maxZoom: 21, // 최대 줌 레벨 (네이버맵 최대값)
     }
 
-    const map = new window.kakao.maps.Map(container, options)
-    mapRef.current = map
+    let map: any
+    try {
+      map = new window.naver.maps.Map(container, options)
+      mapRef.current = map
+      
+      // 지도 ready 이벤트 리스너 추가
+      window.naver.maps.Event.addListener(map, 'init', () => {
+        // 지도가 준비되면 강제로 리사이즈 (렌더링 문제 해결)
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.refresh()
+          }
+        }, 100)
+      })
+    } catch (error) {
+      return
+    }
 
-    // 지도 타입 컨트롤 및 줌 컨트롤 제거
-    map.setZoomable(true) // 줌은 가능하게
-    map.setDraggable(true) // 드래그 가능하게
-
-    // 지도 레벨 제한 (대한민국만 보이도록)
-    map.setMinLevel(8) // 최대 확대 레벨 (숫자가 작을수록 확대)
-    map.setMaxLevel(13) // 최대 축소 레벨 (대한민국 전체가 보이는 정도)
+    if (!map) {
+      return
+    }
 
     // 지도 이동 시 범위 체크
-    window.kakao.maps.event.addListener(map, 'dragend', () => {
+    window.naver.maps.Event.addListener(map, 'dragend', () => {
       const center = map.getCenter()
-      const lat = center.getLat()
-      const lng = center.getLng()
+      const lat = center.lat()
+      const lng = center.lng()
 
       // 범위를 벗어나면 다시 범위 안으로 이동
       let newLat = lat
@@ -181,20 +232,14 @@ export function SearchPage() {
       if (lng > 131.9) newLng = 131.9
 
       if (newLat !== lat || newLng !== lng) {
-        map.setCenter(new window.kakao.maps.LatLng(newLat, newLng))
+        map.setCenter(new window.naver.maps.LatLng(newLat, newLng))
       }
     })
 
-    // 줌 변경 시 범위 체크
-    window.kakao.maps.event.addListener(map, 'zoom_changed', () => {
-      const level = map.getLevel()
-      if (level > 13) {
-        map.setLevel(13)
-      }
-    })
+    // 줌 변경 시 범위 체크 (제거: maxZoom 옵션으로 자동 제한됨)
 
     // 지도 클릭 시 InfoWindow 닫기
-    window.kakao.maps.event.addListener(map, 'click', () => {
+    window.naver.maps.Event.addListener(map, 'click', () => {
       if (infowindowRef.current) {
         infowindowRef.current.close()
         currentMarkerRef.current = null
@@ -202,21 +247,15 @@ export function SearchPage() {
     })
 
     // 공유 InfoWindow 생성
-    infowindowRef.current = new window.kakao.maps.InfoWindow({
-      removable: true,
+    infowindowRef.current = new window.naver.maps.InfoWindow({
+      disableAnchor: false,
     })
 
-    // CustomOverlay 생성 (시/도용)
-    customOverlayRef.current = new window.kakao.maps.CustomOverlay({
-      yAnchor: 1,
-      zIndex: 1000, // 최상단에 표시
-    })
+    // CustomOverlay 생성 (시/도용) - 네이버맵은 HTMLOverlay 사용
+    customOverlayRef.current = null // 네이버맵에서는 필요시 HTMLOverlay 사용
     
-    // CustomOverlay 생성 (시/군/구용)
-    sigunguOverlayRef.current = new window.kakao.maps.CustomOverlay({
-      yAnchor: 1,
-      zIndex: 1000, // 최상단에 표시
-    })
+    // CustomOverlay 생성 (시/군/구용) - 네이버맵은 HTMLOverlay 사용
+    sigunguOverlayRef.current = null // 네이버맵에서는 필요시 HTMLOverlay 사용
 
     // 대한민국 외 모든 지역 가리기 (바다, 북한, 주변국 포함)
     const overlayColor = '#f0f4f7'
@@ -242,7 +281,7 @@ export function SearchPage() {
                   if (coord[1] > maxLat) maxLat = coord[1]
                   if (coord[0] < minLng) minLng = coord[0]
                   if (coord[0] > maxLng) maxLng = coord[0]
-                  return new window.kakao.maps.LatLng(coord[1], coord[0])
+                  return new window.naver.maps.LatLng(coord[1], coord[0])
                 })
               koreaHoles.push(hole)
             })
@@ -256,7 +295,7 @@ export function SearchPage() {
                 if (coord[1] > maxLat) maxLat = coord[1]
                 if (coord[0] < minLng) minLng = coord[0]
                 if (coord[0] > maxLng) maxLng = coord[0]
-                return new window.kakao.maps.LatLng(coord[1], coord[0])
+                return new window.naver.maps.LatLng(coord[1], coord[0])
               })
             koreaHoles.push(hole)
           }
@@ -266,58 +305,57 @@ export function SearchPage() {
         const latPadding = (maxLat - minLat) * 0.02  // 상하 2% 여유
         const lngWidth = maxLng - minLng
         
-        const sw = new window.kakao.maps.LatLng(minLat - latPadding, minLng + lngWidth * 0.07) // 왼쪽 7% 자름
-        const ne = new window.kakao.maps.LatLng(maxLat + latPadding, maxLng - lngWidth * 0.07) // 오른쪽 7% 자름
-        const koreaBounds = new window.kakao.maps.LatLngBounds()
-        koreaBounds.extend(sw)
-        koreaBounds.extend(ne)
+        const sw = new window.naver.maps.LatLng(minLat - latPadding, minLng + lngWidth * 0.07) // 왼쪽 7% 자름
+        const ne = new window.naver.maps.LatLng(maxLat + latPadding, maxLng - lngWidth * 0.07) // 오른쪽 7% 자름
+        const koreaBounds = new window.naver.maps.LatLngBounds(sw, ne)
         
         // ref에 저장하여 나중에 재사용
         koreaBoundsRef.current = koreaBounds
         
         // 지도가 이 영역을 벗어나지 못하도록 설정
-        map.setMaxLevel(13) // 최대 축소 레벨
+        map.setOptions({ maxZoom: 21 }) // 최대 줌 레벨
         
         // 드래그 종료 시 영역 체크
-        window.kakao.maps.event.addListener(map, 'dragend', () => {
+        window.naver.maps.Event.addListener(map, 'dragend', () => {
           const bounds = map.getBounds()
-          const mapSW = bounds.getSouthWest()
-          const mapNE = bounds.getNorthEast()
           
           // 현재 보이는 영역이 대한민국 경계를 벗어났는지 체크
-          if (!koreaBounds.contain(mapSW) || !koreaBounds.contain(mapNE)) {
+          if (koreaBoundsRef.current && !koreaBoundsRef.current.hasBounds(bounds)) {
             // 대한민국 경계 안으로 다시 이동
-            map.setBounds(koreaBounds)
+            map.fitBounds(koreaBoundsRef.current)
           }
         })
         
         // 초기에 대한민국 전체가 보이도록 설정
-        map.setBounds(koreaBounds)
+        map.fitBounds(koreaBounds)
         
         // 전체를 덮는 큰 박스 (외부 경로) - 화면 전체를 완전히 덮도록 확장
         const outerBox = [
-          new window.kakao.maps.LatLng(50.0, 120.0),  // 좌상단 (더 넓게)
-          new window.kakao.maps.LatLng(50.0, 135.0),  // 우상단 (더 넓게)
-          new window.kakao.maps.LatLng(30.0, 135.0),  // 우하단 (더 넓게)
-          new window.kakao.maps.LatLng(30.0, 120.0),  // 좌하단 (더 넓게)
+          new window.naver.maps.LatLng(50.0, 120.0),  // 좌상단 (더 넓게)
+          new window.naver.maps.LatLng(50.0, 135.0),  // 우상단 (더 넓게)
+          new window.naver.maps.LatLng(30.0, 135.0),  // 우하단 (더 넓게)
+          new window.naver.maps.LatLng(30.0, 120.0),  // 좌하단 (더 넓게)
         ]
         
         // path: [외부박스, ...대한민국구멍들]
         const polygonPath = [outerBox, ...koreaHoles]
         
-        new window.kakao.maps.Polygon({
+        new window.naver.maps.Polygon({
           map: map,
-          path: polygonPath,
+          paths: polygonPath,
           strokeWeight: 2,
           strokeColor: '#10b981',
           strokeOpacity: 0.9,
           strokeStyle: 'solid',
           fillColor: overlayColor,
           fillOpacity: 1.0,
+          clickable: false, // 외부 영역은 클릭 불가
         })
         
       })
-      .catch(error => console.error('GeoJSON 로드 실패:', error))
+      .catch(() => {
+        // GeoJSON 로드 실패 시 조용히 처리
+      })
 
     // 지역별 Polygon 생성
     const REGION_INFO: Record<string, { name: string; shortName: string; emoji: string }> = {
@@ -369,31 +407,41 @@ export function SearchPage() {
       const regionInfo = REGION_INFO[regionId]
       if (!regionInfo) return
 
-      const polygon = new window.kakao.maps.Polygon({
+      // 광역시는 더 높은 z-index로 설정 (전라남도 등 큰 지역 위에 표시되도록)
+      const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(regionId)
+      const baseZIndex = isMetropolitan ? 5 : 1
+
+      const polygon = new window.naver.maps.Polygon({
         map: map,
-        path: polygonPath,
-        strokeWeight: 2,
+        paths: polygonPath,
+        strokeWeight: 2.5,
         strokeColor: '#10b981',
-        strokeOpacity: 0.9,
+        strokeOpacity: 1,
         strokeStyle: 'solid',
         fillColor: '#fff',
-        fillOpacity: 0.05,
+        fillOpacity: 0.3, // 클릭 가능하도록 투명도 조정 (너무 낮으면 클릭 안됨)
+        clickable: true, // 클릭 가능하도록 설정
+        zIndex: baseZIndex, // 광역시는 더 높은 z-index로 설정
       })
 
       // 각 폴리곤에 원래 opacity와 strokeColor 저장
-      ;(polygon as any)._originalOpacity = 0.05
+      ;(polygon as any)._originalOpacity = 0.3
       ;(polygon as any)._originalStrokeColor = '#10b981'
       
       // mouseover, mousemove, mouseout 이벤트 제거 (시/도는 hover 효과 없음)
 
       // click 이벤트 - 지역 확대 및 시/군/구 경계선 표시
-      window.kakao.maps.event.addListener(polygon, 'click', function() {
+      window.naver.maps.Event.addListener(polygon, 'click', function() {
         // InfoWindow와 CustomOverlay 닫기
-        infowindowRef.current.close()
-        customOverlayRef.current.setMap(null)
+        if (infowindowRef.current) {
+          infowindowRef.current.close()
+        }
+        if (customOverlayRef.current) {
+          customOverlayRef.current.setMap(null)
+        }
         
         // 클릭된 폴리곤의 스타일을 원래대로 복원
-        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.05 })
+        polygon.setOptions({ fillColor: '#fff', fillOpacity: 0.3 })
         
         // 선택된 지역 설정
         setSelectedRegion(regionId)
@@ -403,23 +451,40 @@ export function SearchPage() {
         // 메인 지도 해당 지역으로 이동 및 확대
         const coords = REGION_COORDINATES[regionId]
         if (coords && mapRef.current) {
-          mapRef.current.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng))
-          mapRef.current.setLevel(coords.level)
+          mapRef.current.setCenter(new window.naver.maps.LatLng(coords.lat, coords.lng))
+          // 광역시는 더 확대 (zoom 10-11), 일반 도는 zoom 8-9
+          const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(regionId)
+          const zoom = isMetropolitan 
+            ? 10 // 광역시는 더 확대
+            : Math.max(8, Math.min(9, 14 - coords.level + 2)) // 일반 도는 기존 로직
+          mapRef.current.setZoom(zoom)
         }
         
-        // 선택된 지역은 숨기고, 나머지 지역들은 뿌옇게 표시하고 테두리를 흰색으로 변경
+        // 선택된 지역은 경계선을 강조하고, 나머지 지역들은 뿌옇게 표시
         polygonsRef.current.forEach(({ polygon: p, regionId: rid }) => {
           if (rid === regionId) {
-            p.setMap(null) // 선택된 지역은 숨김
+            // 선택된 지역: 경계선을 두껍고 명확하게 표시
+            p.setMap(mapRef.current)
+            p.setOptions({ 
+              fillColor: '#fff', 
+              fillOpacity: 0.1, // 거의 투명하게
+              strokeColor: '#10b981', // 초록색 경계선
+              strokeWeight: 3, // 두꺼운 경계선
+              strokeOpacity: 1, // 완전 불투명
+              zIndex: 10 // 다른 지역보다 위에 표시
+            })
           } else {
-            p.setMap(mapRef.current) // 다른 지역은 표시
+            // 다른 지역: 뿌옇게 표시하고 테두리를 흰색으로
+            p.setMap(mapRef.current)
             p.setOptions({ 
               fillColor: '#fff', 
               fillOpacity: 0.5, // 뿌옇게
               strokeColor: '#ffffff', // 테두리를 흰색으로
-              strokeOpacity: 0.9
+              strokeWeight: 2,
+              strokeOpacity: 0.5,
+              zIndex: 1
             })
-            ;(p as any)._originalOpacity = 0.5 // 원래 opacity 업데이트
+            ;(p as any)._originalOpacity = 0.5 // 원래 opacity 업데이트 (선택된 지역 외 나머지)
           }
         })
       })
@@ -431,11 +496,14 @@ export function SearchPage() {
     fetch('/korea-regions.geojson')
       .then(response => response.json())
       .then((geojson: any) => {
+        const loadedRegionIds = new Set<string>()
+        
         geojson.features.forEach((feature: any) => {
           const regionName = feature.properties.name
           const regionId = getRegionIdFromName(regionName)
           if (!regionId) return
 
+          loadedRegionIds.add(regionId)
           const geometry = feature.geometry
           
           if (geometry.type === 'MultiPolygon') {
@@ -443,12 +511,12 @@ export function SearchPage() {
             geometry.coordinates.forEach((polygon: any) => {
               // polygon[0]이 외곽선 좌표 배열
               const outerRing = polygon[0]
-              // 성능을 위해 좌표 간소화 (10개 중 1개만 사용)
-              const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 10 === 0)
+              // 성능을 위해 좌표 간소화 (3개 중 1개만 사용 - 더 부드러운 경계선)
+              const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 3 === 0)
               
               // [경도, 위도] -> LatLng(위도, 경도) 변환
               const polygonPath = simplifiedCoords.map((coord: number[]) => 
-                new window.kakao.maps.LatLng(coord[1], coord[0])
+                new window.naver.maps.LatLng(coord[1], coord[0])
               )
               
               // 유효한 좌표가 있을 때만 폴리곤 생성
@@ -459,9 +527,10 @@ export function SearchPage() {
           } else if (geometry.type === 'Polygon') {
             // 단일 Polygon 처리
             const outerRing = geometry.coordinates[0]
-            const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 10 === 0)
+            // 성능을 위해 좌표 간소화 (3개 중 1개만 사용 - 더 부드러운 경계선)
+            const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 3 === 0)
             const polygonPath = simplifiedCoords.map((coord: number[]) => 
-              new window.kakao.maps.LatLng(coord[1], coord[0])
+              new window.naver.maps.LatLng(coord[1], coord[0])
             )
             
             if (polygonPath.length >= 3) {
@@ -469,12 +538,22 @@ export function SearchPage() {
             }
           }
         })
+        
+        // GeoJSON에 없는 지역은 KOREA_REGION_PATHS에서 보완
+        Object.entries(KOREA_REGION_PATHS).forEach(([regionId, path]) => {
+          if (!loadedRegionIds.has(regionId)) {
+            const polygonPath = path.map(coord => new window.naver.maps.LatLng(coord.lat, coord.lng))
+            if (polygonPath.length >= 3) {
+              createPolygon(regionId, polygonPath)
+            }
+          }
+        })
       })
-      .catch(error => {
-        console.error('GeoJSON 로드 실패, 기본 데이터 사용:', error)
+      .catch(() => {
+        // GeoJSON 로드 실패 시 기본 데이터 사용
         // Fallback: 기본 데이터 사용
         Object.entries(KOREA_REGION_PATHS).forEach(([regionId, path]) => {
-          const polygonPath = path.map(coord => new window.kakao.maps.LatLng(coord.lat, coord.lng))
+          const polygonPath = path.map(coord => new window.naver.maps.LatLng(coord.lat, coord.lng))
           createPolygon(regionId, polygonPath)
         })
       })
@@ -490,17 +569,22 @@ export function SearchPage() {
         customOverlayRef.current.setMap(null)
       }
     }
-  }, [kakaoMapsLoaded])
+  }, [naverMapsLoaded])
 
   // 지역 선택 시 지도 이동
   useEffect(() => {
     if (!mapRef.current || !selectedRegion) return
 
     const coords = REGION_COORDINATES[selectedRegion]
-    if (coords) {
-      const moveLatLon = new window.kakao.maps.LatLng(coords.lat, coords.lng)
+    if (coords && mapRef.current) {
+      const moveLatLon = new window.naver.maps.LatLng(coords.lat, coords.lng)
       mapRef.current.setCenter(moveLatLon)
-      mapRef.current.setLevel(coords.level)
+      // 광역시는 더 확대 (zoom 10-11), 일반 도는 zoom 8-9
+      const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(selectedRegion)
+      const zoom = isMetropolitan 
+        ? 11 // 광역시는 더 확대
+        : Math.max(8, Math.min(9, 14 - coords.level + 2)) // 일반 도는 기존 로직
+      mapRef.current.setZoom(zoom)
     }
   }, [selectedRegion])
 
@@ -589,7 +673,7 @@ export function SearchPage() {
         } catch (err: any) {
           // 인증 오류는 조용히 처리
           if (err?.status !== 403 && err?.status !== 401) {
-            console.error('찜 목록 로드 오류:', err)
+            // 찜 목록 로드 오류 시 조용히 처리
           }
         }
         
@@ -632,7 +716,7 @@ export function SearchPage() {
     markersRef.current.forEach(marker => marker.setMap(null))
     markersRef.current = []
 
-    if (!kakaoMapsLoaded || !mapRef.current || !window.kakao?.maps) {
+    if (!naverMapsLoaded || !mapRef.current || !window.naver?.maps) {
       return
     }
 
@@ -644,8 +728,6 @@ export function SearchPage() {
     if (!filteredEvents.length) {
       return
     }
-
-    const geocoder = new window.kakao.maps.services.Geocoder()
     
     // 추천 이벤트 ID 세트 (빠른 조회용)
     const recommendedEventIds = new Set(recommendedEvents.map(e => e.id))
@@ -664,20 +746,21 @@ export function SearchPage() {
       
       // 추천 이벤트면 노란색 마커 이미지 사용
       if (isRecommended) {
-        const imageSize = new window.kakao.maps.Size(24, 35)
-        const markerImage = new window.kakao.maps.MarkerImage(
-          'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
-          imageSize
-        )
-        markerOptions.image = markerImage
+        markerOptions.icon = {
+          url: 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+          size: new window.naver.maps.Size(24, 35),
+          anchor: new window.naver.maps.Point(12, 35),
+        }
       }
       
-      const marker = new window.kakao.maps.Marker(markerOptions)
+      const marker = new window.naver.maps.Marker(markerOptions)
 
       // 마커 클릭 이벤트
-      window.kakao.maps.event.addListener(marker, 'click', () => {
+      window.naver.maps.Event.addListener(marker, 'click', () => {
         if (currentMarkerRef.current === marker) {
-          infowindowRef.current.close()
+          if (infowindowRef.current) {
+            infowindowRef.current.close()
+          }
           currentMarkerRef.current = null
           return
         }
@@ -698,8 +781,10 @@ export function SearchPage() {
             </div>
           </div>
         `
-        infowindowRef.current.setContent(content)
-        infowindowRef.current.open(mapRef.current, marker)
+        if (infowindowRef.current) {
+          infowindowRef.current.setContent(content)
+          infowindowRef.current.open(mapRef.current, marker)
+        }
         currentMarkerRef.current = marker
         handleEventSelect(event)
       })
@@ -711,12 +796,12 @@ export function SearchPage() {
     filteredEvents.forEach((event) => {
       // 1순위: DB 좌표 사용
       if (event.lat && event.lng) {
-        const coords = new window.kakao.maps.LatLng(event.lat, event.lng)
+        const coords = new window.naver.maps.LatLng(event.lat, event.lng)
         createMarker(event, coords)
         return
       }
 
-      // 2순위: Geocoding (DB에 좌표가 없는 경우만)
+      // 2순위: Geocoding (DB에 좌표가 없는 경우만) - 네이버 Geocoding API 사용
       const address = event.address || event.venue
       if (!address) {
         return
@@ -731,24 +816,32 @@ export function SearchPage() {
         searchQuery = `${regionName} ${event.city}`
       }
 
-      // 주소 검색
-      geocoder.addressSearch(searchQuery, (result: any[], status: string) => {
-        if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
-          const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x)
-          createMarker(event, coords)
-        } else {
-          // 장소 검색
-          const places = new window.kakao.maps.services.Places()
-          places.keywordSearch(searchQuery, (placeResult: any[], placeStatus: string) => {
-            if (placeStatus === window.kakao.maps.services.Status.OK && placeResult.length > 0) {
-              const coords = new window.kakao.maps.LatLng(placeResult[0].y, placeResult[0].x)
+      // 네이버 Geocoding API 호출 (REST API)
+      const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+      const clientSecret = import.meta.env.VITE_NAVER_MAP_CLIENT_SECRET
+      
+      if (clientId && clientSecret) {
+        const encodedQuery = encodeURIComponent(searchQuery)
+        fetch(`https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodedQuery}`, {
+          headers: {
+            'X-NCP-APIGW-API-KEY-ID': clientId,
+            'X-NCP-APIGW-API-KEY': clientSecret,
+          },
+        })
+          .then(response => response.json())
+          .then((data: any) => {
+            if (data.status === 'OK' && data.addresses && data.addresses.length > 0) {
+              const addr = data.addresses[0]
+              const coords = new window.naver.maps.LatLng(parseFloat(addr.y), parseFloat(addr.x))
               createMarker(event, coords)
             }
           })
-        }
-      })
+          .catch(() => {
+            // 네이버 Geocoding API 오류 시 조용히 처리
+          })
+      }
     })
-  }, [filteredEvents, handleEventSelect, selectedRegion, kakaoMapsLoaded, recommendedEvents])
+  }, [filteredEvents, handleEventSelect, selectedRegion, naverMapsLoaded, recommendedEvents])
 
   useEffect(() => {
     setCategoryFilter(initialCategory)
@@ -760,7 +853,7 @@ export function SearchPage() {
 
   // 시/군/구 경계선 표시 (메인 지도에)
   useEffect(() => {
-    if (!showDetailMap || !mapRef.current || !window.kakao?.maps || !selectedRegion) {
+    if (!showDetailMap || !mapRef.current || !window.naver?.maps || !selectedRegion) {
       return
     }
 
@@ -828,19 +921,20 @@ export function SearchPage() {
                 const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
                 
                 const polygonPath = simplifiedCoords.map((coord: number[]) => 
-                  new window.kakao.maps.LatLng(coord[1], coord[0])
+                  new window.naver.maps.LatLng(coord[1], coord[0])
                 )
                 
                 if (polygonPath.length >= 3) {
-                  const detailPolygon = new window.kakao.maps.Polygon({
+                  const detailPolygon = new window.naver.maps.Polygon({
                     map: mapRef.current, // 메인 지도에 그리기
-                    path: polygonPath,
+                    paths: polygonPath,
                     strokeWeight: 2,
                     strokeColor: '#10b981',
                     strokeOpacity: 0.9,
                     strokeStyle: 'solid',
                     fillColor: '#10b981',
                     fillOpacity: 0.05, // 매우 투명하게
+                    clickable: true, // 클릭 가능하도록 설정
                   })
 
                   // 같은 이름의 polygon 그룹에 추가
@@ -850,7 +944,7 @@ export function SearchPage() {
                   polygonGroups[sigunguName].push(detailPolygon)
 
                   // mouseover 이벤트 - 툴팁 표시 및 스타일 변경
-                  window.kakao.maps.event.addListener(detailPolygon, 'mouseover', function() {
+                  window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function() {
                     // 기존 mouseout 타이머 취소
                     if (mouseoutTimeoutRef.current) {
                       clearTimeout(mouseoutTimeoutRef.current)
@@ -886,27 +980,33 @@ export function SearchPage() {
                       let pointCount = 0
                       
                       polygonPath.forEach((latlng: any) => {
-                        centerLat += latlng.getLat()
-                        centerLng += latlng.getLng()
+                        centerLat += latlng.lat()
+                        centerLng += latlng.lng()
                         pointCount++
                       })
                       
                       if (pointCount > 0) {
                         centerLat /= pointCount
                         centerLng /= pointCount
-                        const centerPosition = new window.kakao.maps.LatLng(centerLat, centerLng)
+                        const centerPosition = new window.naver.maps.LatLng(centerLat, centerLng)
                         
-                        const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`
-                        sigunguOverlayRef.current.setContent(content)
-                        sigunguOverlayRef.current.setPosition(centerPosition)
-                        sigunguOverlayRef.current.setMap(mapRef.current)
+                        // 네이버맵은 HTMLOverlay를 사용하거나 InfoWindow를 사용
+                        if (!sigunguOverlayRef.current) {
+                          sigunguOverlayRef.current = new window.naver.maps.InfoWindow({
+                            content: `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`,
+                            disableAnchor: true,
+                          })
+                        } else {
+                          sigunguOverlayRef.current.setContent(`<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`)
+                        }
+                        sigunguOverlayRef.current.open(mapRef.current, centerPosition)
                         currentTooltipNameRef.current = sigunguName
                       }
                     }
                   })
 
                   // mouseout 이벤트
-                  window.kakao.maps.event.addListener(detailPolygon, 'mouseout', function() {
+                  window.naver.maps.Event.addListener(detailPolygon, 'mouseout', function() {
                     // 약간의 지연 후 색상 복원 및 툴팁 숨기기 (다른 polygon으로 빠르게 이동할 때 깜빡임 방지)
                     mouseoutTimeoutRef.current = setTimeout(() => {
                       // 같은 이름의 polygon이 여전히 활성화되어 있지 않으면 색상 복원
@@ -920,7 +1020,7 @@ export function SearchPage() {
                       }
                       
                       if (sigunguOverlayRef.current) {
-                        sigunguOverlayRef.current.setMap(null)
+                        sigunguOverlayRef.current.close()
                         currentTooltipNameRef.current = null
                       }
                       mouseoutTimeoutRef.current = null
@@ -928,14 +1028,14 @@ export function SearchPage() {
                   })
 
                   // click 이벤트 - 해당 시/군/구로 확대
-                  window.kakao.maps.event.addListener(detailPolygon, 'click', function() {
+                  window.naver.maps.Event.addListener(detailPolygon, 'click', function() {
                     // 선택된 시/군/구 저장 (오른쪽 위 라벨 업데이트)
                     setSelectedCity(sigunguName)
                     
                     // 폴리곤의 경계로 지도 확대
-                    const bounds = new window.kakao.maps.LatLngBounds()
+                    const bounds = new window.naver.maps.LatLngBounds()
                     polygonPath.forEach((latlng: any) => bounds.extend(latlng))
-                    mapRef.current.setBounds(bounds)
+                    mapRef.current.fitBounds(bounds)
                   })
 
                   detailPolygonsRef.current.push(detailPolygon)
@@ -945,19 +1045,20 @@ export function SearchPage() {
               const outerRing = geometry.coordinates[0]
               const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
               const polygonPath = simplifiedCoords.map((coord: number[]) => 
-                new window.kakao.maps.LatLng(coord[1], coord[0])
+                new window.naver.maps.LatLng(coord[1], coord[0])
               )
               
               if (polygonPath.length >= 3) {
-                const detailPolygon = new window.kakao.maps.Polygon({
+                const detailPolygon = new window.naver.maps.Polygon({
                   map: mapRef.current, // 메인 지도에 그리기
-                  path: polygonPath,
+                  paths: polygonPath,
                   strokeWeight: 2,
                   strokeColor: '#10b981',
                   strokeOpacity: 0.9,
                   strokeStyle: 'solid',
                   fillColor: '#10b981',
                   fillOpacity: 0.05, // 매우 투명하게
+                  clickable: true, // 클릭 가능하도록 설정
                 })
 
                 // 같은 이름의 polygon 그룹에 추가
@@ -967,7 +1068,7 @@ export function SearchPage() {
                 polygonGroups[sigunguName].push(detailPolygon)
 
                 // mouseover 이벤트 - 툴팁 표시 및 스타일 변경
-                window.kakao.maps.event.addListener(detailPolygon, 'mouseover', function() {
+                window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function() {
                   // 기존 mouseout 타이머 취소
                   if (mouseoutTimeoutRef.current) {
                     clearTimeout(mouseoutTimeoutRef.current)
@@ -1003,27 +1104,33 @@ export function SearchPage() {
                     let pointCount = 0
                     
                     polygonPath.forEach((latlng: any) => {
-                      centerLat += latlng.getLat()
-                      centerLng += latlng.getLng()
+                      centerLat += latlng.lat()
+                      centerLng += latlng.lng()
                       pointCount++
                     })
                     
                     if (pointCount > 0) {
                       centerLat /= pointCount
                       centerLng /= pointCount
-                      const centerPosition = new window.kakao.maps.LatLng(centerLat, centerLng)
+                      const centerPosition = new window.naver.maps.LatLng(centerLat, centerLng)
                       
-                      const content = `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`
-                      sigunguOverlayRef.current.setContent(content)
-                      sigunguOverlayRef.current.setPosition(centerPosition)
-                      sigunguOverlayRef.current.setMap(mapRef.current)
+                      // 네이버맵은 HTMLOverlay를 사용하거나 InfoWindow를 사용
+                      if (!sigunguOverlayRef.current) {
+                        sigunguOverlayRef.current = new window.naver.maps.InfoWindow({
+                          content: `<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`,
+                          disableAnchor: true,
+                        })
+                      } else {
+                        sigunguOverlayRef.current.setContent(`<div style="padding: 8px 12px; background: white; border: 1px solid #10b981; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; pointer-events: none;">${sigunguName}</div>`)
+                      }
+                      sigunguOverlayRef.current.open(mapRef.current, centerPosition)
                       currentTooltipNameRef.current = sigunguName
                     }
                   }
                 })
 
                 // mouseout 이벤트
-                window.kakao.maps.event.addListener(detailPolygon, 'mouseout', function() {
+                window.naver.maps.Event.addListener(detailPolygon, 'mouseout', function() {
                   // 약간의 지연 후 색상 복원 및 툴팁 숨기기 (다른 polygon으로 빠르게 이동할 때 깜빡임 방지)
                   mouseoutTimeoutRef.current = setTimeout(() => {
                     // 같은 이름의 polygon이 여전히 활성화되어 있지 않으면 색상 복원
@@ -1037,21 +1144,21 @@ export function SearchPage() {
                     }
                     
                     if (sigunguOverlayRef.current) {
-                      sigunguOverlayRef.current.setMap(null)
+                      sigunguOverlayRef.current.close()
                       currentTooltipNameRef.current = null
                     }
                     mouseoutTimeoutRef.current = null
                   }, 50) as unknown as number // 지연 시간을 줄여서 더 빠르게 반응
                 })
 
-                window.kakao.maps.event.addListener(detailPolygon, 'click', function() {
+                window.naver.maps.Event.addListener(detailPolygon, 'click', function() {
                   // 선택된 시/군/구 저장 (오른쪽 위 라벨 업데이트)
                   setSelectedCity(sigunguName)
                   
                   // 폴리곤의 경계로 지도 확대
-                  const bounds = new window.kakao.maps.LatLngBounds()
+                  const bounds = new window.naver.maps.LatLngBounds()
                   polygonPath.forEach((latlng: any) => bounds.extend(latlng))
-                  mapRef.current.setBounds(bounds)
+                  mapRef.current.fitBounds(bounds)
                 })
 
                 detailPolygonsRef.current.push(detailPolygon)
@@ -1060,8 +1167,8 @@ export function SearchPage() {
           }
         })
       })
-      .catch(error => {
-        console.error('[상세 지도] GeoJSON 로드 실패:', error)
+      .catch(() => {
+        // GeoJSON 로드 실패 시 조용히 처리
       })
 
     return () => {
@@ -1085,19 +1192,19 @@ export function SearchPage() {
       try {
         if (koreaBoundsRef.current) {
           // GeoJSON 경계를 사용하여 정확히 대한민국만 보이도록
-          mapRef.current.setBounds(koreaBoundsRef.current)
+          mapRef.current.fitBounds(koreaBoundsRef.current)
         } else {
           // fallback: 수동 설정
-          const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+          const moveLatLon = new window.naver.maps.LatLng(36.5, 127.8)
           mapRef.current.setCenter(moveLatLon)
-          mapRef.current.setLevel(13)
+          mapRef.current.setZoom(7)
         }
       } catch (error) {
-        console.error('[초기화] 지도 복원 실패:', error)
+        // 지도 복원 실패 시 조용히 처리
         // 에러 발생 시 강제 수동 설정
-        const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+        const moveLatLon = new window.naver.maps.LatLng(36.5, 127.8)
         mapRef.current.setCenter(moveLatLon)
-        mapRef.current.setLevel(13)
+          mapRef.current.setZoom(7)
       }
     }
     
@@ -1184,8 +1291,15 @@ export function SearchPage() {
               )}
             </div>
 
-            {/* 카카오맵 컨테이너 - 단일 지도 */}
-            <div className="relative">
+            {/* 네이버맵 컨테이너 - 단일 지도 */}
+            <div className="relative" style={{ minHeight: '600px' }}>
+              {!naverMapsLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">지도를 불러오는 중...</p>
+                  </div>
+                </div>
+              )}
               {/* 뒤로 가기 버튼 (지역 선택 시에만 표시) */}
               {showDetailMap && selectedRegion && (
                 <div className="absolute top-2 left-2 z-10 md:top-4 md:left-4">
@@ -1199,9 +1313,14 @@ export function SearchPage() {
                         // 도/광역시 경계로 다시 확대
                         if (mapRef.current && selectedRegion && REGION_COORDINATES[selectedRegion]) {
                           const coords = REGION_COORDINATES[selectedRegion]
-                          const moveLatLon = new window.kakao.maps.LatLng(coords.lat, coords.lng)
+                          const moveLatLon = new window.naver.maps.LatLng(coords.lat, coords.lng)
                           mapRef.current.setCenter(moveLatLon)
-                          mapRef.current.setLevel(coords.level)
+                          // 광역시는 더 확대 (zoom 10-11), 일반 도는 zoom 8-9
+                          const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(selectedRegion)
+                          const zoom = isMetropolitan 
+                            ? 14 // 광역시는 더 확대
+                            : Math.max(8, Math.min(9, 14 - coords.level + 2)) // 일반 도는 기존 로직
+                          mapRef.current.setZoom(zoom)
                         }
                       } else {
                         // 도/광역시 선택 상태인 경우: 전국 지도로 돌아가기
@@ -1213,19 +1332,19 @@ export function SearchPage() {
                         if (mapRef.current) {
                           try {
                             if (koreaBoundsRef.current) {
-                              mapRef.current.setBounds(koreaBoundsRef.current)
+                              mapRef.current.fitBounds(koreaBoundsRef.current)
                             } else {
                               // fallback: 수동 설정
-                              const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+                              const moveLatLon = new window.naver.maps.LatLng(36.5, 127.8)
                               mapRef.current.setCenter(moveLatLon)
-                              mapRef.current.setLevel(13)
+                              mapRef.current.setZoom(7)
                             }
                           } catch (error) {
-                            console.error('[뒤로 가기] 지도 복원 실패:', error)
+                            // 지도 복원 실패 시 조용히 처리
                             // 에러 발생 시 강제 수동 설정
-                            const moveLatLon = new window.kakao.maps.LatLng(36.5, 127.8)
+                            const moveLatLon = new window.naver.maps.LatLng(36.5, 127.8)
                             mapRef.current.setCenter(moveLatLon)
-                            mapRef.current.setLevel(13)
+                            mapRef.current.setZoom(7)
                           }
                         }
                         
@@ -1262,7 +1381,8 @@ export function SearchPage() {
               
               <div 
                 ref={mapContainerRef}
-                className="relative overflow-hidden rounded-2xl border border-surface-subtle h-[450px] md:h-[500px] lg:h-[600px] md:rounded-3xl"
+                className="relative overflow-hidden rounded-2xl border border-surface-subtle h-[600px] md:h-[700px] lg:h-[800px] md:rounded-3xl"
+                style={{ width: '100%', minHeight: '600px' }}
               />
               </div>
               
