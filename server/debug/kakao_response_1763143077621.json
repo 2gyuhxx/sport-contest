@@ -1,0 +1,20 @@
+{
+  "id": 4545523618,
+  "connected_at": "2025-11-14T17:23:13Z",
+  "properties": {
+    "nickname": "임형근",
+    "profile_image": "https://img1.kakaocdn.net/thumb/R640x640.q70/?fname=https://t1.kakaocdn.net/account_images/default_profile.jpeg",
+    "thumbnail_image": "https://img1.kakaocdn.net/thumb/R110x110.q70/?fname=https://t1.kakaocdn.net/account_images/default_profile.jpeg"
+  },
+  "kakao_account": {
+    "profile_nickname_needs_agreement": false,
+    "profile_image_needs_agreement": false,
+    "profile": {
+      "nickname": "임형근",
+      "thumbnail_image_url": "https://img1.kakaocdn.net/thumb/R110x110.q70/?fname=https://t1.kakaocdn.net/account_images/default_profile.jpeg",
+      "profile_image_url": "https://img1.kakaocdn.net/thumb/R640x640.q70/?fname=https://t1.kakaocdn.net/account_images/default_profile.jpeg",
+      "is_default_image": true,
+      "is_default_nickname": false
+    }
+  }
+}

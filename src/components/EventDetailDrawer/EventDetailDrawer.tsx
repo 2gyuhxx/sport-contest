@@ -1,5 +1,8 @@
 import { formatDate } from '../../utils/formatDate'
 import type { Event } from '../../types/events'
+import { ExternalLink } from 'lucide-react'
+import { categoryToKoreanMap } from '../../services/EventService'
+import { getDefaultImage } from '../../utils/defaultImages'
 
 interface EventDetailDrawerProps {
   event: Event | null
@@ -9,14 +12,29 @@ interface EventDetailDrawerProps {
 export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
   if (!event) return null
 
+  // 신청하기 버튼 핸들러
+  const handleApply = () => {
+    if (event?.link) {
+      // website URL이 있으면 새 탭에서 열기
+      window.open(event.link, '_blank', 'noopener,noreferrer')
+    } else {
+      // URL이 없으면 알림 표시
+      alert('신청 URL이 등록되지 않았습니다.')
+    }
+  }
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-6 md:static md:inset-auto md:px-0 md:pb-0">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-elevate md:relative md:max-w-none md:shadow-none">
         <div className="relative h-48 w-full overflow-hidden rounded-t-2xl md:rounded-xl">
           <img
-            src={event.image}
+            src={(event.image && event.image.trim() !== '') 
+              ? event.image 
+              : getDefaultImage(event.sub_sport, event.sport, event.category)}
             alt={event.title}
             className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
           <button
             type="button"
@@ -29,9 +47,14 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
         <div className="space-y-3 px-5 py-4">
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase text-brand-primary">
-              {event.category}
+              {event.sub_sport || event.sport || categoryToKoreanMap[event.category] || event.category}
             </span>
-            <span className="text-xs text-slate-500">{formatDate(event.date)}</span>
+            <span className="text-xs text-slate-500">
+              {event.start_at ? formatDate(event.start_at) : formatDate(event.date)}
+              {event.end_at && event.start_at !== event.end_at && (
+                <> ~ {formatDate(event.end_at)}</>
+              )}
+            </span>
           </div>
           <h3 className="text-xl font-semibold text-slate-900">{event.title}</h3>
           <p className="text-sm text-slate-600">{event.summary}</p>
@@ -39,7 +62,33 @@ export function EventDetailDrawer({ event, onClose }: EventDetailDrawerProps) {
             <p className="font-semibold text-slate-900">{event.city}</p>
             <p>{event.address}</p>
           </div>
-          <div className="flex items-center justify-end">
+          {event.link && (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-brand-primary hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              웹사이트 바로가기
+            </a>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!event.link}
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {event.link ? (
+                <>
+                  <ExternalLink className="h-4 w-4" />
+                  신청하기
+                </>
+              ) : (
+                '신청 URL 없음'
+              )}
+            </button>
             <button
               type="button"
               onClick={onClose}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Event, RegionMeta } from '../../types/events'
 import { EventPin } from '../EventPin'
+import { batchAddressToSvgCoordinates } from '../../utils/geocoding'
 
 const DEFAULT_VIEW_BOX = '0 0 509 716.1'
 
@@ -35,6 +36,8 @@ export function KoreaMap({
   const [viewBox, setViewBox] = useState(DEFAULT_VIEW_BOX)
   const [svgMarkup, setSvgMarkup] = useState<string>('')
   const [regionBounds, setRegionBounds] = useState<Record<string, Bounds>>({})
+  const [addressCoordinates, setAddressCoordinates] = useState<Map<string, { x: number; y: number } | null>>(new Map())
+
 
   useEffect(() => {
     let isMounted = true
@@ -83,6 +86,29 @@ export function KoreaMap({
     })
     setRegionBounds(bounds)
   }, [svgMarkup, regions])
+
+  // 주소를 좌표로 변환
+  useEffect(() => {
+    if (!events.length) {
+      return
+    }
+
+    const addresses = events
+      .filter(event => event.address && event.address.trim() !== '')
+      .map(event => event.address)
+
+    if (addresses.length === 0) {
+      return
+    }
+
+    batchAddressToSvgCoordinates(addresses)
+      .then(coords => {
+        setAddressCoordinates(coords)
+      })
+      .catch(error => {
+        console.error('[KoreaMap] 주소 좌표 변환 오류:', error)
+      })
+  }, [events])
 
   useEffect(() => {
     if (!svgRef.current) return
@@ -181,13 +207,34 @@ export function KoreaMap({
       const scatterRadius = Math.min(bounds.width, bounds.height) * 0.18
 
       sortedEvents.forEach((event, index) => {
+        let posX = centerX
+        let posY = centerY
         let offsetX = 0
         let offsetY = 0
 
-        if (event.pinOffset) {
+        // 1순위: 주소 기반 정확한 좌표
+        if (event.address && addressCoordinates.has(event.address)) {
+          const coords = addressCoordinates.get(event.address)
+          if (coords) {
+            posX = coords.x
+            posY = coords.y
+            
+            // 같은 주소에 여러 행사가 있으면 약간 분산
+            if (sortedEvents.length > 1) {
+              const angle = (index / sortedEvents.length) * Math.PI * 2
+              const microRadius = 5 // 작은 반경으로 분산
+              offsetX = Math.cos(angle) * microRadius
+              offsetY = Math.sin(angle) * microRadius
+            }
+          }
+        }
+        // 2순위: 수동 설정된 오프셋
+        else if (event.pinOffset) {
           offsetX = event.pinOffset.x
           offsetY = event.pinOffset.y
-        } else if (sortedEvents.length > 1) {
+        }
+        // 3순위: 지역 중심에서 자동 분산
+        else if (sortedEvents.length > 1) {
           const angle = (index / sortedEvents.length) * Math.PI * 2
           offsetX = Math.cos(angle) * scatterRadius
           offsetY = Math.sin(angle) * scatterRadius
@@ -196,15 +243,15 @@ export function KoreaMap({
         data.push({
           event,
           position: {
-            x: centerX + offsetX,
-            y: centerY + offsetY,
+            x: posX + offsetX,
+            y: posY + offsetY,
           },
         })
       })
     })
 
     return data
-  }, [events, regionBounds])
+  }, [events, regionBounds, addressCoordinates])
 
   return (
     <div
@@ -253,7 +300,7 @@ function transformSvg(svgMarkup: string, regions: RegionMeta[]) {
 
   const highlightCss = `
     .region-shape { cursor: pointer; }
-    .region-shape .st0 { transition: fill 0.25s ease; }
+    .region-shape .st0 { transition: fill 0.25s ease; fill: #f5f1e7; }
     .region-shape.is-active .st0 { fill: #22c55e !important; }
     .region-shape:hover .st0 { fill: #2563eb !important; }
   `

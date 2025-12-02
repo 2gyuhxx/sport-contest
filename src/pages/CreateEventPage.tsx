@@ -1,68 +1,213 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useEventContext } from '../context/useEventContext'
-import type { Category } from '../types/events'
-import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useNavigate, Link, useParams } from 'react-router-dom'
+import { useAuthContext } from '../context/useAuthContext'
+import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
+import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
 
 type FormData = {
   title: string
   organizer: string
-  category: Category | ''
-  date: string
+  sport_category_id: number | null
+  sub_sport_category_id: number | null
+  start_at: string
+  end_at: string
   region: string
-  city: string
+  sub_region: string
   address: string
   summary: string
-  description: string
   link: string
   image: string
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
 
-const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
-  { value: 'football', label: '축구' },
-  { value: 'basketball', label: '농구' },
-  { value: 'baseball', label: '야구' },
-  { value: 'marathon', label: '마라톤' },
-  { value: 'volleyball', label: '배구' },
-  { value: 'esports', label: 'e스포츠' },
-  { value: 'fitness', label: '피트니스' },
-]
-
 export function CreateEventPage() {
   const navigate = useNavigate()
-  const { state } = useEventContext()
+  const { eventId } = useParams<{ eventId?: string }>()
+  const isEditMode = !!eventId
+  const { state: authState } = useAuthContext()
+  const { user, isAuthenticated } = authState
   
   const [formData, setFormData] = useState<FormData>({
     title: '',
     organizer: '',
-    category: '',
-    date: '',
+    sport_category_id: null,
+    sub_sport_category_id: null,
+    start_at: '',
+    end_at: '',
     region: '',
-    city: '',
+    sub_region: '',
     address: '',
     summary: '',
-    description: '',
     link: '',
     image: '',
   })
   
   const [errors, setErrors] = useState<FormErrors>({})
   const [imagePreview, setImagePreview] = useState<string>('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [originalImageUrl, setOriginalImageUrl] = useState<string>('') // 기존 이미지 URL 저장
+  const [isUploading, setIsUploading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false) // 성공 메시지 표시 여부
+  const [successModalMessage, setSuccessModalMessage] = useState('') // 성공 모달 메시지
+  const [showErrorModal, setShowErrorModal] = useState(false) // 에러 모달 표시 여부
+  const [errorModalMessage, setErrorModalMessage] = useState('') // 에러 모달 메시지
+  
+  // 컴포넌트 마운트 시 스포츠 종목 목록 가져오기
+  const [sportCategories, setSportCategories] = useState<SportCategory[]>([])
+  const [subSportCategories, setSubSportCategories] = useState<SubSportCategory[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
 
-  // 지역 옵션 생성
-  const regionOptions = useMemo(() => {
-    return state.regions.map(region => ({
-      value: region.id,
-      label: region.name,
-    }))
-  }, [state.regions])
+  // 주소 관련 state
+  const [postcode, setPostcode] = useState<string>('')
+  const [fullAddress, setFullAddress] = useState<string>('')
+  const [detailAddress, setDetailAddress] = useState<string>('')
+
+  // 컴포넌트 마운트 시 대분류 스포츠 종목과 지역 목록 가져오기
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoadingData(true)
+        const categories = await EventService.getSportCategoriesDB()
+        setSportCategories(categories)
+      } catch (err) {
+        console.error('데이터 로딩 오류:', err)
+        setError('데이터를 불러오는데 실패했습니다')
+      } finally {
+        setIsLoadingData(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  // 수정 모드일 때 기존 행사 데이터 로드
+  useEffect(() => {
+    if (isEditMode && eventId) {
+      const loadEventData = async () => {
+        try {
+          setIsLoadingData(true)
+          const event = await EventService.getEventById(parseInt(eventId, 10))
+          
+          // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환)
+          // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환, 타임존 문제 해결)
+          const formatDate = (dateString: string) => {
+            // 날짜 부분만 추출 (YYYY-MM-DD)
+            let dateOnly = dateString
+            
+            // ISO 형식(YYYY-MM-DDTHH:mm:ss)인 경우 날짜 부분만 추출
+            if (dateString.includes('T')) {
+              dateOnly = dateString.split('T')[0]
+            }
+            // 공백으로 구분된 형식(YYYY-MM-DD HH:mm:ss)인 경우
+            else if (dateString.includes(' ')) {
+              dateOnly = dateString.split(' ')[0]
+            }
+            
+            // 이미 YYYY-MM-DD 형식이면 그대로 반환
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+              return dateOnly
+            }
+            
+            // 다른 형식인 경우 Date 객체로 파싱 (fallback)
+            const date = new Date(dateString)
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            return `${year}-${month}-${day}`
+          }
+
+          // 스포츠 카테고리 이름으로 ID 찾기
+          const categories = await EventService.getSportCategoriesDB()
+          const sportCategory = categories.find(cat => cat.name === event.sport)
+          const sportCategoryId = sportCategory?.id || null
+
+          // 소분류 ID 찾기 (대분류가 있을 때만)
+          let subSportCategoryId = null
+          if (sportCategoryId && event.sub_sport) {
+            const subCategories = await EventService.getSubSportCategoriesById(sportCategoryId)
+            const subCategory = subCategories.find(sub => sub.name === event.sub_sport)
+            subSportCategoryId = subCategory?.id || null
+          }
+
+          setFormData({
+            title: event.title || '',
+            organizer: event.organizer_user_name || '',
+            sport_category_id: sportCategoryId,
+            sub_sport_category_id: subSportCategoryId,
+            start_at: formatDate(event.start_at),
+            end_at: formatDate(event.end_at),
+            region: event.region || '',
+            sub_region: event.sub_region || '',
+            address: '',
+            summary: event.description || '',
+            link: event.website || '',
+            image: event.image || '',
+          })
+
+          // 주소 데이터 로드
+          if (event.address) {
+            const formattedPostcode = String(event.address).padStart(5, '0')
+            setPostcode(formattedPostcode)
+          }
+          if (event.venue) {
+            setFullAddress(event.venue)
+            setDetailAddress('') // 상세 주소는 별도 필드가 없으므로 빈 문자열로 시작
+          }
+
+          // 이미지 미리보기 설정
+          if (event.image) {
+            setImagePreview(event.image)
+            setOriginalImageUrl(event.image) // 기존 이미지 URL 저장
+          }
+        } catch (err) {
+          console.error('행사 데이터 로딩 오류:', err)
+          setError('행사 데이터를 불러오는데 실패했습니다')
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
+      loadEventData()
+    }
+  }, [isEditMode, eventId])
+
+  // sport_category 선택 시 sub_sport 목록 가져오기
+  // sport_category_id 선택 시 소분류 목록 가져오기
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  
+  useEffect(() => {
+    const loadSubSportCategories = async () => {
+      if (!formData.sport_category_id) {
+        setSubSportCategories([])
+        if (!isInitialLoad) {
+          setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        }
+        return
+      }
+
+      try {
+        const subCategories = await EventService.getSubSportCategoriesById(formData.sport_category_id)
+        setSubSportCategories(subCategories)
+        // 대분류가 변경되면 소분류 초기화 (단, 초기 로드 시에는 제외)
+        if (!isInitialLoad) {
+          setFormData(prev => ({ ...prev, sub_sport_category_id: null }))
+        } else {
+          setIsInitialLoad(false)
+        }
+      } catch (err) {
+        console.error('소분류 카테고리 로딩 오류:', err)
+        setSubSportCategories([])
+      }
+    }
+    loadSubSportCategories()
+  }, [formData.sport_category_id])
+
 
   // 필드 변경 핸들러
   const handleChange = (
     field: keyof FormData,
-    value: string
+    value: string | number | null
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // 에러 제거
@@ -75,33 +220,124 @@ export function CreateEventPage() {
     }
   }
 
-  // 이미지 URL 변경 시 미리보기 업데이트
-  const handleImageChange = (url: string) => {
-    handleChange('image', url)
-    setImagePreview(url)
+  // 파일 선택 핸들러
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) {
+      // 파일이 선택되지 않았을 때는 기존 이미지로 복원
+      setImageFile(null)
+      // 기존 이미지 URL이 있으면 복원
+      if (originalImageUrl) {
+        setImagePreview(originalImageUrl)
+      } else if (formData.image) {
+        setImagePreview(formData.image)
+        setOriginalImageUrl(formData.image) // formData에서도 가져와서 저장
+      } else {
+        setImagePreview('')
+      }
+      return
+    }
+    
+
+    // 파일 타입 검증 (이미지만 허용)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/tif']
+    if (!allowedTypes.includes(file.type)) {
+      alert('이미지 파일만 업로드 가능합니다. (JPG, PNG, GIF, WEBP, BMP, TIFF)')
+      e.target.value = ''
+      // 파일 선택 실패 시에도 기존 이미지 복원
+      if (originalImageUrl) {
+        setImagePreview(originalImageUrl)
+      } else if (formData.image) {
+        setImagePreview(formData.image)
+      }
+      return
+    }
+
+    // 파일 크기 검증 (10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      alert('파일 크기는 10MB 이하여야 합니다.')
+      e.target.value = ''
+      // 파일 크기 초과 시에도 기존 이미지 복원
+      if (originalImageUrl) {
+        setImagePreview(originalImageUrl)
+      } else if (formData.image) {
+        setImagePreview(formData.image)
+      }
+      return
+    }
+
+    setImageFile(file)
+
+    // 미리보기 생성
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // 우편번호 검색
+  const handlePostcodeSearch = () => {
+    if (typeof window === 'undefined' || !(window as any).daum?.Postcode) {
+      alert('우편번호 검색 서비스를 불러올 수 없습니다. 페이지를 새로고침해주세요.')
+      return
+    }
+    new (window as any).daum.Postcode({
+      oncomplete: function(data: any) {
+        const zonecode = data.zonecode || ''
+        const fullAddr = data.address || ''
+        let extraAddr = ''
+        if (data.bname !== '') {
+          extraAddr += data.bname
+        }
+        if (data.buildingName !== '') {
+          extraAddr += extraAddr !== '' ? `, ${data.buildingName}` : data.buildingName
+        }
+        const fullAddress = extraAddr !== '' ? `${fullAddr} (${extraAddr})` : fullAddr
+
+        const formattedPostcode = zonecode ? String(zonecode).padStart(5, '0') : '' // 5자리 패딩
+
+        setPostcode(formattedPostcode)
+        setFullAddress(fullAddress)
+        setFormData(prev => ({
+          ...prev,
+          address: formattedPostcode, // 우편번호를 5자리 고정 문자열로 저장
+          region: data.sido || '', // 시/도
+          sub_region: data.sigungu || '', // 시/군/구
+        }))
+      }
+    }).open()
   }
 
   // 유효성 검사
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
+    // 모든 필수 필드 검증 (생성/수정 모드 공통)
     if (!formData.title.trim()) {
       newErrors.title = '행사명을 입력해주세요.'
     }
     if (!formData.organizer.trim()) {
       newErrors.organizer = '개최사를 입력해주세요.'
     }
-    if (!formData.category) {
-      newErrors.category = '스포츠 종류를 선택해주세요.'
+    if (!formData.sport_category_id) {
+      newErrors.sport_category_id = '스포츠 대분류를 선택해주세요.'
     }
-    if (!formData.date) {
-      newErrors.date = '개최 날짜를 선택해주세요.'
+    if (!formData.sub_sport_category_id) {
+      newErrors.sub_sport_category_id = '스포츠 소분류를 선택해주세요.'
     }
-    if (!formData.region) {
-      newErrors.region = '지역을 선택해주세요.'
+    if (!formData.start_at) {
+      newErrors.start_at = '시작 날짜를 선택해주세요.'
     }
-    if (!formData.city.trim()) {
-      newErrors.city = '시/군/구를 입력해주세요.'
+    if (!formData.end_at) {
+      newErrors.end_at = '종료 날짜를 선택해주세요.'
+    }
+    if (formData.start_at && formData.end_at && formData.start_at > formData.end_at) {
+      newErrors.end_at = '종료 날짜는 시작 날짜보다 이후여야 합니다.'
+    }
+    if (!postcode) {
+      newErrors.address = '주소를 검색해주세요.'
     }
     if (!formData.summary.trim()) {
       newErrors.summary = '간단 요약을 입력해주세요.'
@@ -112,33 +348,164 @@ export function CreateEventPage() {
   }
 
   // 폼 제출
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     
-    if (!validateForm()) {
+    const isValid = validateForm()
+    if (!isValid) {
       return
     }
 
-    // TODO: 실제로는 API 호출하여 서버에 저장
-    const newEvent = {
-      id: `event-${Date.now()}`,
-      title: formData.title,
-      organizer: formData.organizer,
-      category: formData.category as Category,
-      date: formData.date,
-      region: formData.region,
-      city: formData.city,
-      address: formData.address,
-      summary: formData.summary,
-      description: formData.description,
-      link: formData.link,
-      image: formData.image || 'https://via.placeholder.com/400x300',
-      views: 0,
+    if (!user) {
+      setError('로그인이 필요합니다.')
+      return
     }
 
-    console.log('새 행사 등록:', newEvent)
-    alert('행사가 성공적으로 등록되었습니다!')
-    navigate('/search')
+    setIsLoading(true)
+
+    try {
+      if (isEditMode && eventId) {
+        // 수정 모드
+        let imageUrl: string | null = null
+
+        // 이미지 파일이 있으면 업로드
+        if (imageFile) {
+          try {
+            setIsUploading(true)
+            imageUrl = await EventService.uploadFile(imageFile, parseInt(eventId, 10))
+          } catch (uploadError: any) {
+            console.error('[행사 수정] 이미지 업로드 실패:', uploadError)
+            setIsUploading(false)
+            setIsLoading(false)
+            
+            // 세션 만료 에러인 경우
+            if (uploadError.message.includes('세션이 만료')) {
+              setError(uploadError.message)
+              setTimeout(() => {
+                navigate('/login')
+              }, 2000)
+              return
+            }
+            
+            setError(`이미지 업로드에 실패했습니다: ${uploadError.message}`)
+            return
+          } finally {
+            setIsUploading(false)
+          }
+        }
+        
+        // 전체 주소 + 상세 주소 조합
+        const combinedAddress = detailAddress.trim()
+          ? `${fullAddress} ${detailAddress.trim()}`
+          : fullAddress
+
+        // 우편번호를 5자리 고정 문자열로 변환 (앞에 0 채우기)
+        const formattedPostcode = postcode ? String(postcode).padStart(5, '0') : null
+
+        // ID를 이름으로 변환
+        const sportCategory = sportCategories.find(cat => cat.id === formData.sport_category_id)
+        const subSportCategory = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
+
+        // 수정 모드: 모든 필드를 전송 (빈 문자열이어도 전송, 서버에서 기존 값으로 처리)
+        // 이미지: 새 파일이 업로드되면 그 URL 사용, 없으면 기존 이미지 URL을 그대로 보내서 유지
+        const updateData: any = {
+          title: formData.title || '',
+          description: formData.summary || '',
+          sport: sportCategory?.name || '',
+          sub_sport: subSportCategory?.name || '',
+          region: formData.region || '',
+          sub_region: formData.sub_region || '',
+          venue: combinedAddress || null, // 전체 주소 + 상세 주소를 venue에 저장
+          address: formattedPostcode, // 우편번호를 5자리 고정 문자열로 저장
+          start_at: formData.start_at || '',
+          end_at: formData.end_at || '',
+          website: formData.link || null,
+          organizer_user_name: formData.organizer || '',
+        }
+        
+        // 이미지 처리: 새 이미지가 업로드되었으면 그 URL 사용, 아니면 기존 이미지 URL을 그대로 전송
+        if (imageUrl) {
+          // 새 이미지가 업로드됨
+          updateData.image = imageUrl
+        } else if (originalImageUrl) {
+          // 새 이미지가 없고 기존 이미지가 있으면 기존 이미지 URL을 그대로 전송
+          updateData.image = originalImageUrl
+        }
+        // 둘 다 없으면 image 필드를 아예 보내지 않음 (서버에서 기존 값 유지)
+        
+        await EventService.updateEvent(parseInt(eventId, 10), updateData)
+        // 성공 메시지 표시 (수정 모드일 때만)
+        setSuccessModalMessage('행사 정보가 성공적으로 수정되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
+        setShowSuccessMessage(true)
+        setIsLoading(false) // 성공 시 로딩 상태 해제
+      } else {
+        // 전체 주소 + 상세 주소 조합
+        const combinedAddress = detailAddress.trim()
+          ? `${fullAddress} ${detailAddress.trim()}`
+          : fullAddress
+
+        // 우편번호를 5자리 고정 문자열로 변환 (앞에 0 채우기)
+        const formattedPostcode = postcode ? String(postcode).padStart(5, '0') : null
+
+        // ID를 이름으로 변환
+        const sportCategory = sportCategories.find(cat => cat.id === formData.sport_category_id)
+        const subSportCategory = subSportCategories.find(sub => sub.id === formData.sub_sport_category_id)
+
+        // 생성 모드: 먼저 이미지 없이 이벤트 생성
+        const createdEvent = await EventService.createEvent({
+          title: formData.title,
+          description: formData.summary, // 간단 요약을 description으로 사용
+          sport: sportCategory?.name || '',
+          sub_sport: subSportCategory?.name || '',
+          region: formData.region, // 시/도 (우편번호 검색에서 자동 설정)
+          sub_region: formData.sub_region, // 시/군/구 (우편번호 검색에서 자동 설정)
+          venue: combinedAddress || null, // 전체 주소 + 상세 주소
+          address: formattedPostcode, // 우편번호를 5자리 고정 문자열로 저장
+          start_at: formData.start_at,
+          end_at: formData.end_at,
+          website: formData.link || null,
+          image: null, // 먼저 이미지 없이 생성
+          organizer_user_name: formData.organizer, // 개최사
+        })
+
+        // 이미지 파일이 있으면 업로드 후 이미지만 업데이트
+        if (imageFile) {
+          try {
+            setIsUploading(true)
+            const imageUrl = await EventService.uploadFile(imageFile, createdEvent.id)
+
+            // 행사 이미지만 업데이트 (pending 상태 체크 없음)
+            await EventService.updateEventImage(createdEvent.id, imageUrl)
+          } catch (uploadError: any) {
+            console.error('[행사 생성] 이미지 업로드 실패:', uploadError)
+            setErrorModalMessage(`행사는 등록되었지만 이미지 업로드에 실패했습니다: ${uploadError.message}`)
+            setShowErrorModal(true)
+          } finally {
+            setIsUploading(false)
+          }
+        }
+
+        setSuccessModalMessage('행사 등록이 접수되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
+        setShowSuccessMessage(true)
+      }
+    } catch (err) {
+      console.error('행사 등록/수정 오류:', err)
+      const errorMessage = err instanceof Error ? err.message : (isEditMode ? '행사 수정에 실패했습니다' : '행사 등록에 실패했습니다')
+      
+      // 스팸으로 분류된 경우 특별 처리
+      if (errorMessage.includes('스팸으로 분류')) {
+        setErrorModalMessage('해당 행사는 스팸으로 분류되어 등록할 수 없습니다!')
+        setShowErrorModal(true)
+        if (!isEditMode) {
+          setTimeout(() => navigate('/'), 2000)
+        }
+        return
+      }
+      
+      setError(errorMessage)
+      setIsLoading(false)
+    }
   }
 
   // 폼 초기화
@@ -146,40 +513,139 @@ export function CreateEventPage() {
     setFormData({
       title: '',
       organizer: '',
-      category: '',
-      date: '',
+      sport_category_id: null,
+      sub_sport_category_id: null,
+      start_at: '',
+      end_at: '',
       region: '',
-      city: '',
+      sub_region: '',
       address: '',
       summary: '',
-      description: '',
       link: '',
       image: '',
     })
+    setSubSportCategories([])
+    setPostcode('')
+    setFullAddress('')
+    setDetailAddress('')
+    setImageFile(null)
     setImagePreview('')
     setErrors({})
+    setError(null)
+  }
+
+  // 성공 메시지 확인 핸들러
+  const handleConfirmSuccess = () => {
+    setShowSuccessMessage(false)
+    if (isEditMode) {
+      navigate('/my')
+    } else {
+      navigate('/')
+    }
+  }
+
+  // 에러 모달 확인 핸들러
+  const handleConfirmError = () => {
+    setShowErrorModal(false)
+  }
+
+  // 권한 체크: 행사 주최자(manager=1) 또는 master(manager=2)만 행사 등록 가능
+  const isOrganizer = user?.manager === 1
+  const isMaster = user?.manager === 2
+  
+  if (!isAuthenticated || (!isOrganizer && !isMaster)) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+            <ShieldAlert className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-slate-900">접근 권한이 없습니다</h1>
+          <p className="mb-6 text-slate-600">
+            행사 등록 페이지는 행사 주최자 또는 관리자만 이용할 수 있습니다.
+            {!isAuthenticated && ' 로그인 후 이용해주세요.'}
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link
+              to="/"
+              className="rounded-lg bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+            >
+              홈으로 이동
+            </Link>
+            <Link
+              to="/login"
+              className="rounded-lg border border-brand-primary px-6 py-3 font-semibold text-brand-primary transition hover:bg-brand-primary/5"
+            >
+              로그인하기
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* 헤더 */}
-      <section className="rounded-4xl bg-gradient-to-br from-brand-primary to-brand-secondary p-8 text-white md:p-12">
-        <div className="mx-auto max-w-3xl">
-          <span className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-            event registration
-          </span>
-          <h1 className="mt-2 text-3xl font-bold md:text-4xl">
-            행사 등록
-          </h1>
-          <p className="mt-3 text-white/90">
-            새로운 스포츠 행사 정보를 등록하여 더 많은 사람들과 공유하세요.
-          </p>
+    <>
+      {/* 행사 등록/수정 성공 모달 */}
+      {showSuccessMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-green-100 p-3">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+              <p className="text-center text-sm text-slate-600 mb-6">
+                {successModalMessage}
+              </p>
+              <button
+                onClick={handleConfirmSuccess}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
         </div>
-      </section>
+      )}
+
+      {/* 에러 모달 */}
+      {showErrorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+            <div className="p-6">
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-red-100 p-3">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+              <p className="text-center text-sm text-slate-600 mb-6">
+                {errorModalMessage}
+              </p>
+              <button
+                onClick={handleConfirmError}
+                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8 pb-16">
 
       {/* 폼 */}
-      <section className="mx-auto max-w-3xl">
+      <section className="mx-auto max-w-3xl px-6">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* 에러 메시지 */}
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           {/* 기본 정보 섹션 */}
           <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
             <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-900">
@@ -229,27 +695,59 @@ export function CreateEventPage() {
                 )}
               </div>
 
-              {/* 스포츠 종류 */}
+              {/* 스포츠 대분류 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  스포츠 종류 <span className="text-red-500">*</span>
+                  스포츠 대분류 <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={formData.category}
-                  onChange={(e) => handleChange('category', e.target.value)}
+                  value={formData.sport_category_id || ''}
+                  onChange={(e) => handleChange('sport_category_id', e.target.value ? Number(e.target.value) : null)}
+                  disabled={isLoadingData}
                   className={`w-full rounded-xl border ${
-                    errors.category ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                    errors.sport_category_id ? 'border-red-300' : 'border-slate-300'
+                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
                 >
-                  <option value="">선택해주세요</option>
-                  {CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
+                  {sportCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
                     </option>
                   ))}
                 </select>
-                {errors.category && (
-                  <p className="mt-1 text-xs text-red-600">{errors.category}</p>
+                {errors.sport_category_id && (
+                  <p className="mt-1 text-xs text-red-600">{errors.sport_category_id}</p>
+                )}
+              </div>
+
+              {/* 스포츠 소분류 */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  스포츠 소분류 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.sub_sport_category_id || ''}
+                  onChange={(e) => handleChange('sub_sport_category_id', e.target.value ? Number(e.target.value) : null)}
+                  disabled={!formData.sport_category_id || isLoadingData}
+                  className={`w-full rounded-xl border ${
+                    errors.sub_sport_category_id ? 'border-red-300' : 'border-slate-300'
+                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                >
+                  <option value="">
+                    {!formData.sport_category_id 
+                      ? '먼저 스포츠 대분류를 선택해주세요' 
+                      : isLoadingData 
+                        ? '로딩 중...' 
+                        : '선택해주세요'}
+                  </option>
+                  {subSportCategories.map((subSport) => (
+                    <option key={subSport.id} value={subSport.id}>
+                      {subSport.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.sub_sport_category_id && (
+                  <p className="mt-1 text-xs text-red-600">{errors.sub_sport_category_id}</p>
                 )}
               </div>
             </div>
@@ -263,82 +761,98 @@ export function CreateEventPage() {
             </h2>
             
             <div className="space-y-5">
-              {/* 개최 날짜 */}
+              {/* 시작 날짜 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  개최 날짜 <span className="text-red-500">*</span>
+                  시작 날짜 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
                     type="date"
-                    value={formData.date}
-                    onChange={(e) => handleChange('date', e.target.value)}
+                    value={formData.start_at}
+                    onChange={(e) => handleChange('start_at', e.target.value)}
                     className={`w-full rounded-xl border ${
-                      errors.date ? 'border-red-300' : 'border-slate-300'
+                      errors.start_at ? 'border-red-300' : 'border-slate-300'
                     } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
                   />
                 </div>
-                {errors.date && (
-                  <p className="mt-1 text-xs text-red-600">{errors.date}</p>
+                {errors.start_at && (
+                  <p className="mt-1 text-xs text-red-600">{errors.start_at}</p>
                 )}
               </div>
 
-              {/* 지역 */}
+              {/* 종료 날짜 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  지역 <span className="text-red-500">*</span>
+                  종료 날짜 <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.region}
-                  onChange={(e) => handleChange('region', e.target.value)}
-                  className={`w-full rounded-xl border ${
-                    errors.region ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
-                >
-                  <option value="">선택해주세요</option>
-                  {regionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.region && (
-                  <p className="mt-1 text-xs text-red-600">{errors.region}</p>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="date"
+                    value={formData.end_at}
+                    onChange={(e) => handleChange('end_at', e.target.value)}
+                    min={formData.start_at || undefined}
+                    className={`w-full rounded-xl border ${
+                      errors.end_at ? 'border-red-300' : 'border-slate-300'
+                    } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                  />
+                </div>
+                {errors.end_at && (
+                  <p className="mt-1 text-xs text-red-600">{errors.end_at}</p>
                 )}
               </div>
 
-              {/* 시/군/구 */}
+              {/* 주소 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  시/군/구 <span className="text-red-500">*</span>
+                  주소 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => handleChange('city', e.target.value)}
-                  placeholder="예: 강남구, 수원시"
-                  className={`w-full rounded-xl border ${
-                    errors.city ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
-                />
-                {errors.city && (
-                  <p className="mt-1 text-xs text-red-600">{errors.city}</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={postcode}
+                    placeholder="우편번호"
+                    readOnly
+                    className={`flex-1 rounded-xl border ${
+                      errors.address ? 'border-red-300' : 'border-slate-300'
+                    } px-4 py-2.5 text-slate-900 bg-slate-50`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePostcodeSearch}
+                    className="rounded-xl border border-brand-primary bg-brand-primary px-6 py-2.5 font-semibold text-white transition hover:bg-brand-secondary"
+                  >
+                    우편번호 검색
+                  </button>
+                </div>
+                {postcode && (
+                  <input
+                    type="text"
+                    value={fullAddress}
+                    placeholder="주소"
+                    readOnly
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 bg-slate-50"
+                  />
                 )}
-              </div>
-
-              {/* 상세 주소 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  상세 주소
-                </label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => handleChange('address', e.target.value)}
-                  placeholder="예: 테헤란로 123"
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-                />
+                {postcode && (
+                  <input
+                    type="text"
+                    value={detailAddress}
+                    onChange={(e) => setDetailAddress(e.target.value)}
+                    placeholder="상세 주소를 입력하세요 (예: 4층, 101호 등)"
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                  />
+                )}
+                {errors.address && (
+                  <p className="mt-1 text-xs text-red-600">{errors.address}</p>
+                )}
+                {postcode && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    선택된 주소: {formData.region} {formData.sub_region}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -354,23 +868,54 @@ export function CreateEventPage() {
               {/* 포스터 이미지 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  포스터 이미지 URL
+                  포스터 이미지/파일
                 </label>
                 <input
-                  type="url"
-                  value={formData.image}
-                  onChange={(e) => handleImageChange(e.target.value)}
-                  placeholder="https://example.com/poster.jpg"
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  disabled={isUploading || isLoading}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-primary file:text-white hover:file:bg-brand-secondary"
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, BMP, TIFF, 최대 50MB)
+                </p>
+                {/* 기존 이미지 정보 표시 */}
+                {!imageFile && originalImageUrl && (
+                  <p className="mt-2 text-sm text-green-600">
+                    ✓ 기존 이미지가 등록되어 있습니다. 새 이미지를 선택하면 기존 이미지가 교체됩니다.
+                  </p>
+                )}
+                {isUploading && (
+                  <p className="mt-2 text-sm text-blue-600">파일 업로드 중...</p>
+                )}
                 {imagePreview && (
                   <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
                     <img
                       src={imagePreview}
                       alt="포스터 미리보기"
                       className="h-48 w-full object-cover"
-                      onError={() => setImagePreview('')}
+                      onError={() => {
+                        // 이미지 로드 실패 시에도 기존 이미지 URL 복원 시도
+                        if (originalImageUrl && imagePreview !== originalImageUrl) {
+                          setImagePreview(originalImageUrl)
+                        } else if (formData.image && imagePreview !== formData.image) {
+                          setImagePreview(formData.image)
+                        } else {
+                          setImagePreview('')
+                        }
+                      }}
                     />
+                  </div>
+                )}
+                {imageFile && !imagePreview && (
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-700">
+                      선택된 파일: <span className="font-medium">{imageFile.name}</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {(imageFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
                   </div>
                 )}
               </div>
@@ -417,19 +962,6 @@ export function CreateEventPage() {
                 </div>
               </div>
 
-              {/* 상세 내용 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  상세 내용
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  placeholder="행사에 대한 상세한 설명을 입력해주세요"
-                  rows={6}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-                />
-              </div>
             </div>
           </div>
 
@@ -437,9 +969,15 @@ export function CreateEventPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              className="flex-1 rounded-full bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+              disabled={isLoading || isLoadingData}
+              onClick={(e) => {
+                if (!e.isDefaultPrevented()) {
+                  // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
+                }
+              }}
+              className="flex-1 rounded-full bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
             >
-              행사 등록
+              {isLoading || isLoadingData ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '행사 수정' : '행사 등록')}
             </button>
             <button
               type="button"
@@ -458,7 +996,8 @@ export function CreateEventPage() {
           </div>
         </form>
       </section>
-    </div>
+      </div>
+    </>
   )
 }
 
