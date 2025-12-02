@@ -105,29 +105,38 @@ export function SearchPage() {
   // 카카오맵 SDK 로드 확인
   useEffect(() => {
     const checkKakaoMaps = () => {
-      if (window.kakao?.maps) {
+      if (typeof window !== 'undefined' && window.kakao?.maps) {
+        console.log('[카카오맵] SDK 로드 완료')
         setKakaoMapsLoaded(true)
+        return true
       }
+      return false
     }
     
     // 즉시 체크
-    checkKakaoMaps()
+    if (checkKakaoMaps()) {
+      return
+    }
     
-    // 주기적으로 체크 (최대 5초)
+    console.log('[카카오맵] SDK 로드 대기 중...')
+    
+    // 주기적으로 체크 (최대 10초)
+    let checkCount = 0
+    const maxChecks = 100 // 10초
+    
     const interval = setInterval(() => {
-      checkKakaoMaps()
-      if (window.kakao?.maps) {
+      checkCount++
+      if (checkKakaoMaps()) {
+        clearInterval(interval)
+      } else if (checkCount >= maxChecks) {
+        console.error('[카카오맵] SDK 로드 실패 - 10초 타임아웃')
+        console.error('[카카오맵] window.kakao:', window.kakao)
         clearInterval(interval)
       }
     }, 100)
     
-    const timeout = setTimeout(() => {
-      clearInterval(interval)
-    }, 5000)
-    
     return () => {
       clearInterval(interval)
-      clearTimeout(timeout)
     }
   }, [])
 

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { formatDate } from '../utils/formatDate'
-import { ExternalLink, CheckCircle2, XCircle, Heart, AlertTriangle, X, HelpCircle } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle, Heart, AlertTriangle, X, HelpCircle, ArrowLeft } from 'lucide-react'
 import { EventService, categoryToKoreanMap, transformDBEventToEvent } from '../services/EventService'
 import { FavoriteService } from '../services/FavoriteService'
 import { FavoriteModal } from '../components/FavoriteModal'
@@ -267,11 +267,21 @@ export function EventDetailPage() {
       <div className="bg-surface pb-4 pt-2">
         <div className="mx-auto flex max-w-content flex-col gap-3 px-4 lg:gap-4">
           <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">{event.title}</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              {regionLabel} · {event.city}
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex items-center justify-center rounded-full p-2 text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
+              title="뒤로가기"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">{event.title}</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                {regionLabel} · {event.city}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-500">
             <span className="rounded-full bg-white px-3 py-1 shadow">
