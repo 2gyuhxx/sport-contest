@@ -4,14 +4,65 @@
 
 @layer base {
   body {
-    @apply m-0 min-h-screen bg-surface text-slate-900 font-sans antialiased;
+    @apply m-0 min-h-screen bg-[#F5F7FA] text-gray-900 font-sans antialiased;
   }
 
   a {
-    @apply text-brand-primary font-medium;
+    @apply text-[#2563EB] font-medium transition-colors;
   }
 
   a:hover {
-    @apply text-brand-secondary;
+    @apply text-[#1d4ed8];
+  }
+}
+
+@layer components {
+  /* Apple-style 플로팅 카드 */
+  .floating-card {
+    @apply bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-0;
+    @apply transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:-translate-y-1;
+  }
+  
+  /* 글래스모피즘 패널 */
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-xl rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.1)] border-0;
+  }
+  
+  /* 플로팅 아일랜드 헤더 */
+  .floating-header {
+    @apply fixed top-6 left-1/2 -translate-x-1/2 z-50;
+    @apply glass-panel px-6 py-3;
+    @apply max-w-7xl w-[calc(100%-3rem)] mx-auto;
+  }
+  
+  /* Pill-shaped chip */
+  .pill-chip {
+    @apply px-5 py-2.5 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] border-0;
+    @apply text-sm font-medium text-gray-700 transition-all duration-200;
+    @apply hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:-translate-y-0.5;
+  }
+  
+  .pill-chip-active {
+    @apply bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)];
+  }
+  
+  /* Bento Grid 아이템 */
+  .bento-item {
+    @apply floating-card overflow-hidden;
+  }
+  
+  /* Full-bleed 배경 이미지 */
+  .full-bleed {
+    @apply absolute inset-0 object-cover;
+  }
+  
+  /* 스크롤바 숨기기 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

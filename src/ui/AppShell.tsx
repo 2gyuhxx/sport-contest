@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
-import { LogOut, User, CheckCircle2, Menu, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
+import { LogOut, User, CheckCircle2, Search, Map, X } from 'lucide-react'
 import { EventProvider } from '../context/EventContext'
 import { AuthProvider } from '../context/AuthContext'
 import { useAuthContext } from '../context/useAuthContext'
@@ -8,398 +8,286 @@ import { AuthService } from '../services/AuthService'
 import { classNames } from '../utils/classNames'
 import { useIsMobile } from '../hooks/useMediaQuery'
 
-// 모바일 헤더 컴포넌트
-function MobileHeader() {
+// 로그아웃 확인 모달
+function LogoutConfirmModal({ show, onClose, onConfirm }: { show: boolean; onClose: () => void; onConfirm: () => void }) {
+  if (!show) return null
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="floating-card mx-4 w-full max-w-sm p-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-100">
+            <LogOut className="h-7 w-7 text-orange-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl font-semibold text-gray-900">로그아웃</h3>
+          </div>
+        </div>
+        <p className="text-base text-gray-600 mb-8">
+          로그아웃 하시겠습니까?
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-100 text-gray-700 rounded-[24px] py-4 font-semibold transition hover:bg-gray-200"
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 bg-[#2563EB] text-white rounded-[24px] py-4 font-semibold transition hover:bg-[#1d4ed8] shadow-[0_4px_12px_rgba(37,99,235,0.3)]"
+          >
+            로그아웃
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 로그아웃 완료 모달
+function LogoutModal({ show, onClose, userName }: { show: boolean; onClose: () => void; userName: string | null }) {
+  if (!show) return null
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="floating-card mx-4 w-full max-w-sm p-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle2 className="h-7 w-7 text-green-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl font-semibold text-gray-900">로그아웃 완료</h3>
+          </div>
+        </div>
+        <p className="text-base text-gray-600 mb-8">
+          {userName}님 로그아웃 되었습니다!
+        </p>
+        <button
+          onClick={onClose}
+          className="w-full bg-[#2563EB] text-white rounded-[24px] py-4 font-semibold transition hover:bg-[#1d4ed8] shadow-[0_4px_12px_rgba(37,99,235,0.3)]"
+        >
+          확인
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// 플로팅 아일랜드 헤더
+function FloatingHeader() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { state, dispatch } = useAuthContext()
   const { user, isAuthenticated } = state
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showLogoutMessage, setShowLogoutMessage] = useState(false)
   const [logoutUserName, setLogoutUserName] = useState<string | null>(null)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const isMobile = useIsMobile()
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true)
+  }
+
+  const handleLogoutConfirm = async () => {
+    setShowLogoutConfirm(false)
     try {
       const userName = user?.name || '사용자'
       setLogoutUserName(userName)
       await AuthService.logout()
       dispatch({ type: 'LOGOUT' })
       setShowLogoutMessage(true)
-      setIsMenuOpen(false)
     } catch (error) {
       console.error('로그아웃 실패:', error)
     }
   }
 
-  const handleConfirmLogout = () => {
-    setShowLogoutMessage(false)
-    setLogoutUserName(null)
-    navigate('/')
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      const targetPath = location.pathname === '/search' ? '/search' : '/'
+      navigate(`${targetPath}?q=${encodeURIComponent(searchQuery.trim())}`)
+    } else {
+      const targetPath = location.pathname === '/search' ? '/search' : '/'
+      navigate(targetPath)
+    }
   }
+
+  const handleClearSearch = () => {
+    setSearchQuery('')
+    const targetPath = location.pathname === '/search' ? '/search' : '/'
+    navigate(targetPath)
+  }
+
+  const handleLogoClick = () => {
+    setSearchQuery('')
+    // 완전 초기화를 위해 쿼리 파라미터 없이 홈으로 이동
+    navigate('/', { replace: true })
+    // 페이지 새로고침으로 모든 상태 초기화
+    window.location.href = '/'
+  }
+
+  // URL 쿼리 파라미터에서 검색어 읽기
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const query = params.get('q')
+    if (query) {
+      setSearchQuery(query)
+    } else {
+      setSearchQuery('')
+    }
+  }, [location.search])
 
   return (
     <>
-      {showLogoutMessage && logoutUserName && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">로그아웃 완료</h3>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 mb-6">
-                {logoutUserName}님 로그아웃 되었습니다!
-              </p>
-              <button
-                onClick={handleConfirmLogout}
-                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <header className="border-b border-surface-subtle bg-white sticky top-0 z-40">
-        <div className="mx-auto flex max-w-content items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
+      <LogoutConfirmModal
+        show={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogoutConfirm}
+      />
+      <LogoutModal
+        show={showLogoutMessage}
+        onClose={() => {
+          setShowLogoutMessage(false)
+          setLogoutUserName(null)
+          navigate('/')
+        }}
+        userName={logoutUserName}
+      />
+      
+      <header className="floating-header">
+        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+          {/* 로고 */}
+          <button
+            onClick={handleLogoClick}
+            className="flex items-center flex-shrink-0 hover:opacity-80 transition-opacity"
+            aria-label="홈으로 이동"
+          >
             <img 
               src="/images/logo.png" 
               alt="어디서하니" 
               className="h-8 w-auto"
             />
-          </Link>
-          
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 rounded-lg hover:bg-slate-100 transition"
-            aria-label="메뉴"
-          >
-            {isMenuOpen ? (
-              <X className="h-6 w-6 text-slate-700" />
-            ) : (
-              <Menu className="h-6 w-6 text-slate-700" />
-            )}
           </button>
-        </div>
 
-        {/* 모바일 메뉴 드로어 */}
-        {isMenuOpen && (
-          <>
-            <div 
-              className="fixed inset-0 bg-black/20 z-30"
-              onClick={() => setIsMenuOpen(false)}
+          {/* 네비게이션 버튼 */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              to="/"
+              onClick={() => setSearchQuery('')}
+              className={classNames(
+                'px-4 py-2.5 rounded-[20px] transition font-medium text-sm whitespace-nowrap',
+                location.pathname === '/'
+                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)]'
+                  : 'bg-white/50 text-gray-700 hover:bg-white/80'
+              )}
+            >
+              행사
+            </Link>
+            <Link
+              to="/search"
+              onClick={() => setSearchQuery('')}
+              className={classNames(
+                'px-4 py-2.5 rounded-[20px] transition font-medium text-sm flex items-center gap-2 whitespace-nowrap',
+                location.pathname === '/search'
+                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)]'
+                  : 'bg-white/50 text-gray-700 hover:bg-white/80'
+              )}
+            >
+              <Map className="h-4 w-4 flex-shrink-0" />
+              {!isMobile && <span>지도 검색</span>}
+            </Link>
+          </div>
+
+          {/* 검색 */}
+          <form onSubmit={handleSearch} className="flex-1 relative min-w-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="행사 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch(e)
+                }
+              }}
+              className="w-full pl-12 pr-12 py-3 bg-white/50 rounded-[20px] border-0 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 text-gray-900 placeholder:text-gray-400"
             />
-            <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-xl z-40 overflow-y-auto">
-              <div className="p-6 space-y-4">
-                {isAuthenticated && user ? (
-                  <>
-                    <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10">
-                        <User className="h-5 w-5 text-brand-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900">{user.name}</p>
-                        <p className="text-xs text-slate-500">{user.email}</p>
-                      </div>
-                    </div>
-                    
-                    <Link
-                      to="/my"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-700 transition hover:border-brand-primary hover:text-brand-primary text-center font-medium"
-                    >
-                      마이페이지
-                    </Link>
-                    
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-3 transition hover:border-red-400 hover:text-red-600 text-center font-medium"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      로그아웃
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      to="/login"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="block w-full rounded-lg px-4 py-3 transition hover:bg-slate-100 text-center font-medium"
-                    >
-                      로그인
-                    </Link>
-                    <Link
-                      to="/signup"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="block w-full rounded-lg border border-brand-primary px-4 py-3 text-brand-primary transition hover:bg-brand-primary hover:text-white text-center font-medium"
-                    >
-                      회원가입
-                    </Link>
-                  </>
-                )}
-
-                <div className="pt-4 border-t border-slate-200 space-y-2">
-                  <NavLink
-                    to="/"
-                    end
-                    onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) =>
-                      classNames(
-                        'block rounded-lg px-4 py-3 transition text-center font-medium',
-                        isActive 
-                          ? 'bg-brand-primary text-white' 
-                          : 'text-slate-700 hover:bg-slate-100',
-                      )
-                    }
-                  >
-                    행사
-                  </NavLink>
-                  <NavLink
-                    to="/search"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) =>
-                      classNames(
-                        'block rounded-lg px-4 py-3 transition text-center font-medium',
-                        isActive 
-                          ? 'bg-brand-primary text-white' 
-                          : 'text-slate-700 hover:bg-slate-100',
-                      )
-                    }
-                  >
-                    지도 검색
-                  </NavLink>
-                  {isAuthenticated && (user?.manager === 1 || user?.manager === 2) && (
-                    <NavLink
-                      to="/admin/events/create"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={({ isActive }) =>
-                        classNames(
-                          'block rounded-lg px-4 py-3 transition text-center font-medium',
-                          isActive 
-                            ? 'bg-brand-primary text-white' 
-                            : 'text-slate-700 hover:bg-slate-100',
-                        )
-                      }
-                    >
-                      행사 등록
-                    </NavLink>
-                  )}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                aria-label="검색어 지우기"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </form>
+          
+          {/* 사용자 프로필 */}
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+              <Link
+                to="/my"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition whitespace-nowrap"
+              >
+                <div className="h-8 w-8 rounded-full bg-[#2563EB] flex items-center justify-center flex-shrink-0">
+                  <User className="h-4 w-4 text-white" />
                 </div>
-              </div>
+                {!isMobile && <span className="font-medium text-gray-900">{user.name}</span>}
+              </Link>
+              <button
+                onClick={handleLogoutClick}
+                className="p-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition flex-shrink-0"
+                title="로그아웃"
+              >
+                <LogOut className="h-5 w-5 text-gray-600" />
+              </button>
             </div>
-          </>
-        )}
+          ) : (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link
+                to="/login"
+                className="px-4 py-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition font-medium text-gray-700 whitespace-nowrap"
+              >
+                로그인
+              </Link>
+              <Link
+                to="/signup"
+                className="px-4 py-2.5 rounded-[20px] bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition font-medium shadow-[0_4px_12px_rgba(37,99,235,0.3)] whitespace-nowrap"
+              >
+                회원가입
+              </Link>
+            </div>
+          )}
+        </div>
       </header>
     </>
   )
-}
-
-// 데스크톱 헤더 컴포넌트
-function DesktopHeader() {
-  const navigate = useNavigate()
-  const { state, dispatch } = useAuthContext()
-  const { user, isAuthenticated } = state
-  const [showLogoutMessage, setShowLogoutMessage] = useState(false)
-  const [logoutUserName, setLogoutUserName] = useState<string | null>(null)
-
-  const handleLogout = async () => {
-    try {
-      // 로그아웃 전에 사용자 이름 저장
-      const userName = user?.name || '사용자'
-      setLogoutUserName(userName)
-      
-      await AuthService.logout()
-      dispatch({ type: 'LOGOUT' })
-      setShowLogoutMessage(true)
-    } catch (error) {
-      console.error('로그아웃 실패:', error)
-    }
-  }
-
-  const handleConfirmLogout = () => {
-    setShowLogoutMessage(false)
-    setLogoutUserName(null)
-    navigate('/')
-  }
-
-  return (
-    <>
-      {/* 로그아웃 성공 모달 */}
-      {showLogoutMessage && logoutUserName && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">로그아웃 완료</h3>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 mb-6">
-                {logoutUserName}님 로그아웃 되었습니다!
-              </p>
-              <button
-                onClick={handleConfirmLogout}
-                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <header className="border-b border-surface-subtle bg-white">
-        <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center">
-            <img 
-              src="/images/logo.png" 
-              alt="어디서하니" 
-              className="h-10 w-auto md:h-14"
-            />
-          </Link>
-          <div className="flex items-center gap-3 text-base font-medium text-slate-600">
-            {isAuthenticated && user ? (
-              <>
-                {/* 사용자 이름 (클릭 불가, 살짝 왼쪽 정렬 느낌으로 단독 표시) */}
-                <div className="flex items-center gap-2 rounded-full bg-surface px-3 py-1">
-                  <User className="h-4 w-4 text-brand-primary" />
-                  <span className="font-semibold text-slate-900">{user.name}</span>
-                </div>
-                {/* 별도 마이페이지 버튼 */}
-                <Link
-                  to="/my"
-                  className="rounded-full border border-slate-300 px-3 py-1 text-slate-700 transition hover:border-brand-primary hover:text-brand-primary"
-                >
-                  마이페이지
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 rounded-full border border-slate-300 px-3 py-1 transition hover:border-red-400 hover:text-red-600"
-                >
-                  <LogOut className="h-4 w-4" />
-                  로그아웃
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="rounded-full px-4 py-2 transition hover:text-brand-primary"
-                >
-                  로그인
-                </Link>
-                <Link
-                  to="/signup"
-                  className="rounded-full border border-brand-primary px-4 py-2 text-brand-primary transition hover:bg-brand-primary hover:text-white"
-                >
-                  회원가입
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-        <nav className="flex flex-wrap gap-3 text-base font-medium text-slate-600">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              classNames(
-                'rounded-full px-3 py-1 transition border',
-                isActive 
-                  ? 'border-brand-primary text-brand-primary' 
-                  : 'border-slate-300 hover:border-brand-primary hover:text-brand-primary',
-              )
-            }
-          >
-            행사
-          </NavLink>
-          <NavLink
-            to="/search"
-            className={({ isActive }) =>
-              classNames(
-                'rounded-full px-3 py-1 transition border',
-                isActive 
-                  ? 'border-brand-primary text-brand-primary' 
-                  : 'border-slate-300 hover:border-brand-primary hover:text-brand-primary',
-              )
-            }
-          >
-            지도 검색
-          </NavLink>
-          {/* 행사 등록 메뉴는 행사 주최자(manager=1) 또는 master(manager=2)에게만 표시 */}
-          {isAuthenticated && (user?.manager === 1 || user?.manager === 2) && (
-            <NavLink
-              to="/admin/events/create"
-              className={({ isActive }) =>
-                classNames(
-                  'rounded-full px-3 py-1 transition border',
-                  isActive 
-                    ? 'border-brand-primary text-brand-primary' 
-                    : 'border-slate-300 hover:border-brand-primary hover:text-brand-primary',
-                )
-              }
-            >
-              행사 등록
-            </NavLink>
-          )}
-        </nav>
-      </div>
-    </header>
-    </>
-  )
-}
-
-// 통합 헤더 컴포넌트 (모바일/데스크톱 자동 전환)
-function AppHeader() {
-  const isMobile = useIsMobile()
-  
-  return isMobile ? <MobileHeader /> : <DesktopHeader />
 }
 
 export function AppShell() {
   return (
     <AuthProvider>
       <EventProvider>
-        <div className="flex min-h-screen flex-col bg-surface">
-          <AppHeader />
+        <div className="flex min-h-screen flex-col bg-[#F5F7FA]">
+          <FloatingHeader />
 
-          <main className="mx-auto w-full max-w-content flex-1 px-4 py-4 md:px-6 md:py-4">
+          <main className="flex-1 pt-28 pb-12">
             <Outlet />
           </main>
 
-          <footer className="border-t border-surface-subtle bg-white">
-            <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-3 text-xs text-slate-500 md:flex-row md:items-center md:justify-between">
+          <footer className="border-t-0 bg-transparent py-8">
+            <div className="mx-auto flex max-w-content flex-col gap-4 px-6 text-xs text-gray-500 md:flex-row md:items-center md:justify-between">
               <span>Copyright 2025 by Shift+Delete</span>
-              <div className="text-left space-y-0 leading-tight">
-                <div className="flex">
-                  <span className="w-16">안유리</span>
-                  <span className="w-20 -ml-5">PL&PM</span>
-                  <span className="-ml-5">Email - ahnyuri4900@gmail.com</span>
-                </div>
-                <div className="flex">
-                  <span className="w-16">이규현</span>
-                  <span className="w-20 -ml-5">AA&TA</span>
-                  <span className="-ml-5">Email - home543095@naver.com</span>
-                </div>
-                <div className="flex">
-                  <span className="w-16">임형근</span>
-                  <span className="w-20 -ml-5">DA&AA</span>
-                  <span className="-ml-5">Email - lhgdream4@naver.com</span>
-                </div>
-                <div className="flex">
-                  <span className="w-16">하승연</span>
-                  <span className="w-20 -ml-5">BA&PM</span>
-                  <span className="-ml-5">Email - haa020206@gmail.com</span>
-                </div>
+              <div className="text-left space-y-1 leading-tight">
+                <div>안유리 (PL&PM) - ahnyuri4900@gmail.com</div>
+                <div>이규현 (AA&TA) - home543095@naver.com</div>
+                <div>임형근 (DA&AA) - lhgdream4@naver.com</div>
+                <div>하승연 (BA&PM) - haa020206@gmail.com</div>
               </div>
             </div>
           </footer>
