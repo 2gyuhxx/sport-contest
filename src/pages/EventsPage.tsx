@@ -11,6 +11,7 @@ import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosi
 import { TrendingUp, Clock, Sparkles, Heart } from 'lucide-react'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { classNames } from '../utils/classNames'
+import { regions } from '../data/regions'
 
 type SortOption = 'latest' | 'popular' | 'recommended'
 
@@ -235,13 +236,16 @@ export function EventsPage() {
           // 검색어 필터링 (추천 모드에서도 검색어가 있으면 적용)
           if (searchQuery) {
             const lowerCaseQuery = searchQuery.toLowerCase()
-            filtered = filtered.filter(event => 
-              event.title.toLowerCase().includes(lowerCaseQuery) ||
-              event.city.toLowerCase().includes(lowerCaseQuery) ||
-              (event.summary && event.summary.toLowerCase().includes(lowerCaseQuery)) ||
-              (event.sport && event.sport.toLowerCase().includes(lowerCaseQuery)) ||
-              (event.sub_sport && event.sub_sport.toLowerCase().includes(lowerCaseQuery))
-            )
+            filtered = filtered.filter(event => {
+              // region 정보 가져오기
+              const regionInfo = regions.find(r => r.id === event.region)
+              const regionNames = regionInfo 
+                ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
+                : event.region || ''
+              
+              const searchText = `${event.title} ${event.city} ${event.summary || ''} ${event.sport || ''} ${event.sub_sport || ''} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
+              return searchText.includes(lowerCaseQuery)
+            })
           }
           
           // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
@@ -258,16 +262,19 @@ export function EventsPage() {
         }
         break
       case 'latest':
-        // 검색어 필터링 (제목, 도시, 요약, 종목명 포함)
+        // 검색어 필터링 (제목, 도시, 요약, 종목명, region 정보 포함)
         if (searchQuery) {
           const lowerCaseQuery = searchQuery.toLowerCase()
-          filtered = filtered.filter(event => 
-            event.title.toLowerCase().includes(lowerCaseQuery) ||
-            event.city.toLowerCase().includes(lowerCaseQuery) ||
-            (event.summary && event.summary.toLowerCase().includes(lowerCaseQuery)) ||
-            (event.sport && event.sport.toLowerCase().includes(lowerCaseQuery)) ||
-            (event.sub_sport && event.sub_sport.toLowerCase().includes(lowerCaseQuery))
-          )
+          filtered = filtered.filter(event => {
+            // region 정보 가져오기
+            const regionInfo = regions.find(r => r.id === event.region)
+            const regionNames = regionInfo 
+              ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
+              : event.region || ''
+            
+            const searchText = `${event.title} ${event.city} ${event.summary || ''} ${event.sport || ''} ${event.sub_sport || ''} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
+            return searchText.includes(lowerCaseQuery)
+          })
         }
         
         // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
@@ -280,16 +287,19 @@ export function EventsPage() {
         })
         break
       case 'popular':
-        // 검색어 필터링 (제목, 도시, 요약, 종목명 포함)
+        // 검색어 필터링 (제목, 도시, 요약, 종목명, region 정보 포함)
         if (searchQuery) {
           const lowerCaseQuery = searchQuery.toLowerCase()
-          filtered = filtered.filter(event => 
-            event.title.toLowerCase().includes(lowerCaseQuery) ||
-            event.city.toLowerCase().includes(lowerCaseQuery) ||
-            (event.summary && event.summary.toLowerCase().includes(lowerCaseQuery)) ||
-            (event.sport && event.sport.toLowerCase().includes(lowerCaseQuery)) ||
-            (event.sub_sport && event.sub_sport.toLowerCase().includes(lowerCaseQuery))
-          )
+          filtered = filtered.filter(event => {
+            // region 정보 가져오기
+            const regionInfo = regions.find(r => r.id === event.region)
+            const regionNames = regionInfo 
+              ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
+              : event.region || ''
+            
+            const searchText = `${event.title} ${event.city} ${event.summary || ''} ${event.sport || ''} ${event.sub_sport || ''} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
+            return searchText.includes(lowerCaseQuery)
+          })
         }
         
         filtered.sort((a, b) => b.views - a.views)

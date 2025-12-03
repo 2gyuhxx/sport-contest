@@ -270,27 +270,32 @@ function FloatingHeader() {
 }
 
 export function AppShell() {
+  const location = useLocation()
+  const isFullScreenPage = location.pathname === '/search'
+
   return (
     <AuthProvider>
       <EventProvider>
-        <div className="flex min-h-screen flex-col bg-[#F5F7FA]">
-          <FloatingHeader />
+        <div className={`flex min-h-screen flex-col ${isFullScreenPage ? '' : 'bg-[#F5F7FA]'}`}>
+          {!isFullScreenPage && <FloatingHeader />}
 
-          <main className="flex-1 pt-28 pb-12">
+          <main className={isFullScreenPage ? 'flex-1' : 'flex-1 pt-28 pb-12'}>
             <Outlet />
           </main>
 
-          <footer className="border-t-0 bg-transparent py-8">
-            <div className="mx-auto flex max-w-content flex-col gap-4 px-6 text-xs text-gray-500 md:flex-row md:items-center md:justify-between">
-              <span>Copyright 2025 by Shift+Delete</span>
-              <div className="text-left space-y-1 leading-tight">
-                <div>안유리 (PL&PM) - ahnyuri4900@gmail.com</div>
-                <div>이규현 (AA&TA) - home543095@naver.com</div>
-                <div>임형근 (DA&AA) - lhgdream4@naver.com</div>
-                <div>하승연 (BA&PM) - haa020206@gmail.com</div>
+          {!isFullScreenPage && (
+            <footer className="border-t-0 bg-transparent py-8">
+              <div className="mx-auto flex max-w-content flex-col gap-4 px-6 text-xs text-gray-500 md:flex-row md:items-center md:justify-between">
+                <span>Copyright 2025 by Shift+Delete</span>
+                <div className="text-left space-y-1 leading-tight">
+                  <div>안유리 (PL&PM) - ahnyuri4900@gmail.com</div>
+                  <div>이규현 (AA&TA) - home543095@naver.com</div>
+                  <div>임형근 (DA&AA) - lhgdream4@naver.com</div>
+                  <div>하승연 (BA&PM) - haa020206@gmail.com</div>
+                </div>
               </div>
-            </div>
-          </footer>
+            </footer>
+          )}
         </div>
       </EventProvider>
     </AuthProvider>

@@ -3,6 +3,7 @@ import { EventService } from '../services/EventService'
 import { EventContext } from './EventContextObject'
 import type { EventAction, EventContextValue, EventState } from './types'
 import type { EventFilters } from '../types/events'
+import { regions } from '../data/regions'
 
 const initialState: EventState = {
   events: [], // DB에서 로드할 때까지 빈 배열
@@ -125,7 +126,13 @@ export function EventProvider({ children }: { children: ReactNode }) {
       if (region && event.region !== region) return false
       if (category && event.category !== category) return false
       if (lowerKeyword) {
-        const haystack = `${event.title} ${event.summary} ${event.city}`.toLowerCase()
+        // region 정보 가져오기
+        const regionInfo = regions.find(r => r.id === event.region)
+        const regionNames = regionInfo 
+          ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
+          : event.region || ''
+        
+        const haystack = `${event.title} ${event.summary} ${event.city} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
         if (!haystack.includes(lowerKeyword)) return false
       }
       return true

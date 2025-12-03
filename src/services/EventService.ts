@@ -183,6 +183,7 @@ export function transformDBEventToEvent(dbEvent: DBEvent): Event {
     summary: dbEvent.description,
     region: regionId,
     city: dbEvent.sub_region,
+    sub_region: dbEvent.sub_region || null, // 시/군/구 (별도 필드로 저장)
     venue: dbEvent.venue || undefined, // 장소명
     address: dbEvent.address || dbEvent.venue || '', // 주소 (없으면 장소명)
     category,

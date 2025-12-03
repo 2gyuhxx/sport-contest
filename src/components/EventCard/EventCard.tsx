@@ -106,7 +106,7 @@ export const EventCard = memo(function EventCard({
             </div>
             {ddayInfo && (
               <div className={classNames(
-                'pill-chip inline-flex',
+                'pill-chip inline-flex items-center gap-1.5',
                 ddayInfo.isPast
                   ? 'bg-white/20 text-white'
                   : ddayInfo.daysLeft === 0
@@ -115,7 +115,7 @@ export const EventCard = memo(function EventCard({
                       ? 'bg-orange-500/90 text-white'
                       : 'bg-[#2563EB]/90 text-white'
               )}>
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4 flex-shrink-0" />
                 <span>{ddayInfo.text}</span>
               </div>
             )}
@@ -141,7 +141,7 @@ export const EventCard = memo(function EventCard({
           {ddayInfo && (
             <div className="mt-3">
               <span className={classNames(
-                'pill-chip text-xs',
+                'pill-chip text-xs inline-flex items-center gap-1.5',
                 ddayInfo.isPast
                   ? 'bg-gray-500/90 text-white'
                   : ddayInfo.daysLeft === 0
@@ -150,7 +150,7 @@ export const EventCard = memo(function EventCard({
                       ? 'bg-orange-500/90 text-white'
                       : 'bg-[#2563EB]/90 text-white'
               )}>
-                <Clock className="h-3 w-3" />
+                <Clock className="h-3 w-3 flex-shrink-0" />
                 <span>{ddayInfo.text}</span>
               </span>
             </div>
@@ -185,7 +185,7 @@ export const EventCard = memo(function EventCard({
             {ddayInfo && (
               <div className="absolute top-4 right-4">
                 <span className={classNames(
-                  'pill-chip',
+                  'pill-chip inline-flex items-center gap-1.5',
                   ddayInfo.isPast
                     ? 'bg-gray-500/90 text-white'
                     : ddayInfo.daysLeft === 0
@@ -194,7 +194,7 @@ export const EventCard = memo(function EventCard({
                         ? 'bg-orange-500/90 text-white'
                         : 'bg-[#2563EB]/90 text-white'
                 )}>
-                  <Clock className="h-3.5 w-3.5" />
+                  <Clock className="h-3.5 w-3.5 flex-shrink-0" />
                   <span>{ddayInfo.text}</span>
                 </span>
               </div>

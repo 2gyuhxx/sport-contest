@@ -17,6 +17,7 @@ export interface Event {
   summary: string
   region: string
   city: string
+  sub_region?: string | null // 시/군/구 (DB의 sub_region 필드)
   venue?: string // 장소명
   address: string
   category: Category
