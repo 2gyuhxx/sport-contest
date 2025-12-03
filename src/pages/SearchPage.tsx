@@ -1162,26 +1162,6 @@ export function SearchPage() {
       .slice(0, 50)
   }, [events, selectedRegion, selectedCity, categoryFilter, searchTerm])
 
-  // 마커 제거 함수
-  const clearMarkers = useCallback(() => {
-    try {
-      if (markerInfoWindowRef.current) {
-        if (markerInfoWindowRef.current.close) {
-          markerInfoWindowRef.current.close()
-        }
-        markerInfoWindowRef.current = null
-      }
-      markersRef.current.forEach(marker => {
-        if (marker && marker.setMap) {
-          marker.setMap(null)
-        }
-      })
-      markersRef.current = []
-    } catch (error) {
-      console.error('마커 제거 중 오류 발생:', error)
-      markersRef.current = []
-    }
-  }, [])
 
   // 마커 생성 함수 (메모이제이션)
   const createMarkers = useCallback((eventsToShow: Event[]) => {

@@ -32,7 +32,6 @@ export function SideEventList({
               event={event}
               onSelect={onSelect}
               isActive={activeEventId === event.id}
-              layout="vertical"
             />
           ))
         )}
