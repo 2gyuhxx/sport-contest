@@ -1,7 +1,7 @@
 import { events } from '../data/events'
 import { regions } from '../data/regions'
 import type { Category, Event, RegionMeta, EventReport } from '../types/events'
-import apiRequest from '../config/api'
+import apiRequest, { API_BASE_URL } from '../config/api'
 import { AuthService } from './AuthService'
 
 const uniqueCategories = Array.from(
@@ -537,7 +537,6 @@ export const EventService = {
       const formData = new FormData()
       formData.append('file', file)
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
       const uploadUrl = eventId
         ? `${API_BASE_URL}/upload?eventId=${eventId}`
         : `${API_BASE_URL}/upload`

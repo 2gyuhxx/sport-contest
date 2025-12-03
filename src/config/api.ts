@@ -1,5 +1,13 @@
 // API 기본 URL 설정
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
+// 프로덕션 환경에서는 HTTPS 강제
+let baseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
+
+// 프로덕션 환경에서 HTTP를 HTTPS로 자동 변환 (Mixed Content 오류 방지)
+if (import.meta.env.PROD && baseUrl.startsWith('http://')) {
+  baseUrl = baseUrl.replace('http://', 'https://')
+}
+
+export const API_BASE_URL = baseUrl
 
 // API 요청 헬퍼 함수
 async function apiRequest<T>(
