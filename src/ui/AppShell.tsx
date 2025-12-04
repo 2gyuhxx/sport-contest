@@ -177,11 +177,12 @@ function FloatingHeader() {
               to="/"
               onClick={() => setSearchQuery('')}
               className={classNames(
-                'px-4 py-2.5 rounded-[20px] transition font-medium text-sm whitespace-nowrap',
+                'px-4 py-2.5 rounded-full transition-all duration-200 font-medium text-sm whitespace-nowrap backdrop-blur-xl',
                 location.pathname === '/'
-                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)]'
-                  : 'bg-white/50 text-gray-700 hover:bg-white/80'
+                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] border border-white/20'
+                  : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
               )}
+              style={{ WebkitBackdropFilter: 'blur(40px)' }}
             >
               행사
             </Link>
@@ -189,15 +190,32 @@ function FloatingHeader() {
               to="/search"
               onClick={() => setSearchQuery('')}
               className={classNames(
-                'px-4 py-2.5 rounded-[20px] transition font-medium text-sm flex items-center gap-2 whitespace-nowrap',
+                'px-4 py-2.5 rounded-full transition-all duration-200 font-medium text-sm flex items-center gap-2 whitespace-nowrap backdrop-blur-xl',
                 location.pathname === '/search'
-                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)]'
-                  : 'bg-white/50 text-gray-700 hover:bg-white/80'
+                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] border border-white/20'
+                  : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
               )}
+              style={{ WebkitBackdropFilter: 'blur(40px)' }}
             >
               <Map className="h-4 w-4 flex-shrink-0" />
               {!isMobile && <span>지도 검색</span>}
             </Link>
+            {/* 관리자 또는 행사 주최자만 행사 등록 탭 표시 */}
+            {isAuthenticated && user && (user.manager === 1 || user.manager === 2) && (
+              <Link
+                to="/admin/events/create"
+                onClick={() => setSearchQuery('')}
+                className={classNames(
+                  'px-4 py-2.5 rounded-full transition-all duration-200 font-medium text-sm whitespace-nowrap backdrop-blur-xl',
+                  location.pathname === '/admin/events/create' || location.pathname.startsWith('/admin/events/edit/')
+                    ? 'bg-[#007AFF] text-white shadow-[0_4px_12px_rgba(0,122,255,0.4)] border border-white/20'
+                    : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+                )}
+                style={{ WebkitBackdropFilter: 'blur(40px)' }}
+              >
+                행사 등록
+              </Link>
+            )}
           </div>
 
           {/* 검색 */}

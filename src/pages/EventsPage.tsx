@@ -3,15 +3,16 @@ import { useSearchParams, useLocation } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventCard } from '../components/EventCard/EventCard'
-import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
+import { EventService, type SportCategory, type SubSportCategory, categoryToKoreanMap } from '../services/EventService'
 import { FavoriteService } from '../services/FavoriteService'
 import type { Category, Event } from '../types/events'
+import type { Favorite, RecommendedSportItem } from '../types/favorites'
 import { getCategoryLabel } from '../utils/categoryLabels'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
+import { filterEventsBySearch, sortEventsByDeadline, sortEventsByViews } from '../utils/eventSearch'
 import { TrendingUp, Clock, Sparkles, Heart } from 'lucide-react'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { classNames } from '../utils/classNames'
-import { regions } from '../data/regions'
 
 type SortOption = 'latest' | 'popular' | 'recommended'
 
@@ -57,7 +58,7 @@ export function EventsPage() {
   const [selectedSubSportCategoryId, setSelectedSubSportCategoryId] = useState<number | null>(null)
   
   // 찜 기반 추천 상태
-  const [myFavorites, setMyFavorites] = useState<any[]>([])
+  const [myFavorites, setMyFavorites] = useState<Favorite[]>([])
   const [favoriteBasedEvents, setFavoriteBasedEvents] = useState<Event[]>([])
   const [recommendedSports, setRecommendedSports] = useState<string[]>([])
 
@@ -117,8 +118,8 @@ export function EventsPage() {
           const myFavoriteSports = [
             ...new Set(
               myFavorites
-                .map((fav: any) => fav.sub_sport)
-                .filter((sub: string | null) => sub !== null)
+                .map((fav) => fav.sub_sport)
+                .filter((sub): sub is string => sub !== null)
             )
           ]
           
@@ -132,7 +133,7 @@ export function EventsPage() {
               myFavoriteSports
             )
             
-            const topRecommendedSports = recommendedSportsList.slice(0, 3).map((item: any) => item.sport)
+            const topRecommendedSports = recommendedSportsList.slice(0, 3).map((item: RecommendedSportItem) => item.sport)
             setRecommendedSports(topRecommendedSports)
 
             const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
@@ -196,26 +197,33 @@ export function EventsPage() {
           )
         }
       } else {
-        // 대분류만 선택된 경우: 해당 대분류에 속한 모든 소분류 필터링
-        if (subSportCategories.length > 0) {
-          // subSportCategories의 category_name이 선택된 대분류 이름과 일치하는지 확인
-          const validSubCategories = subSportCategories.filter(
-            sub => sub.category_name === selectedCategory.name
-          )
-          
-          if (validSubCategories.length > 0) {
-            const subCategoryNames = validSubCategories.map(sub => sub.name)
-            filtered = filtered.filter((event) => 
-              (event.sub_sport && subCategoryNames.includes(event.sub_sport)) ||
-              (!event.sub_sport && event.sport && subCategoryNames.includes(event.sport))
+        // 대분류만 선택된 경우: event.category로 바로 필터링 (소분류 로드 기다리지 않음)
+        const categoryFromKoreanName = Object.entries(categoryToKoreanMap).find(
+          ([_, koreanName]) => koreanName === selectedCategory.name
+        )?.[0] as Category | undefined
+        
+        if (categoryFromKoreanName) {
+          // event.category로 바로 필터링
+          filtered = filtered.filter((event) => event.category === categoryFromKoreanName)
+        } else {
+          // 매핑이 없으면 소분류 기반 필터링 시도
+          if (subSportCategories.length > 0) {
+            const validSubCategories = subSportCategories.filter(
+              sub => sub.category_name === selectedCategory.name
             )
+            
+            if (validSubCategories.length > 0) {
+              const subCategoryNames = validSubCategories.map(sub => sub.name)
+              filtered = filtered.filter((event) => 
+                (event.sub_sport && subCategoryNames.includes(event.sub_sport)) ||
+                (!event.sub_sport && event.sport && subCategoryNames.includes(event.sport))
+              )
+            } else {
+              filtered = []
+            }
           } else {
-            // category_name이 일치하는 소분류가 없으면 모든 행사 표시하지 않음
             filtered = []
           }
-        } else {
-          // 소분류가 없는 경우 (대분류에 소분류가 없음)
-          filtered = []
         }
       }
     }
@@ -225,84 +233,44 @@ export function EventsPage() {
     switch (sortBy) {
       case 'recommended':
         // 추천 정렬: 사용자의 관심 카테고리를 기반으로 추천
-        if (user?.interests && user.interests.length > 0) {
-          const userInterests = user.interests as Category[]
-          
-          // 관심 카테고리와 일치하는 행사만 필터링 (event.category와 직접 비교)
-          filtered = filtered.filter(event => {
-            return userInterests.includes(event.category)
-          })
-          
-          // 검색어 필터링 (추천 모드에서도 검색어가 있으면 적용)
-          if (searchQuery) {
-            const lowerCaseQuery = searchQuery.toLowerCase()
-            filtered = filtered.filter(event => {
-              // region 정보 가져오기
-              const regionInfo = regions.find(r => r.id === event.region)
-              const regionNames = regionInfo 
-                ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
-                : event.region || ''
-              
-              const searchText = `${event.title} ${event.city} ${event.summary || ''} ${event.sport || ''} ${event.sub_sport || ''} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
-              return searchText.includes(lowerCaseQuery)
-            })
-          }
-          
-          // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
-          filtered.sort((a, b) => {
-            const deadlineA = a.registration_deadline || a.end_at || a.date
-            const deadlineB = b.registration_deadline || b.end_at || b.date
-            const dateA = new Date(deadlineA).getTime()
-            const dateB = new Date(deadlineB).getTime()
-            return dateA - dateB
-          })
-        } else {
+        if (!user?.interests || user.interests.length === 0) {
           // 로그인하지 않았거나 관심사가 없으면 빈 배열 반환
           filtered = []
+          break
         }
+        
+        const userInterests = user.interests as Category[]
+        
+        // 관심 카테고리와 일치하는 행사만 필터링 (event.category와 직접 비교)
+        filtered = filtered.filter(event => userInterests.includes(event.category))
+        
+        // 검색어 필터링 (추천 모드에서도 검색어가 있으면 적용)
+        if (searchQuery) {
+          filtered = filterEventsBySearch(filtered, searchQuery)
+        }
+        
+        // 마감일 순으로 정렬
+        filtered = sortEventsByDeadline(filtered)
         break
+        
       case 'latest':
-        // 검색어 필터링 (제목, 도시, 요약, 종목명, region 정보 포함)
+        // 검색어 필터링
         if (searchQuery) {
-          const lowerCaseQuery = searchQuery.toLowerCase()
-          filtered = filtered.filter(event => {
-            // region 정보 가져오기
-            const regionInfo = regions.find(r => r.id === event.region)
-            const regionNames = regionInfo 
-              ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
-              : event.region || ''
-            
-            const searchText = `${event.title} ${event.city} ${event.summary || ''} ${event.sport || ''} ${event.sub_sport || ''} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
-            return searchText.includes(lowerCaseQuery)
-          })
+          filtered = filterEventsBySearch(filtered, searchQuery)
         }
         
-        // 마감일 순으로 정렬 (registration_deadline 또는 end_at 날짜 오름차순)
-        filtered.sort((a, b) => {
-          const deadlineA = a.registration_deadline || a.end_at || a.date
-          const deadlineB = b.registration_deadline || b.end_at || b.date
-          const dateA = new Date(deadlineA).getTime()
-          const dateB = new Date(deadlineB).getTime()
-          return dateA - dateB
-        })
+        // 마감일 순으로 정렬
+        filtered = sortEventsByDeadline(filtered)
         break
+        
       case 'popular':
-        // 검색어 필터링 (제목, 도시, 요약, 종목명, region 정보 포함)
+        // 검색어 필터링
         if (searchQuery) {
-          const lowerCaseQuery = searchQuery.toLowerCase()
-          filtered = filtered.filter(event => {
-            // region 정보 가져오기
-            const regionInfo = regions.find(r => r.id === event.region)
-            const regionNames = regionInfo 
-              ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
-              : event.region || ''
-            
-            const searchText = `${event.title} ${event.city} ${event.summary || ''} ${event.sport || ''} ${event.sub_sport || ''} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
-            return searchText.includes(lowerCaseQuery)
-          })
+          filtered = filterEventsBySearch(filtered, searchQuery)
         }
         
-        filtered.sort((a, b) => b.views - a.views)
+        // 조회수 순으로 정렬
+        filtered = sortEventsByViews(filtered)
         break
     }
 
@@ -372,6 +340,10 @@ export function EventsPage() {
             {/* 전체 */}
             <button
               onClick={() => {
+                // 추천 모드일 때 전체 선택 시 자동으로 마감일 순 정렬로 변경
+                if (sortBy === 'recommended') {
+                  setSortBy('latest')
+                }
                 setSelectedSportCategoryId(null)
                 setSelectedSubSportCategoryId(null)
               }}
@@ -394,6 +366,10 @@ export function EventsPage() {
                 <button
                   key={category.id}
                   onClick={() => {
+                    // 추천 모드일 때 카테고리 선택 시 자동으로 마감일 순 정렬로 변경
+                    if (sortBy === 'recommended') {
+                      setSortBy('latest')
+                    }
                     setSelectedSportCategoryId(category.id)
                     setSelectedSubSportCategoryId(null)
                   }}

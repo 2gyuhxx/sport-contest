@@ -3,6 +3,7 @@ import { useNavigate, Link, useParams } from 'react-router-dom'
 import { useAuthContext } from '../context/useAuthContext'
 import { EventService, type SportCategory, type SubSportCategory } from '../services/EventService'
 import { Upload, Link as LinkIcon, Calendar, MapPin, Building2, Tag, ShieldAlert, AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
+import { normalizeDateToYYYYMMDD } from '../utils/formatDate'
 
 type FormData = {
   title: string
@@ -84,60 +85,36 @@ export function CreateEventPage() {
 
   // 수정 모드일 때 기존 행사 데이터 로드
   useEffect(() => {
-    if (isEditMode && eventId) {
-      const loadEventData = async () => {
-        try {
-          setIsLoadingData(true)
-          const event = await EventService.getEventById(parseInt(eventId, 10))
-          
-          // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환)
-          // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환, 타임존 문제 해결)
-          const formatDate = (dateString: string) => {
-            // 날짜 부분만 추출 (YYYY-MM-DD)
-            let dateOnly = dateString
-            
-            // ISO 형식(YYYY-MM-DDTHH:mm:ss)인 경우 날짜 부분만 추출
-            if (dateString.includes('T')) {
-              dateOnly = dateString.split('T')[0]
-            }
-            // 공백으로 구분된 형식(YYYY-MM-DD HH:mm:ss)인 경우
-            else if (dateString.includes(' ')) {
-              dateOnly = dateString.split(' ')[0]
-            }
-            
-            // 이미 YYYY-MM-DD 형식이면 그대로 반환
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
-              return dateOnly
-            }
-            
-            // 다른 형식인 경우 Date 객체로 파싱 (fallback)
-            const date = new Date(dateString)
-            const year = date.getFullYear()
-            const month = String(date.getMonth() + 1).padStart(2, '0')
-            const day = String(date.getDate()).padStart(2, '0')
-            return `${year}-${month}-${day}`
-          }
+    // Early Return: 수정 모드가 아니거나 eventId가 없으면 종료
+    if (!isEditMode || !eventId) return
 
-          // 스포츠 카테고리 이름으로 ID 찾기
-          const categories = await EventService.getSportCategoriesDB()
-          const sportCategory = categories.find(cat => cat.name === event.sport)
-          const sportCategoryId = sportCategory?.id || null
+    const loadEventData = async () => {
+      try {
+        setIsLoadingData(true)
+        const event = await EventService.getEventById(parseInt(eventId, 10))
+        
+        // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환) - 공통 유틸리티 함수 사용
 
-          // 소분류 ID 찾기 (대분류가 있을 때만)
-          let subSportCategoryId = null
-          if (sportCategoryId && event.sub_sport) {
-            const subCategories = await EventService.getSubSportCategoriesById(sportCategoryId)
-            const subCategory = subCategories.find(sub => sub.name === event.sub_sport)
-            subSportCategoryId = subCategory?.id || null
-          }
+        // 스포츠 카테고리 이름으로 ID 찾기
+        const categories = await EventService.getSportCategoriesDB()
+        const sportCategory = categories.find(cat => cat.name === event.sport)
+        const sportCategoryId = sportCategory?.id || null
+
+        // 소분류 ID 찾기 (대분류가 있을 때만)
+        let subSportCategoryId = null
+        if (sportCategoryId && event.sub_sport) {
+          const subCategories = await EventService.getSubSportCategoriesById(sportCategoryId)
+          const subCategory = subCategories.find(sub => sub.name === event.sub_sport)
+          subSportCategoryId = subCategory?.id || null
+        }
 
           setFormData({
             title: event.title || '',
             organizer: event.organizer_user_name || '',
             sport_category_id: sportCategoryId,
             sub_sport_category_id: subSportCategoryId,
-            start_at: formatDate(event.start_at),
-            end_at: formatDate(event.end_at),
+            start_at: normalizeDateToYYYYMMDD(event.start_at),
+            end_at: normalizeDateToYYYYMMDD(event.end_at),
             region: event.region || '',
             sub_region: event.sub_region || '',
             address: '',
@@ -168,8 +145,8 @@ export function CreateEventPage() {
           setIsLoadingData(false)
         }
       }
-      loadEventData()
     }
+    loadEventData()
   }, [isEditMode, eventId])
 
   // sport_category 선택 시 sub_sport 목록 가져오기
@@ -555,26 +532,26 @@ export function CreateEventPage() {
   
   if (!isAuthenticated || (!isOrganizer && !isMaster)) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#F5F7FA]">
         <div className="mx-auto max-w-md text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-100/80">
             <ShieldAlert className="h-8 w-8 text-red-600" />
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-slate-900">접근 권한이 없습니다</h1>
-          <p className="mb-6 text-slate-600">
+          <h1 className="mb-2 text-2xl font-bold text-[#1d1d1f]">접근 권한이 없습니다</h1>
+          <p className="mb-6 text-[#8e8e93]">
             행사 등록 페이지는 행사 주최자 또는 관리자만 이용할 수 있습니다.
             {!isAuthenticated && ' 로그인 후 이용해주세요.'}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
               to="/"
-              className="rounded-lg bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+              className="rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
             >
               홈으로 이동
             </Link>
             <Link
               to="/login"
-              className="rounded-lg border border-brand-primary px-6 py-3 font-semibold text-brand-primary transition hover:bg-brand-primary/5"
+              className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#007AFF] transition-all duration-200 hover:bg-[#767680]/10"
             >
               로그인하기
             </Link>
@@ -588,20 +565,20 @@ export function CreateEventPage() {
     <>
       {/* 행사 등록/수정 성공 모달 */}
       {showSuccessMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm transform rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-all" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
             <div className="p-6">
               <div className="mb-4 flex items-center justify-center">
-                <div className="rounded-full bg-green-100 p-3">
+                <div className="rounded-full bg-green-100/80 p-3">
                   <CheckCircle2 className="h-6 w-6 text-green-600" />
                 </div>
               </div>
-              <p className="text-center text-sm text-slate-600 mb-6">
+              <p className="text-center text-sm text-[#8e8e93] mb-6">
                 {successModalMessage}
               </p>
               <button
                 onClick={handleConfirmSuccess}
-                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+                className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
               >
                 확인
               </button>
@@ -612,20 +589,20 @@ export function CreateEventPage() {
 
       {/* 에러 모달 */}
       {showErrorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm transform rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-all" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
             <div className="p-6">
               <div className="mb-4 flex items-center justify-center">
-                <div className="rounded-full bg-red-100 p-3">
+                <div className="rounded-full bg-red-100/80 p-3">
                   <XCircle className="h-6 w-6 text-red-600" />
                 </div>
               </div>
-              <p className="text-center text-sm text-slate-600 mb-6">
+              <p className="text-center text-sm text-[#8e8e93] mb-6">
                 {errorModalMessage}
               </p>
               <button
                 onClick={handleConfirmError}
-                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+                className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
               >
                 확인
               </button>
@@ -634,29 +611,29 @@ export function CreateEventPage() {
         </div>
       )}
 
-      <div className="space-y-8 pb-16">
+      <div className="space-y-8 pb-16 bg-[#F5F7FA] min-h-screen pt-6">
 
       {/* 폼 */}
-      <section className="mx-auto max-w-3xl px-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
+      <section className="mx-auto max-w-3xl px-4 md:px-6 lg:px-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* 에러 메시지 */}
           {error && (
-            <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div className="flex items-start gap-2 rounded-[14px] bg-red-50/80 border border-red-200/50 p-3 text-sm text-red-600">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
           {/* 기본 정보 섹션 */}
-          <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-900">
-              <Tag className="h-5 w-5 text-brand-primary" />
+          <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
+              <Tag className="h-5 w-5 text-[#007AFF]" />
               기본 정보
             </h2>
             
             <div className="space-y-5">
               {/* 행사명 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   행사명 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -664,9 +641,9 @@ export function CreateEventPage() {
                   value={formData.title}
                   onChange={(e) => handleChange('title', e.target.value)}
                   placeholder="예: 2025 서울 마라톤 대회"
-                  className={`w-full rounded-xl border ${
-                    errors.title ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                  className={`w-full rounded-[14px] border ${
+                    errors.title ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                 />
                 {errors.title && (
                   <p className="mt-1 text-xs text-red-600">{errors.title}</p>
@@ -675,19 +652,19 @@ export function CreateEventPage() {
 
               {/* 개최사 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   개최사 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Building2 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
                   <input
                     type="text"
                     value={formData.organizer}
                     onChange={(e) => handleChange('organizer', e.target.value)}
                     placeholder="예: 서울시청, 대한체육회"
-                    className={`w-full rounded-xl border ${
-                      errors.organizer ? 'border-red-300' : 'border-slate-300'
-                    } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                    className={`w-full rounded-[14px] border ${
+                      errors.organizer ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                    } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                   />
                 </div>
                 {errors.organizer && (
@@ -697,16 +674,16 @@ export function CreateEventPage() {
 
               {/* 스포츠 대분류 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   스포츠 대분류 <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.sport_category_id || ''}
                   onChange={(e) => handleChange('sport_category_id', e.target.value ? Number(e.target.value) : null)}
                   disabled={isLoadingData}
-                  className={`w-full rounded-xl border ${
-                    errors.sport_category_id ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                  className={`w-full rounded-[14px] border ${
+                    errors.sport_category_id ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed`}
                 >
                   <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
                   {sportCategories.map((category) => (
@@ -722,16 +699,16 @@ export function CreateEventPage() {
 
               {/* 스포츠 소분류 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   스포츠 소분류 <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.sub_sport_category_id || ''}
                   onChange={(e) => handleChange('sub_sport_category_id', e.target.value ? Number(e.target.value) : null)}
                   disabled={!formData.sport_category_id || isLoadingData}
-                  className={`w-full rounded-xl border ${
-                    errors.sub_sport_category_id ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                  className={`w-full rounded-[14px] border ${
+                    errors.sub_sport_category_id ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed`}
                 >
                   <option value="">
                     {!formData.sport_category_id 
@@ -754,27 +731,27 @@ export function CreateEventPage() {
           </div>
 
           {/* 일시/장소 섹션 */}
-          <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-900">
-              <MapPin className="h-5 w-5 text-brand-primary" />
+          <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
+              <MapPin className="h-5 w-5 text-[#007AFF]" />
               일시 및 장소
             </h2>
             
             <div className="space-y-5">
               {/* 시작 날짜 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   시작 날짜 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
                   <input
                     type="date"
                     value={formData.start_at}
                     onChange={(e) => handleChange('start_at', e.target.value)}
-                    className={`w-full rounded-xl border ${
-                      errors.start_at ? 'border-red-300' : 'border-slate-300'
-                    } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                    className={`w-full rounded-[14px] border ${
+                      errors.start_at ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                    } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                   />
                 </div>
                 {errors.start_at && (
@@ -784,19 +761,19 @@ export function CreateEventPage() {
 
               {/* 종료 날짜 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   종료 날짜 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
                   <input
                     type="date"
                     value={formData.end_at}
                     onChange={(e) => handleChange('end_at', e.target.value)}
                     min={formData.start_at || undefined}
-                    className={`w-full rounded-xl border ${
-                      errors.end_at ? 'border-red-300' : 'border-slate-300'
-                    } py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                    className={`w-full rounded-[14px] border ${
+                      errors.end_at ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                    } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                   />
                 </div>
                 {errors.end_at && (
@@ -806,7 +783,7 @@ export function CreateEventPage() {
 
               {/* 주소 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   주소 <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-2">
@@ -815,14 +792,14 @@ export function CreateEventPage() {
                     value={postcode}
                     placeholder="우편번호"
                     readOnly
-                    className={`flex-1 rounded-xl border ${
-                      errors.address ? 'border-red-300' : 'border-slate-300'
-                    } px-4 py-2.5 text-slate-900 bg-slate-50`}
+                    className={`flex-1 rounded-[14px] border ${
+                      errors.address ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                    } px-4 py-3 text-[#1d1d1f] bg-[#767680]/5`}
                   />
                   <button
                     type="button"
                     onClick={handlePostcodeSearch}
-                    className="rounded-xl border border-brand-primary bg-brand-primary px-6 py-2.5 font-semibold text-white transition hover:bg-brand-secondary"
+                    className="rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
                   >
                     우편번호 검색
                   </button>
@@ -833,7 +810,7 @@ export function CreateEventPage() {
                     value={fullAddress}
                     placeholder="주소"
                     readOnly
-                    className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 bg-slate-50"
+                    className="mt-2 w-full rounded-[14px] border border-[#3c3c43]/10 px-4 py-3 text-[#1d1d1f] bg-[#767680]/5"
                   />
                 )}
                 {postcode && (
@@ -842,14 +819,14 @@ export function CreateEventPage() {
                     value={detailAddress}
                     onChange={(e) => setDetailAddress(e.target.value)}
                     placeholder="상세 주소를 입력하세요 (예: 4층, 101호 등)"
-                    className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                    className="mt-2 w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                   />
                 )}
                 {errors.address && (
                   <p className="mt-1 text-xs text-red-600">{errors.address}</p>
                 )}
                 {postcode && (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-[#8e8e93]">
                     선택된 주소: {formData.region} {formData.sub_region}
                   </p>
                 )}
@@ -858,16 +835,16 @@ export function CreateEventPage() {
           </div>
 
           {/* 콘텐츠 섹션 */}
-          <div className="rounded-3xl border border-surface-subtle bg-white p-6 shadow-sm md:p-8">
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-900">
-              <Upload className="h-5 w-5 text-brand-primary" />
+          <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
+              <Upload className="h-5 w-5 text-[#007AFF]" />
               콘텐츠
             </h2>
             
             <div className="space-y-5">
               {/* 포스터 이미지 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   포스터 이미지/파일
                 </label>
                 <input
@@ -875,9 +852,9 @@ export function CreateEventPage() {
                   accept="image/*"
                   onChange={handleFileChange}
                   disabled={isUploading || isLoading}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:bg-slate-100 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-primary file:text-white hover:file:bg-brand-secondary"
+                  className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#007AFF] file:text-white hover:file:bg-[#0051D5]"
                 />
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-[#8e8e93]">
                   이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, BMP, TIFF, 최대 50MB)
                 </p>
                 {/* 기존 이미지 정보 표시 */}
@@ -890,7 +867,7 @@ export function CreateEventPage() {
                   <p className="mt-2 text-sm text-blue-600">파일 업로드 중...</p>
                 )}
                 {imagePreview && (
-                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                  <div className="mt-3 overflow-hidden rounded-[20px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <img
                       src={imagePreview}
                       alt="포스터 미리보기"
@@ -909,11 +886,11 @@ export function CreateEventPage() {
                   </div>
                 )}
                 {imageFile && !imagePreview && (
-                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-700">
+                  <div className="mt-3 rounded-[14px] border border-white/40 bg-[#767680]/5 p-4">
+                    <p className="text-sm text-[#1d1d1f]">
                       선택된 파일: <span className="font-medium">{imageFile.name}</span>
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-[#8e8e93] mt-1">
                       {(imageFile.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
@@ -922,24 +899,24 @@ export function CreateEventPage() {
 
               {/* 관련 링크 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   관련 링크
                 </label>
                 <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <LinkIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
                   <input
                     type="url"
                     value={formData.link}
                     onChange={(e) => handleChange('link', e.target.value)}
                     placeholder="https://example.com/event-info"
-                    className="w-full rounded-xl border border-slate-300 py-2.5 pl-11 pr-4 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                    className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                   />
                 </div>
               </div>
 
               {/* 간단 요약 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                   간단 요약 <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -948,11 +925,11 @@ export function CreateEventPage() {
                   placeholder="행사를 한 줄로 요약해주세요 (최대 100자)"
                   rows={2}
                   maxLength={100}
-                  className={`w-full rounded-xl border ${
-                    errors.summary ? 'border-red-300' : 'border-slate-300'
-                  } px-4 py-2.5 text-slate-900 transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20`}
+                  className={`w-full rounded-[14px] border ${
+                    errors.summary ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                 />
-                <div className="mt-1 flex justify-between text-xs text-slate-500">
+                <div className="mt-1 flex justify-between text-xs text-[#8e8e93]">
                   {errors.summary ? (
                     <span className="text-red-600">{errors.summary}</span>
                   ) : (
@@ -975,21 +952,21 @@ export function CreateEventPage() {
                   // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
                 }
               }}
-              className="flex-1 rounded-full bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex-1 rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading || isLoadingData ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '행사 수정' : '행사 등록')}
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="rounded-full border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/10"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="rounded-full border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/10"
             >
               취소
             </button>

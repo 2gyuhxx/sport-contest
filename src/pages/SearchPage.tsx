@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
 import type { Category, Event } from '../types/events'
+import type { RecommendedSportItem } from '../types/favorites'
 import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
 import { KOREA_REGION_PATHS } from '../data/koreaRegionPaths'
 import { FavoriteService } from '../services/FavoriteService'
@@ -105,6 +106,7 @@ export function SearchPage() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [showDetailMap, setShowDetailMap] = useState(false)
   const [naverMapsLoaded, setNaverMapsLoaded] = useState(false)
+  const [naverMapsError, setNaverMapsError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const initialRegion = state?.selectedRegion ?? null
@@ -116,11 +118,63 @@ export function SearchPage() {
   const [searchTerm, setSearchTerm] = useState(initialKeyword)
   const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
 
-  // 네이버맵 SDK 로드
+  // 네이버맵 SDK 로드 및 전역 에러 핸들러 설정
   useEffect(() => {
+    // 전역 에러 핸들러를 먼저 설정 (Naver Maps API 에러를 조용히 처리)
+    const handleScriptError = (event: ErrorEvent) => {
+      try {
+        const errorMessage = event.message || ''
+        const filename = event.filename || ''
+        const stack = event.error?.stack || ''
+        
+        // 네이버 맵 API 관련 에러인지 확인 (매우 넓은 범위로 캐치)
+        const isNaverMapError = 
+          filename.includes('naver.com') ||
+          filename.includes('maps.js') ||
+          stack.includes('maps.js') ||
+          errorMessage.includes('substring') ||
+          (errorMessage.includes('Cannot read properties') && errorMessage.includes('undefined'))
+        
+        if (isNaverMapError) {
+          // 에러를 완전히 조용히 처리 (콘솔에 표시하지 않음)
+          event.stopImmediatePropagation()
+          event.preventDefault()
+          event.stopPropagation()
+          return false
+        }
+      } catch {
+        // 에러 핸들러 자체에서 에러 발생 시 무시
+      }
+    }
+    
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      try {
+        const errorMessage = event.reason?.message || String(event.reason || '')
+        const stack = event.reason?.stack || ''
+        if (errorMessage.includes('substring') || 
+            errorMessage.includes('Cannot read properties') ||
+            errorMessage.includes('naver') || 
+            errorMessage.includes('maps') ||
+            stack.includes('maps.js')) {
+          // 에러를 완전히 조용히 처리
+          event.preventDefault()
+          return false
+        }
+      } catch {
+        // 에러 핸들러 자체에서 에러 발생 시 무시
+      }
+    }
+    
+    // 에러 핸들러를 가장 먼저 등록 (다른 핸들러보다 먼저 실행되도록)
+    window.addEventListener('error', handleScriptError, true)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
+    
     if (window.naver?.maps) {
       setNaverMapsLoaded(true)
-      return
+      return () => {
+        window.removeEventListener('error', handleScriptError, true)
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
+      }
     }
 
     const existingScript = document.querySelector(`script[src*="naver.com/openapi"]`)
@@ -131,13 +185,29 @@ export function SearchPage() {
           clearInterval(checkLoaded)
       }
     }, 100)
-      return () => clearInterval(checkLoaded)
+      return () => {
+        clearInterval(checkLoaded)
+        window.removeEventListener('error', handleScriptError, true)
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
+      }
     }
 
     const script = document.createElement('script')
-    const naverClientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID || 'jrhgu3q88b'
+    const naverClientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+    if (!naverClientId) {
+      console.error('[SearchPage] 네이버맵 API 키가 설정되지 않았습니다. .env 파일에 VITE_NAVER_MAP_CLIENT_ID를 설정해주세요.')
+      return () => {
+        window.removeEventListener('error', handleScriptError, true)
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
+      }
+    }
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${naverClientId}&submodules=geocoder`
     script.async = true
+    script.onerror = () => {
+      console.error('[SearchPage] 네이버맵 API 스크립트 로드 실패. API 키를 확인해주세요.')
+      setNaverMapsError('네이버맵 API 스크립트를 로드할 수 없습니다. API 키를 확인해주세요.')
+    }
+    
     script.onload = () => {
       const checkLoaded = setInterval(() => {
         if (window.naver?.maps) {
@@ -145,8 +215,23 @@ export function SearchPage() {
           clearInterval(checkLoaded)
         }
       }, 100)
+      
+      // 타임아웃 설정 (10초 후 실패로 간주)
+      setTimeout(() => {
+        if (!window.naver?.maps) {
+          console.error('[SearchPage] 네이버맵 API 로드 타임아웃')
+          clearInterval(checkLoaded)
+          setNaverMapsError('네이버맵 API 로드가 시간 초과되었습니다.')
+        }
+      }, 10000)
     }
     document.head.appendChild(script)
+    
+    // cleanup 함수에서 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener('error', handleScriptError, true)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
+    }
   }, [])
 
   // 지도 초기화
@@ -238,33 +323,30 @@ export function SearchPage() {
         polygon.setOptions({ fillColor: '#007AFF', fillOpacity: 0.06 })
         
         const coords = REGION_COORDINATES[regionId]
-        if (coords && mapRef.current && window.naver?.maps) {
-          // 사이드바를 피해 오른쪽 중간에 위치하도록 경도 조정
-          // 광역시/특별시는 작은 지역이므로 작게 조정, 도는 큰 지역이므로 크게 조정
-          const adjustedLng = isMetropolitan ? coords.lng - 0.2 : coords.lng - 1.2
-          const targetLatLng = new window.naver.maps.LatLng(coords.lat, adjustedLng)
-          const zoom = isMetropolitan ? 11 : Math.max(8, Math.min(9, 14 - coords.level + 2))
-          
-          // 즉시 설정 (다른 로직보다 우선)
-          mapRef.current.setCenter(targetLatLng)
-          mapRef.current.setZoom(zoom)
-          
         setSelectedRegion(regionId)
         setShowDetailMap(true)
         dispatch({ type: 'SELECT_REGION', payload: regionId })
         
-          // 다른 로직이 실행된 후에도 지도 위치 유지
-          setTimeout(() => {
-            if (mapRef.current && window.naver?.maps) {
-              mapRef.current.setCenter(targetLatLng)
-              mapRef.current.setZoom(zoom)
-            }
-          }, 300)
-        } else {
-          setSelectedRegion(regionId)
-          setShowDetailMap(true)
-          dispatch({ type: 'SELECT_REGION', payload: regionId })
-        }
+        // Early Return: 지도가 준비되지 않았으면 종료
+        if (!coords || !mapRef.current || !window.naver?.maps) return
+        
+        // 사이드바를 피해 오른쪽 중간에 위치하도록 경도 조정
+        // 광역시/특별시는 작은 지역이므로 작게 조정, 도는 큰 지역이므로 크게 조정
+        const adjustedLng = isMetropolitan ? coords.lng - 0.2 : coords.lng - 1.2
+        const targetLatLng = new window.naver.maps.LatLng(coords.lat, adjustedLng)
+        const zoom = isMetropolitan ? 11 : Math.max(8, Math.min(9, 14 - coords.level + 2))
+        
+        // 즉시 설정 (다른 로직보다 우선)
+        mapRef.current.setCenter(targetLatLng)
+        mapRef.current.setZoom(zoom)
+        
+        // 다른 로직이 실행된 후에도 지도 위치 유지
+        setTimeout(() => {
+          if (mapRef.current && window.naver?.maps) {
+            mapRef.current.setCenter(targetLatLng)
+            mapRef.current.setZoom(zoom)
+          }
+        }, 300)
         
         // 광역시가 속한 도 숨기기
         const METRO_TO_PROVINCE: Record<string, string> = {
@@ -484,6 +566,7 @@ export function SearchPage() {
     const provinceToHide = METRO_TO_PROVINCE[selectedRegion]
 
     polygonsRef.current.forEach(({ polygon, regionId }) => {
+      
       if (regionId === selectedRegion) {
         // 선택된 지역: 정상적으로 강조
         polygon.setMap(mapRef.current)
@@ -570,7 +653,7 @@ export function SearchPage() {
             }
             sigunguPolygonGroupsRef.current[sigunguName].push(detailPolygon)
 
-            window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function() {
+            window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function(e: any) {
                     if (mouseoutTimeoutRef.current) {
                       clearTimeout(mouseoutTimeoutRef.current)
                       mouseoutTimeoutRef.current = null
@@ -644,41 +727,106 @@ export function SearchPage() {
                     activePolygonNameRef.current = sigunguName
                     
               // Apple 스타일 툴팁 (마우스 위치 사용하여 지도 이동 방지)
-              if (mousePositionRef.current) {
-                const mousePosition = new window.naver.maps.LatLng(mousePositionRef.current.lat, mousePositionRef.current.lng)
-                
-                // 툴팁 마커 생성 또는 위치 업데이트 (지도 이동 방지)
-                if (!sigunguTooltipMarkerRef.current) {
-                  sigunguTooltipMarkerRef.current = new window.naver.maps.Marker({
-                    position: mousePosition,
-                    map: mapRef.current,
-                    icon: {
-                      content: '',
-                      anchor: new window.naver.maps.Point(0, 0),
-                    },
-                    visible: false,
-                    zIndex: 1000,
-                  })
-                } else {
-                  sigunguTooltipMarkerRef.current.setPosition(mousePosition)
-                }
-                
-                if (!sigunguOverlayRef.current) {
-                  sigunguOverlayRef.current = new window.naver.maps.InfoWindow({
-                    content: `<div style="padding: 10px 16px; background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08); font-size: 13px; font-weight: 600; color: #1d1d1f; white-space: nowrap; letter-spacing: -0.01em;">${sigunguName}</div>`,
-                    disableAnchor: true,
-                    borderWidth: 0,
-                    backgroundColor: 'transparent',
-                    pixelOffset: new window.naver.maps.Point(0, -15),
-                  })
-                } else {
-                  sigunguOverlayRef.current.setContent(`<div style="padding: 10px 16px; background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08); font-size: 13px; font-weight: 600; color: #1d1d1f; white-space: nowrap; letter-spacing: -0.01em;">${sigunguName}</div>`)
-                }
-                // 마커를 사용하여 툴팁 표시 (지도 이동 없이)
-                sigunguOverlayRef.current.open(mapRef.current, sigunguTooltipMarkerRef.current)
-                        currentTooltipNameRef.current = sigunguName
+              // 이벤트 객체에서 직접 좌표 가져오기
+              const mousePosition = e.coord || e.latlng
+              if (mousePosition && mapRef.current && window.naver?.maps) {
+                try {
+                  
+                  // 툴팁 마커 생성 또는 위치 업데이트 (지도 이동 방지)
+                  if (!sigunguTooltipMarkerRef.current) {
+                    try {
+                      sigunguTooltipMarkerRef.current = new window.naver.maps.Marker({
+                        position: mousePosition,
+                        map: mapRef.current,
+                        icon: {
+                          content: '<div></div>', // 빈 문자열 대신 빈 div 사용
+                          anchor: new window.naver.maps.Point(0, 0),
+                        },
+                        visible: false,
+                        zIndex: 1000,
+                      })
+                    } catch (markerError) {
+                      // 마커 생성 실패 시 무시
+                      return
                     }
+                  } else {
+                    try {
+                      sigunguTooltipMarkerRef.current.setPosition(mousePosition)
+                    } catch (positionError) {
+                      // 위치 설정 실패 시 마커 재생성 시도
+                      try {
+                        sigunguTooltipMarkerRef.current = new window.naver.maps.Marker({
+                          position: mousePosition,
+                          map: mapRef.current,
+                          icon: {
+                            content: '<div></div>',
+                            anchor: new window.naver.maps.Point(0, 0),
+                          },
+                          visible: false,
+                          zIndex: 1000,
+                        })
+                      } catch {
+                        return
+                      }
+                    }
+                  }
+                  
+                  if (!sigunguOverlayRef.current) {
+                    try {
+                      sigunguOverlayRef.current = new window.naver.maps.InfoWindow({
+                        content: `<div style="padding: 10px 16px; background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08); font-size: 13px; font-weight: 600; color: #1d1d1f; white-space: nowrap; letter-spacing: -0.01em;">${sigunguName}</div>`,
+                        disableAnchor: true,
+                        borderWidth: 0,
+                        backgroundColor: 'transparent',
+                        pixelOffset: new window.naver.maps.Point(0, -15),
+                      })
+                    } catch (overlayError) {
+                      // InfoWindow 생성 실패 시 무시
+                      return
+                    }
+                  } else {
+                    try {
+                      sigunguOverlayRef.current.setContent(`<div style="padding: 10px 16px; background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08); font-size: 13px; font-weight: 600; color: #1d1d1f; white-space: nowrap; letter-spacing: -0.01em;">${sigunguName}</div>`)
+                    } catch {
+                      // 콘텐츠 설정 실패 시 무시
+                    }
+                  }
+                  
+                  // 마커를 사용하여 툴팁 표시 (지도 이동 없이)
+                  if (sigunguOverlayRef.current && sigunguTooltipMarkerRef.current) {
+                    try {
+                      sigunguOverlayRef.current.open(mapRef.current, sigunguTooltipMarkerRef.current)
+                      currentTooltipNameRef.current = sigunguName
+                    } catch (openError) {
+                      // 툴팁 열기 실패 시 무시
+                    }
+                  }
+      } catch (error) {
+                  // 전체 에러 캐치 - 모든 에러를 조용히 처리
+                }
+              }
                   })
+
+            // 마우스가 polygon 위에서 움직일 때 툴팁 위치 업데이트
+            window.naver.maps.Event.addListener(detailPolygon, 'mousemove', function(e: any) {
+              // 현재 툴팁이 이 시/군/구에 대한 것인지 확인
+              if (currentTooltipNameRef.current === sigunguName && sigunguTooltipMarkerRef.current && mapRef.current && window.naver?.maps) {
+                try {
+                  // 마우스 위치 가져오기
+                  const mousePosition = e.coord || e.latlng
+                  if (mousePosition) {
+                    // 마커 위치 업데이트
+                    sigunguTooltipMarkerRef.current.setPosition(mousePosition)
+                    // InfoWindow도 다시 열어서 위치 업데이트
+                    if (sigunguOverlayRef.current) {
+                      sigunguOverlayRef.current.open(mapRef.current, sigunguTooltipMarkerRef.current)
+                    }
+                  }
+                } catch (error) {
+                  // 에러 무시
+                }
+              }
+            })
 
             window.naver.maps.Event.addListener(detailPolygon, 'mouseout', function() {
                     mouseoutTimeoutRef.current = setTimeout(() => {
@@ -1029,62 +1177,63 @@ export function SearchPage() {
             return userInterests.includes(event.category)
           }))
           
-          if (import.meta.env.DEV) {
-            console.log('맞춤 추천 - 관심 종목:', userInterests)
-            console.log('맞춤 추천 - 필터링된 행사 수:', interestBasedEvents.length)
-          }
-        } else {
-          if (import.meta.env.DEV) {
-            console.log('맞춤 추천 - 관심 종목이 설정되지 않음')
-          }
         }
         
         // 2. 찜 추천: 찜한 종목 + 유사한 사용자들이 찜한 종목 기반
         const favoriteBasedEvents: Event[] = []
-        const myFavorites = await FavoriteService.getMyFavorites()
         
-        if (myFavorites.length > 0) {
-          // 찜한 종목 추출
-          const myFavoriteSports = [
-            ...new Set(
-              myFavorites
-                .map((fav: any) => fav.sub_sport)
-                .filter((sub: string | null) => sub !== null)
-            )
-          ]
+        try {
+          const myFavorites = await FavoriteService.getMyFavorites()
           
-          if (myFavoriteSports.length > 0) {
-            try {
-              // 사용자-종목 선호도 행렬 가져오기
-              const { matrix, users, sports } = await FavoriteService.getUserSportMatrix()
-              
-              // 유사한 사용자 찾기
-              const similarUsers = findSimilarUsers(Number(user.id), matrix, users, sports, 5)
-              
-              // 유사한 사용자들이 찜한 종목 추천
-              const recommendedSportsList = recommendSportsFromSimilarUsers(
-                similarUsers,
-                matrix,
-                sports,
-                myFavoriteSports
+          if (myFavorites.length > 0) {
+            // 찜한 종목 추출
+            const myFavoriteSports = [
+              ...new Set(
+                myFavorites
+                  .map((fav) => fav.sub_sport)
+                  .filter((sub): sub is string => sub !== null)
               )
-              
-              // 상위 3개 추천 종목 선택
-              const topRecommendedSports = recommendedSportsList.slice(0, 3).map((item: any) => item.sport)
-              
-              // 찜한 종목 + 추천 종목 모두 포함
-              const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
-              
-              // 해당 종목의 활성 이벤트 필터링
-              favoriteBasedEvents.push(...activeEvents.filter(event => {
-                return allTargetSports.includes(event.sub_sport || '')
-              }))
-            } catch (matrixError) {
-              // 행렬 조회 실패 시 찜한 종목만으로 필터링
-              favoriteBasedEvents.push(...activeEvents.filter(event => {
-                return myFavoriteSports.includes(event.sub_sport || '')
-              }))
+            ]
+            
+            if (myFavoriteSports.length > 0) {
+              try {
+                // 사용자-종목 선호도 행렬 가져오기
+                const { matrix, users, sports } = await FavoriteService.getUserSportMatrix()
+                
+                // 유사한 사용자 찾기
+                const similarUsers = findSimilarUsers(Number(user.id), matrix, users, sports, 5)
+                
+                // 유사한 사용자들이 찜한 종목 추천
+                const recommendedSportsList = recommendSportsFromSimilarUsers(
+                  similarUsers,
+                  matrix,
+                  sports,
+                  myFavoriteSports
+                )
+                
+                // 상위 3개 추천 종목 선택
+                const topRecommendedSports = recommendedSportsList.slice(0, 3).map((item: RecommendedSportItem) => item.sport)
+                
+                // 찜한 종목 + 추천 종목 모두 포함
+                const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
+                
+                // 해당 종목의 활성 이벤트 필터링
+                favoriteBasedEvents.push(...activeEvents.filter(event => {
+                  return allTargetSports.includes(event.sub_sport || '')
+                }))
+              } catch (matrixError) {
+                // 행렬 조회 실패 시 찜한 종목만으로 필터링
+                favoriteBasedEvents.push(...activeEvents.filter(event => {
+                  return myFavoriteSports.includes(event.sub_sport || '')
+                }))
+              }
             }
+          }
+        } catch (favoriteError) {
+          // 찜 목록 조회 실패 시 조용히 무시 (403 에러 등)
+          // 로그인하지 않았거나 토큰이 만료된 경우를 위한 처리
+          if (import.meta.env.DEV) {
+            console.debug('찜 목록 조회 실패 (정상 동작일 수 있음):', favoriteError)
           }
         }
         
@@ -1094,20 +1243,10 @@ export function SearchPage() {
           ...favoriteBasedEvents
         ]
         
-        if (import.meta.env.DEV) {
-          console.log('맞춤 추천 - 관심 종목 기반 행사 수:', interestBasedEvents.length)
-          console.log('찜 추천 - 찜 기반 행사 수:', favoriteBasedEvents.length)
-          console.log('전체 추천 행사 수 (중복 포함):', allRecommendedEvents.length)
-        }
-        
         // 중복 제거 (같은 event.id는 하나만)
         const uniqueRecommendedEvents = Array.from(
           new Map(allRecommendedEvents.map(event => [event.id, event])).values()
         )
-        
-        if (import.meta.env.DEV) {
-          console.log('최종 추천 행사 수 (중복 제거 후):', uniqueRecommendedEvents.length)
-        }
         
         // 추천 행사 전체 표시 (slice 제거)
         setRecommendedEvents(uniqueRecommendedEvents)
@@ -1625,22 +1764,35 @@ export function SearchPage() {
       <div className="absolute inset-0">
         {!naverMapsLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#f5f5f7] via-[#e8e8ed] to-[#d2d2d7]">
-            {/* Apple 스타일 로딩 */}
+            {/* Apple 스타일 로딩 또는 에러 메시지 */}
             <div className="text-center">
-              <div className="relative mx-auto mb-6 h-12 w-12">
-                <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-[#007AFF]/20"></div>
-                <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#007AFF]"></div>
+              {naverMapsError ? (
+                <div className="px-6">
+                  <p className="text-[15px] font-medium text-red-600 tracking-tight mb-2">
+                    {naverMapsError}
+                  </p>
+                  <p className="text-[13px] text-[#86868b] tracking-tight">
+                    네이버 클라우드 플랫폼 콘솔에서 API 키를 확인해주세요.
+                  </p>
+          </div>
+              ) : (
+                <>
+                  <div className="relative mx-auto mb-6 h-12 w-12">
+                    <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-[#007AFF]/20"></div>
+                    <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#007AFF]"></div>
+        </div>
+                  <p className="text-[15px] font-medium text-[#86868b] tracking-tight">지도를 불러오는 중...</p>
+                </>
+              )}
               </div>
-              <p className="text-[15px] font-medium text-[#86868b] tracking-tight">지도를 불러오는 중...</p>
-            </div>
           </div>
               )}
               <div 
                 ref={mapContainerRef}
           className="h-full w-full"
               />
-              </div>
-              
+            </div>
+
       {/* 모바일 사이드바 토글 */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1697,7 +1849,7 @@ export function SearchPage() {
                   <X className="h-3.5 w-3.5 text-white" />
                 </button>
               )}
-            </div>
+                </div>
 
             {/* 지역 네비게이션 */}
             <div className="mt-5 flex items-center justify-between">
@@ -1829,21 +1981,21 @@ export function SearchPage() {
                 <div className="flex items-center gap-2">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/10">
                     <Calendar className="h-3.5 w-3.5 text-[#007AFF]" />
-                  </div>
+            </div>
                   <span className="text-[15px] font-semibold text-[#1d1d1f]">행사 목록</span>
                 </div>
                 <span className="rounded-full bg-[#767680]/10 px-2.5 py-1 text-[12px] font-semibold text-[#8e8e93]">
                   {filteredEvents.length}건
                 </span>
-              </div>
-              
+          </div>
+
             {isLoading ? (
                 <div className="flex flex-1 items-center justify-center">
                   <div className="text-center">
                     <div className="relative mx-auto mb-4 h-10 w-10">
                       <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-[#007AFF]/20"></div>
                       <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#007AFF]"></div>
-                    </div>
+            </div>
                     <p className="text-[14px] text-[#8e8e93]">불러오는 중...</p>
                   </div>
               </div>

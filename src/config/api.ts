@@ -36,12 +36,6 @@ async function apiRequest<T>(
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '요청에 실패했습니다' }))
-      console.error('API 오류:', {
-        status: response.status,
-        statusText: response.statusText,
-        error,
-        url,
-      })
       
       // 403 에러 (유효하지 않은 토큰)인 경우 토큰 갱신 시도
       if (response.status === 403 && error.error?.includes('토큰')) {
@@ -61,6 +55,15 @@ async function apiRequest<T>(
             }
           }
         }
+        // 토큰 갱신 실패 시 조용히 에러 반환 (상위에서 처리)
+      } else if (response.status !== 403) {
+        // 403이 아닌 경우에만 에러 로그 출력
+        console.error('API 오류:', {
+          status: response.status,
+          statusText: response.statusText,
+          error,
+          url,
+        })
       }
       
       throw new Error(error.error || `요청에 실패했습니다 (${response.status})`)

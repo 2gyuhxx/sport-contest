@@ -53,11 +53,11 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
-    // 소스맵 비활성화 (프로덕션)
+    // 소스맵 완전 비활성화 (프로덕션 - 보안 강화)
     sourcemap: false,
     // CSS 코드 분할
     cssCodeSplit: true,
-    // 압축 최적화
+    // 압축 최적화 (더 강력한 압축 - 보안 강화)
     minify: 'esbuild',
     // 인라인 limit 증가 (작은 에셋을 base64로 인라인)
     assetsInlineLimit: 4096, // 4KB

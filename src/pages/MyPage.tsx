@@ -572,21 +572,21 @@ export function MyPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-[#F5F7FA] pb-20 pt-8">
+      <div className="min-h-screen bg-[#F5F7FA] pb-20">
 
       <div className="mx-auto max-w-content px-4 md:px-6 lg:px-8">
         {/* 역할별 메인 섹션 */}
-        <section className="space-y-6">
+        <section className="space-y-6 pt-16">
         
         {/* master, 행사 주최자, 일반 사용자 레이아웃 */}
         {(isMaster || isOrganizer) ? (
           <div className="space-y-6">
             {/* 등록한 행사 목록 (전체 너비) */}
-            <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)]">
+            <div className="scroll-mt-32 rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)]">
               <h2 className="mb-4 text-lg font-semibold text-[#1d1d1f]">
                 {isMaster ? '모든 행사 목록' : '내가 등록한 행사'}
               </h2>
-              <p className="mb-4 text-sm text-[#8e8e93]">
+              <p className="mb-6 text-sm text-[#8e8e93]">
                 {isMaster 
                   ? 'master 계정으로 등록된 모든 행사를 확인할 수 있습니다.' 
                   : '내가 등록한 행사를 확인하고 수정/삭제할 수 있습니다.'}
@@ -620,7 +620,7 @@ export function MyPage() {
                   </div>
                 </div>
               ) : (
-                <div className={`grid gap-4 md:grid-cols-2 ${events.length > 6 ? 'max-h-[600px] overflow-y-auto' : ''}`}>
+                <div className={`grid gap-4 md:grid-cols-2 ${events.length > 6 ? 'max-h-[600px] overflow-y-auto pr-1' : ''} pt-6`}>
                   {events.map((event) => {
                     const statusBadge = getStatusBadge(event)
                     const StatusIcon = statusBadge.icon

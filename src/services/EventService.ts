@@ -1,12 +1,21 @@
-import { events } from '../data/events'
 import { regions } from '../data/regions'
 import type { Category, Event, RegionMeta, EventReport } from '../types/events'
 import apiRequest, { API_BASE_URL } from '../config/api'
 import { AuthService } from './AuthService'
 
-const uniqueCategories = Array.from(
-  new Set(events.map((event) => event.category)),
-) as Category[]
+// 모든 카테고리 목록 (타입에서 직접 정의)
+const ALL_CATEGORIES: Category[] = [
+  'team-ball',
+  'racket-ball',
+  'martial-arts',
+  'fitness-skill',
+  'precision',
+  'ice-snow',
+  'water',
+  'leisure',
+  'mind',
+  'other',
+]
 
 // API 응답 타입
 interface SportCategoriesResponse {
@@ -266,7 +275,7 @@ export const EventService = {
     return regions
   },
   getCategories(): Category[] {
-    return uniqueCategories
+    return ALL_CATEGORIES
   },
 
   /**
