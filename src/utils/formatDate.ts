@@ -55,9 +55,9 @@ export function formatDate(isoDate: string): string {
   }
   
   // YYYY-MM-DD 형식인 경우 로컬 시간대로 파싱 (타임존 문제 해결)
-  const [year, month, day] = dateOnly.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  return formatter.format(date)
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    return formatter.format(date)
 }
 
 /**
@@ -72,8 +72,8 @@ export function formatDateShort(isoDate: string): string {
   }
   
   // YYYY-MM-DD 형식인 경우 로컬 시간대로 파싱
-  const [year, month, day] = dateOnly.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  return shortFormatter.format(date)
-}
-
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    return shortFormatter.format(date)
+  }
+  

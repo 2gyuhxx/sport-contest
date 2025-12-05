@@ -74,7 +74,25 @@ export function SearchPage() {
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [showDetailMap, setShowDetailMap] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // 모바일에서는 기본적으로 닫힘, 데스크탑에서는 열림
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024 // lg breakpoint
+    }
+    return true
+  })
+
+  // 화면 크기 변경 시 사이드바 상태 조정
+  useEffect(() => {
+    const handleResize = () => {
+      const isDesktop = window.innerWidth >= 1024
+      // 데스크탑으로 변경되면 사이드바 열기, 모바일로 변경되면 닫기
+      setSidebarOpen(isDesktop)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // 지도 초기화 (useNaverMap hook 사용)
   useEffect(() => {
@@ -1538,13 +1556,22 @@ export function SearchPage() {
         )}
       </button>
 
+      {/* 모바일 오버레이 (사이드바 열릴 때 배경 어둡게) */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-10 bg-black/30 backdrop-blur-sm lg:hidden"
+          style={{ touchAction: 'none' }}
+        />
+      )}
+
       {/* Glassmorphism 사이드바 */}
       <aside
-        className={`absolute left-0 top-0 z-20 h-full w-full transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] lg:left-5 lg:top-5 lg:h-[calc(100%-40px)] lg:w-[420px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`absolute left-0 top-0 z-20 h-full w-[85%] max-w-[380px] transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] lg:left-5 lg:top-5 lg:h-[calc(100%-40px)] lg:w-[420px] lg:max-w-none lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
         <div
-          className="flex h-full flex-col bg-white/95 backdrop-blur-3xl lg:rounded-[28px] lg:shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] lg:border lg:border-white/40"
+          className="flex h-full flex-col bg-white/95 backdrop-blur-3xl shadow-[0_4px_20px_rgba(0,0,0,0.15)] lg:rounded-[28px] lg:shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] lg:border lg:border-white/40"
           style={{ WebkitBackdropFilter: 'blur(60px)' }}
         >
           {/* 헤더 영역 */}

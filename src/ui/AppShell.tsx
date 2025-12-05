@@ -157,70 +157,99 @@ function FloatingHeader() {
       />
       
       <header className="floating-header">
-        <div className="flex items-center gap-3 md:gap-4 min-w-0">
-          {/* 로고 */}
-          <button
-            onClick={handleLogoClick}
-            className="flex items-center flex-shrink-0 hover:opacity-80 transition-opacity"
-            aria-label="홈으로 이동"
-          >
-            <img 
-              src="/images/logo.png" 
-              alt="어디서하니" 
-              className="h-8 w-auto"
-            />
-          </button>
+        {/* 모바일: 2줄 레이아웃, 데스크탑: 1줄 레이아웃 */}
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 min-w-0">
+          {/* 첫 번째 줄: 로고 + 네비게이션 + 로그인 */}
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-initial">
+            {/* 로고 */}
+            <button
+              onClick={handleLogoClick}
+              className="flex items-center flex-shrink-0 hover:opacity-80 transition-opacity"
+              aria-label="홈으로 이동"
+            >
+              <img 
+                src="/images/logo.png" 
+                alt="어디서하니" 
+                className="h-7 md:h-8 w-auto"
+              />
+            </button>
 
-          {/* 네비게이션 버튼 */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Link
-              to="/"
-              onClick={() => setSearchQuery('')}
-              className={classNames(
-                'px-4 py-2.5 rounded-full transition-all duration-200 font-medium text-sm whitespace-nowrap backdrop-blur-xl',
-                location.pathname === '/'
-                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] border border-white/20'
-                  : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
-              )}
-              style={{ WebkitBackdropFilter: 'blur(40px)' }}
-            >
-              행사
-            </Link>
-            <Link
-              to="/search"
-              onClick={() => setSearchQuery('')}
-              className={classNames(
-                'px-4 py-2.5 rounded-full transition-all duration-200 font-medium text-sm flex items-center gap-2 whitespace-nowrap backdrop-blur-xl',
-                location.pathname === '/search'
-                  ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] border border-white/20'
-                  : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
-              )}
-              style={{ WebkitBackdropFilter: 'blur(40px)' }}
-            >
-              <Map className="h-4 w-4 flex-shrink-0" />
-              {!isMobile && <span>지도 검색</span>}
-            </Link>
-            {/* 관리자 또는 행사 주최자만 행사 등록 탭 표시 */}
-            {isAuthenticated && user && (user.manager === 1 || user.manager === 2) && (
+            {/* 네비게이션 버튼 */}
+            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
               <Link
-                to="/admin/events/create"
+                to="/"
                 onClick={() => setSearchQuery('')}
                 className={classNames(
-                  'px-4 py-2.5 rounded-full transition-all duration-200 font-medium text-sm whitespace-nowrap backdrop-blur-xl',
-                  location.pathname === '/admin/events/create' || location.pathname.startsWith('/admin/events/edit/')
-                    ? 'bg-[#007AFF] text-white shadow-[0_4px_12px_rgba(0,122,255,0.4)] border border-white/20'
+                  'px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-200 font-medium text-xs md:text-sm whitespace-nowrap backdrop-blur-xl',
+                  location.pathname === '/'
+                    ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] border border-white/20'
                     : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
                 )}
                 style={{ WebkitBackdropFilter: 'blur(40px)' }}
               >
-                행사 등록
+                행사
               </Link>
+              <Link
+                to="/search"
+                onClick={() => setSearchQuery('')}
+                className={classNames(
+                  'px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-200 font-medium text-xs md:text-sm flex items-center gap-1.5 md:gap-2 whitespace-nowrap backdrop-blur-xl',
+                  location.pathname === '/search'
+                    ? 'bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] border border-white/20'
+                    : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+                )}
+                style={{ WebkitBackdropFilter: 'blur(40px)' }}
+              >
+                <Map className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                {!isMobile && <span>지도 검색</span>}
+              </Link>
+              {/* 관리자 또는 행사 주최자만 행사 등록 탭 표시 */}
+              {isAuthenticated && user && (user.manager === 1 || user.manager === 2) && (
+                <Link
+                  to="/admin/events/create"
+                  onClick={() => setSearchQuery('')}
+                  className={classNames(
+                    'px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-200 font-medium text-xs md:text-sm whitespace-nowrap backdrop-blur-xl',
+                    location.pathname === '/admin/events/create' || location.pathname.startsWith('/admin/events/edit/')
+                      ? 'bg-[#007AFF] text-white shadow-[0_4px_12px_rgba(0,122,255,0.4)] border border-white/20'
+                      : 'bg-white/95 text-[#1d1d1f] hover:bg-white border border-white/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+                  )}
+                  style={{ WebkitBackdropFilter: 'blur(40px)' }}
+                >
+                  {isMobile ? '등록' : '행사 등록'}
+                </Link>
+              )}
+            </div>
+
+            {/* 모바일에서만 로그인 버튼을 첫 번째 줄에 표시 */}
+            {isMobile && (
+              <>
+                {isAuthenticated && user ? (
+                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+                    <Link
+                      to="/my"
+                      className="flex items-center justify-center h-8 w-8 rounded-full bg-[#2563EB] hover:bg-[#1d4ed8] transition"
+                    >
+                      <User className="h-4 w-4 text-white" />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+                    <Link
+                      to="/login"
+                      className="px-3 py-1.5 rounded-full bg-white/50 hover:bg-white/80 transition font-medium text-xs text-gray-700 whitespace-nowrap"
+                    >
+                      로그인
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* 검색 */}
-          <form onSubmit={handleSearch} className="flex-1 relative min-w-0">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 flex-shrink-0" />
+          {/* 검색 - 모바일: 두 번째 줄, 데스크탑: 같은 줄 */}
+          <form onSubmit={handleSearch} className="relative min-w-0 flex-1 md:flex-initial">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400 flex-shrink-0" />
             <input
               type="text"
               placeholder="행사 검색..."
@@ -231,55 +260,59 @@ function FloatingHeader() {
                   handleSearch(e)
                 }
               }}
-              className="w-full pl-12 pr-12 py-3 bg-white/50 rounded-[20px] border-0 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 text-gray-900 placeholder:text-gray-400"
+              className="w-full pl-10 md:pl-12 pr-10 md:pr-12 py-2 md:py-3 bg-white/50 rounded-[20px] border-0 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 text-sm md:text-base text-gray-900 placeholder:text-gray-400"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
                 aria-label="검색어 지우기"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 md:h-5 md:w-5" />
               </button>
             )}
           </form>
           
-          {/* 사용자 프로필 */}
-          {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-              <Link
-                to="/my"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition whitespace-nowrap"
-              >
-                <div className="h-8 w-8 rounded-full bg-[#2563EB] flex items-center justify-center flex-shrink-0">
-                  <User className="h-4 w-4 text-white" />
+          {/* 사용자 프로필 - 데스크탑에서만 표시 */}
+          {!isMobile && (
+            <>
+              {isAuthenticated && user ? (
+                <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+                  <Link
+                    to="/my"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition whitespace-nowrap"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-[#2563EB] flex items-center justify-center flex-shrink-0">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="font-medium text-gray-900">{user.name}</span>
+                  </Link>
+                  <button
+                    onClick={handleLogoutClick}
+                    className="p-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition flex-shrink-0"
+                    title="로그아웃"
+                  >
+                    <LogOut className="h-5 w-5 text-gray-600" />
+                  </button>
                 </div>
-                {!isMobile && <span className="font-medium text-gray-900">{user.name}</span>}
-              </Link>
-              <button
-                onClick={handleLogoutClick}
-                className="p-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition flex-shrink-0"
-                title="로그아웃"
-              >
-                <LogOut className="h-5 w-5 text-gray-600" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Link
-                to="/login"
-                className="px-4 py-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition font-medium text-gray-700 whitespace-nowrap"
-              >
-                로그인
-              </Link>
-              <Link
-                to="/signup"
-                className="px-4 py-2.5 rounded-[20px] bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition font-medium shadow-[0_4px_12px_rgba(37,99,235,0.3)] whitespace-nowrap"
-              >
-                회원가입
-              </Link>
-            </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Link
+                    to="/login"
+                    className="px-4 py-2.5 rounded-[20px] bg-white/50 hover:bg-white/80 transition font-medium text-gray-700 whitespace-nowrap"
+                  >
+                    로그인
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="px-4 py-2.5 rounded-[20px] bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition font-medium shadow-[0_4px_12px_rgba(37,99,235,0.3)] whitespace-nowrap"
+                  >
+                    회원가입
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       </header>
