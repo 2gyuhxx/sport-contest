@@ -1,77 +1,22 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { Search, MapPin, Calendar, ChevronRight, X, ArrowLeft, Star, Filter } from 'lucide-react'
+import { ArrowLeft, X, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
-import type { Category, Event } from '../types/events'
-import type { RecommendedSportItem } from '../types/favorites'
-import { CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../utils/categoryLabels'
+import type { Event } from '../types/events'
+import { SPORT_CATEGORIES, REGION_INFO, REGION_COORDINATES, CATEGORY_LABELS as CATEGORY_LABEL_MAP } from '../constants'
 import { KOREA_REGION_PATHS } from '../data/koreaRegionPaths'
-import { FavoriteService } from '../services/FavoriteService'
-import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
+import { useEventFilters, type CategoryFilter } from '../hooks/useEventFilters'
+import { useNaverMap } from '../hooks/useNaverMap'
+import { SearchBar } from '../components/SearchBar'
+import { CategoryChips } from '../components/CategoryChips'
+import { RecommendedSection } from '../components/RecommendedSection'
+import { EventListSection } from '../components/EventListSection'
 import '../types/naver.d.ts'
-
-type CategoryFilter = 'all' | Category
-
-// 지역별 중심 좌표
-const REGION_COORDINATES: Record<string, { lat: number; lng: number; level: number }> = {
-  seoul: { lat: 37.5665, lng: 126.9780, level: 9 },
-  busan: { lat: 35.1796, lng: 129.0756, level: 10 },
-  daegu: { lat: 35.8714, lng: 128.6014, level: 10 },
-  incheon: { lat: 37.4563, lng: 126.7052, level: 10 },
-  gwangju: { lat: 35.1595, lng: 126.8526, level: 10 },
-  daejeon: { lat: 36.3504, lng: 127.3845, level: 10 },
-  ulsan: { lat: 35.5384, lng: 129.3114, level: 10 },
-  sejong: { lat: 36.4800, lng: 127.2890, level: 10 },
-  gyeonggi: { lat: 37.4138, lng: 127.5183, level: 11 },
-  gangwon: { lat: 37.8228, lng: 128.1555, level: 12 },
-  chungbuk: { lat: 36.6357, lng: 127.4914, level: 11 },
-  chungnam: { lat: 36.5184, lng: 126.8000, level: 11 },
-  jeonbuk: { lat: 35.7175, lng: 127.1530, level: 11 },
-  jeonnam: { lat: 34.8161, lng: 126.4629, level: 11 },
-  gyeongbuk: { lat: 36.4919, lng: 128.8889, level: 12 },
-  gyeongnam: { lat: 35.4606, lng: 128.2132, level: 11 },
-  jeju: { lat: 33.4890, lng: 126.4983, level: 10 },
-}
-
-// 스포츠 카테고리 정보
-const SPORT_CATEGORIES: { value: Category; label: string; emoji: string }[] = [
-  { value: 'team-ball', label: '구기·팀', emoji: '⚽' },
-  { value: 'racket-ball', label: '라켓·볼', emoji: '🏓' },
-  { value: 'martial-arts', label: '무도·격투', emoji: '🥋' },
-  { value: 'fitness-skill', label: '체력·기술', emoji: '🏋️' },
-  { value: 'precision', label: '정밀·기술', emoji: '🎯' },
-  { value: 'ice-snow', label: '빙상·설원', emoji: '⛷️' },
-  { value: 'water', label: '수상·해양', emoji: '🏊' },
-  { value: 'leisure', label: '레저·환경', emoji: '🚴' },
-  { value: 'mind', label: '마인드', emoji: '🧠' },
-  { value: 'other', label: '기타', emoji: '🎮' },
-]
 
 const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   all: '전체',
   ...CATEGORY_LABEL_MAP,
-}
-
-// 지역 정보
-const REGION_INFO: Record<string, { name: string; shortName: string; emoji: string }> = {
-  seoul: { name: '서울특별시', shortName: '서울', emoji: '🏙️' },
-  busan: { name: '부산광역시', shortName: '부산', emoji: '🌊' },
-  daegu: { name: '대구광역시', shortName: '대구', emoji: '🏢' },
-  incheon: { name: '인천광역시', shortName: '인천', emoji: '✈️' },
-  gwangju: { name: '광주광역시', shortName: '광주', emoji: '🎨' },
-  daejeon: { name: '대전광역시', shortName: '대전', emoji: '🔬' },
-  ulsan: { name: '울산광역시', shortName: '울산', emoji: '🏭' },
-  sejong: { name: '세종특별자치시', shortName: '세종', emoji: '🏛️' },
-  gyeonggi: { name: '경기도', shortName: '경기', emoji: '🌆' },
-  gangwon: { name: '강원도', shortName: '강원', emoji: '⛰️' },
-  chungbuk: { name: '충청북도', shortName: '충북', emoji: '🏞️' },
-  chungnam: { name: '충청남도', shortName: '충남', emoji: '🌾' },
-  jeonbuk: { name: '전라북도', shortName: '전북', emoji: '🍚' },
-  jeonnam: { name: '전라남도', shortName: '전남', emoji: '🌊' },
-  gyeongbuk: { name: '경상북도', shortName: '경북', emoji: '🏔️' },
-  gyeongnam: { name: '경상남도', shortName: '경남', emoji: '⚓' },
-  jeju: { name: '제주특별자치도', shortName: '제주', emoji: '🏝️' },
 }
 
 export function SearchPage() {
@@ -81,9 +26,34 @@ export function SearchPage() {
   const { state: authState } = useAuthContext()
   const { user, isAuthenticated } = authState
 
-  // 지도 관련 ref
-  const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<any>(null)
+  const initialRegion = state?.selectedRegion ?? null
+  const initialCategory = state?.selectedCategory ?? 'all'
+  const initialKeyword = state?.keyword ?? ''
+
+  // Custom Hooks
+  const { mapRef, mapContainerRef, naverMapsLoaded, naverMapsError, initializeMap } = useNaverMap()
+  const {
+    selectedRegion,
+    setSelectedRegion,
+    categoryFilter,
+    searchTerm,
+    setSearchTerm,
+    filteredEvents,
+    recommendedEvents,
+    categoryOptions,
+    handleCategoryChange,
+    resetFilters: resetEventFilters
+  } = useEventFilters({
+    events,
+    isAuthenticated,
+    userId: user?.id,
+    userInterests: user?.interests,
+    initialRegion,
+    initialCategory,
+    initialKeyword
+  })
+
+  // 지도 관련 ref (polygon 관리용)
   const infowindowRef = useRef<any>(null)
   const detailPolygonsRef = useRef<any[]>([])
   const currentTooltipNameRef = useRef<string | null>(null)
@@ -101,165 +71,19 @@ export function SearchPage() {
   const mouseMoveListenerRef = useRef<any>(null)
   const selectedRegionRef = useRef<string | null>(null)
   const showDetailMapRef = useRef<boolean>(false)
-  const categoryScrollDraggingRef = useRef<boolean>(false)
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [showDetailMap, setShowDetailMap] = useState(false)
-  const [naverMapsLoaded, setNaverMapsLoaded] = useState(false)
-  const [naverMapsError, setNaverMapsError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  const initialRegion = state?.selectedRegion ?? null
-  const initialCategory = (state?.selectedCategory ?? 'all') as CategoryFilter
-  const initialKeyword = state?.keyword ?? ''
-
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(initialRegion)
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(initialCategory)
-  const [searchTerm, setSearchTerm] = useState(initialKeyword)
-  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
-
-  // 네이버맵 SDK 로드 및 전역 에러 핸들러 설정
-  useEffect(() => {
-    // 전역 에러 핸들러를 먼저 설정 (Naver Maps API 에러를 조용히 처리)
-    const handleScriptError = (event: ErrorEvent) => {
-      try {
-        const errorMessage = event.message || ''
-        const filename = event.filename || ''
-        const stack = event.error?.stack || ''
-        
-        // 네이버 맵 API 관련 에러인지 확인 (매우 넓은 범위로 캐치)
-        const isNaverMapError = 
-          filename.includes('naver.com') ||
-          filename.includes('maps.js') ||
-          stack.includes('maps.js') ||
-          errorMessage.includes('substring') ||
-          (errorMessage.includes('Cannot read properties') && errorMessage.includes('undefined'))
-        
-        if (isNaverMapError) {
-          // 에러를 완전히 조용히 처리 (콘솔에 표시하지 않음)
-          event.stopImmediatePropagation()
-          event.preventDefault()
-          event.stopPropagation()
-          return false
-        }
-      } catch {
-        // 에러 핸들러 자체에서 에러 발생 시 무시
-      }
-    }
-    
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      try {
-        const errorMessage = event.reason?.message || String(event.reason || '')
-        const stack = event.reason?.stack || ''
-        if (errorMessage.includes('substring') || 
-            errorMessage.includes('Cannot read properties') ||
-            errorMessage.includes('naver') || 
-            errorMessage.includes('maps') ||
-            stack.includes('maps.js')) {
-          // 에러를 완전히 조용히 처리
-          event.preventDefault()
-          return false
-        }
-      } catch {
-        // 에러 핸들러 자체에서 에러 발생 시 무시
-      }
-    }
-    
-    // 에러 핸들러를 가장 먼저 등록 (다른 핸들러보다 먼저 실행되도록)
-    window.addEventListener('error', handleScriptError, true)
-    window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
-    
-    if (window.naver?.maps) {
-      setNaverMapsLoaded(true)
-      return () => {
-        window.removeEventListener('error', handleScriptError, true)
-        window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
-      }
-    }
-
-    const existingScript = document.querySelector(`script[src*="naver.com/openapi"]`)
-    if (existingScript) {
-      const checkLoaded = setInterval(() => {
-        if (window.naver?.maps) {
-          setNaverMapsLoaded(true)
-          clearInterval(checkLoaded)
-      }
-    }, 100)
-      return () => {
-        clearInterval(checkLoaded)
-        window.removeEventListener('error', handleScriptError, true)
-        window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
-      }
-    }
-
-    const script = document.createElement('script')
-    const naverClientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
-    if (!naverClientId) {
-      console.error('[SearchPage] 네이버맵 API 키가 설정되지 않았습니다. .env 파일에 VITE_NAVER_MAP_CLIENT_ID를 설정해주세요.')
-      return () => {
-        window.removeEventListener('error', handleScriptError, true)
-        window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
-      }
-    }
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${naverClientId}&submodules=geocoder`
-    script.async = true
-    script.onerror = () => {
-      console.error('[SearchPage] 네이버맵 API 스크립트 로드 실패. API 키를 확인해주세요.')
-      setNaverMapsError('네이버맵 API 스크립트를 로드할 수 없습니다. API 키를 확인해주세요.')
-    }
-    
-    script.onload = () => {
-      const checkLoaded = setInterval(() => {
-        if (window.naver?.maps) {
-          setNaverMapsLoaded(true)
-          clearInterval(checkLoaded)
-        }
-      }, 100)
-      
-      // 타임아웃 설정 (10초 후 실패로 간주)
-      setTimeout(() => {
-        if (!window.naver?.maps) {
-          console.error('[SearchPage] 네이버맵 API 로드 타임아웃')
-          clearInterval(checkLoaded)
-          setNaverMapsError('네이버맵 API 로드가 시간 초과되었습니다.')
-        }
-      }, 10000)
-    }
-    document.head.appendChild(script)
-    
-    // cleanup 함수에서 이벤트 리스너 제거
-    return () => {
-      window.removeEventListener('error', handleScriptError, true)
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
-    }
-  }, [])
-
-  // 지도 초기화
+  // 지도 초기화 (useNaverMap hook 사용)
   useEffect(() => {
     if (!naverMapsLoaded || !mapContainerRef.current || mapRef.current) return
 
-    const mapOptions = {
-      center: new window.naver.maps.LatLng(36.5, 125.5),
-      zoom: 7,
-      minZoom: 6,
-      maxZoom: 18,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: 7, // RIGHT_CENTER
-        style: 1, // SMALL
-      },
-      mapTypeControl: false,
-      scaleControl: false,
-      logoControl: false,
-      mapDataControl: false,
-    }
-
-    const map = new window.naver.maps.Map(mapContainerRef.current, mapOptions)
-    mapRef.current = map
-
-    // 지역 Polygon 생성
-    initializeRegionPolygons(map)
-
+    initializeMap((map) => {
+      // 지역 Polygon 생성
+      initializeRegionPolygons(map)
+    })
   }, [naverMapsLoaded])
 
   // 지역 Polygon 초기화
@@ -312,34 +136,34 @@ export function SearchPage() {
         zIndex: baseZIndex,
       })
 
-      ;(polygon as any)._originalOpacity = 0.06
-      ;(polygon as any)._originalStrokeColor = '#007AFF'
+        ; (polygon as any)._originalOpacity = 0.06
+        ; (polygon as any)._originalStrokeColor = '#007AFF'
 
       // 클릭 이벤트
-      window.naver.maps.Event.addListener(polygon, 'click', function() {
+      window.naver.maps.Event.addListener(polygon, 'click', function () {
         if (infowindowRef.current) infowindowRef.current.close()
         if (customOverlayRef.current) customOverlayRef.current.setMap(null)
-        
+
         polygon.setOptions({ fillColor: '#007AFF', fillOpacity: 0.06 })
-        
+
         const coords = REGION_COORDINATES[regionId]
         setSelectedRegion(regionId)
         setShowDetailMap(true)
         dispatch({ type: 'SELECT_REGION', payload: regionId })
-        
+
         // Early Return: 지도가 준비되지 않았으면 종료
         if (!coords || !mapRef.current || !window.naver?.maps) return
-        
+
         // 사이드바를 피해 오른쪽 중간에 위치하도록 경도 조정
         // 광역시/특별시는 작은 지역이므로 작게 조정, 도는 큰 지역이므로 크게 조정
         const adjustedLng = isMetropolitan ? coords.lng - 0.2 : coords.lng - 1.2
         const targetLatLng = new window.naver.maps.LatLng(coords.lat, adjustedLng)
         const zoom = isMetropolitan ? 11 : Math.max(8, Math.min(9, 14 - coords.level + 2))
-        
+
         // 즉시 설정 (다른 로직보다 우선)
         mapRef.current.setCenter(targetLatLng)
         mapRef.current.setZoom(zoom)
-        
+
         // 다른 로직이 실행된 후에도 지도 위치 유지
         setTimeout(() => {
           if (mapRef.current && window.naver?.maps) {
@@ -347,20 +171,28 @@ export function SearchPage() {
             mapRef.current.setZoom(zoom)
           }
         }, 300)
-        
+
         // 광역시가 속한 도 숨기기
         const METRO_TO_PROVINCE: Record<string, string> = {
           'gwangju': 'jeonnam',
           'daejeon': 'chungnam',
           'ulsan': 'gyeongnam',
         }
+        // 역방향 매핑: 도 -> 광역시들
+        const PROVINCE_TO_METROS: Record<string, string[]> = {
+          'jeonnam': ['gwangju'],
+          'chungnam': ['daejeon'],
+          'gyeongnam': ['ulsan'],
+        }
         const provinceToHide = METRO_TO_PROVINCE[regionId]
-        
+        const metrosToFade = PROVINCE_TO_METROS[regionId] || []
+
         polygonsRef.current.forEach(({ polygon: p, regionId: rid }) => {
           if (rid === regionId) {
+            // 선택된 지역: 정상적으로 강조
             p.setMap(mapRef.current)
-            p.setOptions({ 
-              fillColor: '#007AFF', 
+            p.setOptions({
+              fillColor: '#007AFF',
               fillOpacity: 0,
               strokeColor: '#007AFF',
               strokeWeight: 2.5,
@@ -368,12 +200,24 @@ export function SearchPage() {
               zIndex: 10
             })
           } else if (rid === provinceToHide) {
+            // 광역시가 속한 도: 숨기기
             p.setMap(null)
+          } else if (metrosToFade.includes(rid)) {
+            // 도가 선택되었을 때 그 안의 광역시: 흰색으로 흐려지게 (하지만 클릭 가능하도록 z-index 높게)
+            p.setMap(mapRef.current)
+            p.setOptions({
+              fillColor: '#ffffff',
+              fillOpacity: 0.75,
+              strokeColor: '#9ca3af',
+              strokeWeight: 1.5,
+              strokeOpacity: 0.8,
+              zIndex: 500  // 시/군/구 polygon(zIndex: 50)보다 높게 설정하여 클릭 가능하게
+            })
           } else {
             // 다른 지역: 흰색으로 흐려지게 (경계선은 명확하게 표시)
             p.setMap(mapRef.current)
-            p.setOptions({ 
-              fillColor: '#ffffff', 
+            p.setOptions({
+              fillColor: '#ffffff',
               fillOpacity: 0.75,
               strokeColor: '#9ca3af',
               strokeWeight: 1.5,
@@ -385,7 +229,7 @@ export function SearchPage() {
       })
 
       // 마우스 오버
-      window.naver.maps.Event.addListener(polygon, 'mouseover', function() {
+      window.naver.maps.Event.addListener(polygon, 'mouseover', function () {
         // showDetailMap이 true이고 선택된 지역이 아닐 때는 흐려진 스타일 유지
         if (showDetailMapRef.current && selectedRegionRef.current !== regionId) {
           // 흐려진 스타일 유지 (변경하지 않음)
@@ -397,7 +241,7 @@ export function SearchPage() {
       })
 
       // 마우스 아웃
-      window.naver.maps.Event.addListener(polygon, 'mouseout', function() {
+      window.naver.maps.Event.addListener(polygon, 'mouseout', function () {
         // showDetailMap이 true이고 선택된 지역이 아닐 때는 흐려진 스타일 유지 (경계선은 명확하게)
         if (showDetailMapRef.current && selectedRegionRef.current !== regionId) {
           // 흐려진 스타일 유지 (경계선은 명확하게 표시)
@@ -412,9 +256,9 @@ export function SearchPage() {
           return
         }
         if (!showDetailMapRef.current) {
-          polygon.setOptions({ 
-            fillOpacity: (polygon as any)._originalOpacity, 
-            strokeWeight: 1.5 
+          polygon.setOptions({
+            fillOpacity: (polygon as any)._originalOpacity,
+            strokeWeight: 1.5
           })
         }
       })
@@ -432,7 +276,7 @@ export function SearchPage() {
         const loadedRegionIds = new Set<string>()
         const metropolitanFeatures: any[] = []
         const provinceFeatures: any[] = []
-        
+
         // 먼저 도와 광역시를 분리
         geojson.features.forEach((feature: any) => {
           const regionName = feature.properties?.name || feature.properties?.CTP_KOR_NM || feature.properties?.NAME || ''
@@ -450,12 +294,12 @@ export function SearchPage() {
         provinceFeatures.forEach(({ feature, regionId }) => {
           loadedRegionIds.add(regionId)
           const geometry = feature.geometry
-          
+
           if (geometry.type === 'MultiPolygon') {
             geometry.coordinates.forEach((polygon: any) => {
               const outerRing = polygon[0]
               const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 3 === 0)
-              const polygonPath = simplifiedCoords.map((coord: number[]) => 
+              const polygonPath = simplifiedCoords.map((coord: number[]) =>
                 new window.naver.maps.LatLng(coord[1], coord[0])
               )
               if (polygonPath.length >= 3) {
@@ -465,7 +309,7 @@ export function SearchPage() {
           } else if (geometry.type === 'Polygon') {
             const outerRing = geometry.coordinates[0]
             const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 3 === 0)
-            const polygonPath = simplifiedCoords.map((coord: number[]) => 
+            const polygonPath = simplifiedCoords.map((coord: number[]) =>
               new window.naver.maps.LatLng(coord[1], coord[0])
             )
             if (polygonPath.length >= 3) {
@@ -478,12 +322,12 @@ export function SearchPage() {
         metropolitanFeatures.forEach(({ feature, regionId }) => {
           loadedRegionIds.add(regionId)
           const geometry = feature.geometry
-          
+
           if (geometry.type === 'MultiPolygon') {
             geometry.coordinates.forEach((polygon: any) => {
               const outerRing = polygon[0]
               const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 3 === 0)
-              const polygonPath = simplifiedCoords.map((coord: number[]) => 
+              const polygonPath = simplifiedCoords.map((coord: number[]) =>
                 new window.naver.maps.LatLng(coord[1], coord[0])
               )
               if (polygonPath.length >= 3) {
@@ -493,7 +337,7 @@ export function SearchPage() {
           } else if (geometry.type === 'Polygon') {
             const outerRing = geometry.coordinates[0]
             const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 3 === 0)
-            const polygonPath = simplifiedCoords.map((coord: number[]) => 
+            const polygonPath = simplifiedCoords.map((coord: number[]) =>
               new window.naver.maps.LatLng(coord[1], coord[0])
             )
             if (polygonPath.length >= 3) {
@@ -501,7 +345,7 @@ export function SearchPage() {
             }
           }
         })
-        
+
         // Fallback (GeoJSON에 없는 지역)
         Object.entries(KOREA_REGION_PATHS).forEach(([regionId, path]) => {
           if (!loadedRegionIds.has(regionId)) {
@@ -516,7 +360,7 @@ export function SearchPage() {
         // Fallback: 도 먼저, 광역시 나중에
         const provinceEntries = Object.entries(KOREA_REGION_PATHS).filter(([id]) => !metropolitanCities.includes(id))
         const metroEntries = Object.entries(KOREA_REGION_PATHS).filter(([id]) => metropolitanCities.includes(id))
-        
+
         provinceEntries.forEach(([regionId, path]) => {
           const polygonPath = path.map(coord => new window.naver.maps.LatLng(coord.lat, coord.lng))
           createPolygon(regionId, polygonPath)
@@ -555,18 +399,25 @@ export function SearchPage() {
           })
         })
       }
-                  return
-                }
-                
+      return
+    }
+
     const METRO_TO_PROVINCE: Record<string, string> = {
       'gwangju': 'jeonnam',
       'daejeon': 'chungnam',
       'ulsan': 'gyeongnam',
     }
+    // 역방향 매핑: 도 -> 광역시들
+    const PROVINCE_TO_METROS: Record<string, string[]> = {
+      'jeonnam': ['gwangju'],
+      'chungnam': ['daejeon'],
+      'gyeongnam': ['ulsan'],
+    }
     const provinceToHide = METRO_TO_PROVINCE[selectedRegion]
+    const metrosToFade = PROVINCE_TO_METROS[selectedRegion] || []
 
     polygonsRef.current.forEach(({ polygon, regionId }) => {
-      
+
       if (regionId === selectedRegion) {
         // 선택된 지역: 정상적으로 강조
         polygon.setMap(mapRef.current)
@@ -581,7 +432,18 @@ export function SearchPage() {
       } else if (regionId === provinceToHide) {
         // 광역시가 속한 도: 숨기기
         polygon.setMap(null)
-            } else {
+      } else if (metrosToFade.includes(regionId)) {
+        // 도가 선택되었을 때 그 안의 광역시: 흰색으로 흐려지게 (하지만 클릭 가능하도록 z-index 높게)
+        polygon.setMap(mapRef.current)
+        polygon.setOptions({
+          fillColor: '#ffffff',
+          fillOpacity: 0.75,
+          strokeColor: '#9ca3af',
+          strokeWeight: 1.5,
+          strokeOpacity: 0.8,
+          zIndex: 500  // 시/군/구 polygon(zIndex: 50)보다 높게 설정하여 클릭 가능하게
+        })
+      } else {
         // 다른 지역: 흰색으로 흐려지게 (경계선은 명확하게 표시)
         polygon.setMap(mapRef.current)
         polygon.setOptions({
@@ -591,9 +453,9 @@ export function SearchPage() {
           strokeWeight: 1.5,
           strokeOpacity: 0.8,
           zIndex: 1
-          })
-        }
-      })
+        })
+      }
+    })
   }, [selectedRegion, showDetailMap])
 
   // 시/군/구 경계선 표시
@@ -609,7 +471,7 @@ export function SearchPage() {
       mouseoutTimeoutRef.current = null
     }
     activePolygonNameRef.current = null
-    
+
     fetch('/korea-sigungu.geojson')
       .then(response => response.json())
       .then((geojson: any) => {
@@ -623,29 +485,53 @@ export function SearchPage() {
           'jeonbuk': '35', 'jeonnam': '36', 'gyeongbuk': '37', 'gyeongnam': '38',
           'jeju': '39',
         }
-        
+
         const regionCode = REGION_CODE_MAP[selectedRegion]
-        
+
+        // 광역시가 속한 도의 코드도 가져오기
+        const METRO_TO_PROVINCE: Record<string, string> = {
+          'gwangju': 'jeonnam',
+          'daejeon': 'chungnam',
+          'ulsan': 'gyeongnam',
+        }
+        const parentProvince = METRO_TO_PROVINCE[selectedRegion]
+        const parentProvinceCode = parentProvince ? REGION_CODE_MAP[parentProvince] : null
+
         geojson.features.forEach((feature: any) => {
           const sigunguName = feature.properties.name || feature.properties.SIG_KOR_NM || ''
           const sigunguCode = feature.properties.code || feature.properties.SIG_CD || feature.properties.CTPRVN_CD || ''
-          
-          if (!sigunguCode.startsWith(regionCode)) return
-          
-            const geometry = feature.geometry
-            
+
+          // 선택된 지역의 시/군/구 또는 광역시가 속한 도의 시/군/구만 렌더링
+          const isSelectedRegion = sigunguCode.startsWith(regionCode)
+          const isParentProvince = parentProvinceCode && sigunguCode.startsWith(parentProvinceCode)
+
+          if (!isSelectedRegion && !isParentProvince) return
+
+          const geometry = feature.geometry
+
+          // 선택된 지역이 광역시를 포함하는 도인지 확인
+          const PROVINCE_TO_METROS: Record<string, string[]> = {
+            'jeonnam': ['gwangju'],
+            'chungnam': ['daejeon'],
+            'gyeongnam': ['ulsan'],
+          }
+          const hasMetropolitanCity = PROVINCE_TO_METROS[selectedRegion]?.length > 0
+
           const createDetailPolygon = (polygonPath: any[]) => {
+            // 부모 도의 시/군/구인 경우 흰색으로 흐려지게 표시
+            const isFaded = isParentProvince && !isSelectedRegion
+
             const detailPolygon = new window.naver.maps.Polygon({
               map: mapRef.current,
               paths: polygonPath,
               strokeWeight: 1,
-              strokeColor: '#007AFF',
-              strokeOpacity: 0.35,
-                    strokeStyle: 'solid',
-              fillColor: '#007AFF',
-              fillOpacity: 0.02,
-              clickable: true,
-              zIndex: 50,
+              strokeColor: isFaded ? '#9ca3af' : '#007AFF',
+              strokeOpacity: isFaded ? 0.8 : 0.35,
+              strokeStyle: 'solid',
+              fillColor: isFaded ? '#ffffff' : '#007AFF',
+              fillOpacity: isFaded ? 0.75 : 0.02,
+              clickable: !hasMetropolitanCity && !isFaded,  // 광역시가 있는 도의 경우 또는 흐려진 경우 클릭 불가능
+              zIndex: isFaded ? 5 : 50,  // 흐려진 polygon은 낮은 z-index
             })
 
             if (!sigunguPolygonGroupsRef.current[sigunguName]) {
@@ -653,17 +539,23 @@ export function SearchPage() {
             }
             sigunguPolygonGroupsRef.current[sigunguName].push(detailPolygon)
 
-            window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function(e: any) {
-                    if (mouseoutTimeoutRef.current) {
-                      clearTimeout(mouseoutTimeoutRef.current)
-                      mouseoutTimeoutRef.current = null
-                    }
-                    
+            // 흐려진 polygon은 이벤트 리스너를 추가하지 않음
+            if (isFaded) {
+              detailPolygonsRef.current.push(detailPolygon)
+              return
+            }
+
+            window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function (e: any) {
+              if (mouseoutTimeoutRef.current) {
+                clearTimeout(mouseoutTimeoutRef.current)
+                mouseoutTimeoutRef.current = null
+              }
+
               if (currentTooltipNameRef.current === sigunguName && sigunguOverlayRef.current) return
-              
+
               // 선택된 시/군/구는 마우스 호버 시에도 스타일 변경하지 않음 (ref 사용하여 최신 값 참조)
               const isCurrentSelected = selectedCityRef.current === sigunguName
-              
+
               // 이전 호버된 시/군/구를 원래 스타일로 복원 (단, 선택된 시/군/구가 아닌 경우)
               if (activePolygonNameRef.current && activePolygonNameRef.current !== sigunguName && sigunguPolygonGroupsRef.current[activePolygonNameRef.current]) {
                 const isPreviousSelected = selectedCityRef.current === activePolygonNameRef.current
@@ -682,7 +574,7 @@ export function SearchPage() {
                 }
                 // 선택된 시/군/구는 스타일 변경하지 않음
               }
-              
+
               // 호버된 시/군/구 강조 (단, 선택된 시/군/구가 아닌 경우만)
               if (!isCurrentSelected && sigunguPolygonGroupsRef.current[sigunguName]) {
                 sigunguPolygonGroupsRef.current[sigunguName].forEach((poly: any) => {
@@ -709,7 +601,7 @@ export function SearchPage() {
                   })
                 })
               }
-              
+
               // 선택된 시/군/구가 다른 곳에 있으면 그 스타일도 명시적으로 유지
               if (selectedCityRef.current && selectedCityRef.current !== sigunguName && sigunguPolygonGroupsRef.current[selectedCityRef.current]) {
                 sigunguPolygonGroupsRef.current[selectedCityRef.current].forEach((poly: any) => {
@@ -721,17 +613,17 @@ export function SearchPage() {
                     strokeOpacity: 1,
                     zIndex: 100
                   })
-                      })
-                    }
-                    
-                    activePolygonNameRef.current = sigunguName
-                    
+                })
+              }
+
+              activePolygonNameRef.current = sigunguName
+
               // Apple 스타일 툴팁 (마우스 위치 사용하여 지도 이동 방지)
               // 이벤트 객체에서 직접 좌표 가져오기
               const mousePosition = e.coord || e.latlng
               if (mousePosition && mapRef.current && window.naver?.maps) {
                 try {
-                  
+
                   // 툴팁 마커 생성 또는 위치 업데이트 (지도 이동 방지)
                   if (!sigunguTooltipMarkerRef.current) {
                     try {
@@ -770,7 +662,7 @@ export function SearchPage() {
                       }
                     }
                   }
-                  
+
                   if (!sigunguOverlayRef.current) {
                     try {
                       sigunguOverlayRef.current = new window.naver.maps.InfoWindow({
@@ -791,7 +683,7 @@ export function SearchPage() {
                       // 콘텐츠 설정 실패 시 무시
                     }
                   }
-                  
+
                   // 마커를 사용하여 툴팁 표시 (지도 이동 없이)
                   if (sigunguOverlayRef.current && sigunguTooltipMarkerRef.current) {
                     try {
@@ -801,14 +693,14 @@ export function SearchPage() {
                       // 툴팁 열기 실패 시 무시
                     }
                   }
-      } catch (error) {
+                } catch (error) {
                   // 전체 에러 캐치 - 모든 에러를 조용히 처리
                 }
               }
-                  })
+            })
 
             // 마우스가 polygon 위에서 움직일 때 툴팁 위치 업데이트
-            window.naver.maps.Event.addListener(detailPolygon, 'mousemove', function(e: any) {
+            window.naver.maps.Event.addListener(detailPolygon, 'mousemove', function (e: any) {
               // 현재 툴팁이 이 시/군/구에 대한 것인지 확인
               if (currentTooltipNameRef.current === sigunguName && sigunguTooltipMarkerRef.current && mapRef.current && window.naver?.maps) {
                 try {
@@ -828,12 +720,12 @@ export function SearchPage() {
               }
             })
 
-            window.naver.maps.Event.addListener(detailPolygon, 'mouseout', function() {
-                    mouseoutTimeoutRef.current = setTimeout(() => {
-                      if (activePolygonNameRef.current === sigunguName) {
+            window.naver.maps.Event.addListener(detailPolygon, 'mouseout', function () {
+              mouseoutTimeoutRef.current = setTimeout(() => {
+                if (activePolygonNameRef.current === sigunguName) {
                   // ref 사용하여 최신 값 참조
                   const isSelected = selectedCityRef.current === sigunguName
-                  
+
                   // 선택된 시/군/구는 스타일 변경하지 않음
                   if (!isSelected && sigunguPolygonGroupsRef.current[sigunguName]) {
                     // 선택되지 않은 시/군/구만 원래 스타일로 복원
@@ -860,7 +752,7 @@ export function SearchPage() {
                       })
                     })
                   }
-                  
+
                   // 선택된 시/군/구가 다른 곳에 있으면 그 스타일도 명시적으로 유지
                   if (selectedCityRef.current && selectedCityRef.current !== sigunguName && sigunguPolygonGroupsRef.current[selectedCityRef.current]) {
                     sigunguPolygonGroupsRef.current[selectedCityRef.current].forEach((poly: any) => {
@@ -874,32 +766,32 @@ export function SearchPage() {
                       })
                     })
                   }
-                  
+
                   activePolygonNameRef.current = null
                 }
-                      if (sigunguOverlayRef.current) {
+                if (sigunguOverlayRef.current) {
                   sigunguOverlayRef.current.close()
-                        currentTooltipNameRef.current = null
-                      }
-                      mouseoutTimeoutRef.current = null
+                  currentTooltipNameRef.current = null
+                }
+                mouseoutTimeoutRef.current = null
               }, 50) as unknown as number
             })
 
-            window.naver.maps.Event.addListener(detailPolygon, 'click', function() {
+            window.naver.maps.Event.addListener(detailPolygon, 'click', function () {
               // 툴팁 닫기
               if (sigunguOverlayRef.current) {
                 sigunguOverlayRef.current.close()
                 currentTooltipNameRef.current = null
               }
-              
+
               // 선택된 시/군/구 설정
-                    setSelectedCity(sigunguName)
-                    
+              setSelectedCity(sigunguName)
+
               // 해당 시/군/구 확대 (클릭 시에만)
               const bounds = new window.naver.maps.LatLngBounds()
-                    polygonPath.forEach((latlng: any) => bounds.extend(latlng))
+              polygonPath.forEach((latlng: any) => bounds.extend(latlng))
               mapRef.current.fitBounds(bounds, { padding: 50 })
-              
+
               // 선택된 시/군/구 강조, 다른 시/군/구는 원래 스타일 유지
               Object.entries(sigunguPolygonGroupsRef.current).forEach(([name, polys]) => {
                 if (name === sigunguName) {
@@ -928,35 +820,35 @@ export function SearchPage() {
                   })
                 }
               })
-                  })
+            })
 
-                  detailPolygonsRef.current.push(detailPolygon)
+            detailPolygonsRef.current.push(detailPolygon)
           }
-          
+
           if (geometry.type === 'MultiPolygon') {
             geometry.coordinates.forEach((polygon: any) => {
               const outerRing = polygon[0]
               const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
-              const polygonPath = simplifiedCoords.map((coord: number[]) => 
+              const polygonPath = simplifiedCoords.map((coord: number[]) =>
                 new window.naver.maps.LatLng(coord[1], coord[0])
               )
               if (polygonPath.length >= 3) {
                 createDetailPolygon(polygonPath)
-                }
-              })
-            } else if (geometry.type === 'Polygon') {
-              const outerRing = geometry.coordinates[0]
-              const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
-              const polygonPath = simplifiedCoords.map((coord: number[]) => 
+              }
+            })
+          } else if (geometry.type === 'Polygon') {
+            const outerRing = geometry.coordinates[0]
+            const simplifiedCoords = outerRing.filter((_: any, i: number) => i % 5 === 0)
+            const polygonPath = simplifiedCoords.map((coord: number[]) =>
               new window.naver.maps.LatLng(coord[1], coord[0])
-              )
-              if (polygonPath.length >= 3) {
+            )
+            if (polygonPath.length >= 3) {
               createDetailPolygon(polygonPath)
             }
           }
         })
       })
-      .catch(() => {})
+      .catch(() => { })
 
     // 마우스 위치 추적 (툴팁 표시용)
     const handleMouseMove = (e: any) => {
@@ -1006,7 +898,7 @@ export function SearchPage() {
         }
         detailPolygonsRef.current = []
         sigunguPolygonGroupsRef.current = {}
-        
+
         // 툴팁 닫기 및 마커 정리
         if (sigunguOverlayRef.current) {
           try {
@@ -1030,12 +922,12 @@ export function SearchPage() {
         }
         currentTooltipNameRef.current = null
         activePolygonNameRef.current = null
-        
-                  if (mouseoutTimeoutRef.current) {
-                    clearTimeout(mouseoutTimeoutRef.current)
-                    mouseoutTimeoutRef.current = null
-                  }
-                  
+
+        if (mouseoutTimeoutRef.current) {
+          clearTimeout(mouseoutTimeoutRef.current)
+          mouseoutTimeoutRef.current = null
+        }
+
         // 마우스 이벤트 리스너 제거 (ref에 저장된 리스너 사용)
         if (mouseMoveListenerRef.current && mapRef.current && window.naver?.maps) {
           try {
@@ -1125,7 +1017,7 @@ export function SearchPage() {
             })
           }
         })
-        
+
         // detailPolygonsRef도 복원
         if (Array.isArray(detailPolygonsRef.current)) {
           detailPolygonsRef.current.forEach(polygon => {
@@ -1150,157 +1042,6 @@ export function SearchPage() {
       }
     }
   }, [selectedCity, showDetailMap, selectedRegion])
-
-  // 맞춤 추천 로드 (관심 종목 + 찜 기반 추천)
-  useEffect(() => {
-    const loadRecommendations = async () => {
-      if (!isAuthenticated || !user?.id || events.length === 0) {
-        setRecommendedEvents([])
-        return
-      }
-      
-      try {
-        // 활성 이벤트 필터링 (기본 조건)
-        const activeEvents = events.filter(event => {
-          const isActive = event.event_status !== 'inactive'
-          const isNormal = !event.reports_state || event.reports_state === 'normal'
-          return isActive && isNormal
-        })
-        
-        // 1. 맞춤 추천: 사용자의 관심 종목(user.interests) 기반
-        const userInterests = (user.interests as Category[]) || []
-        const interestBasedEvents: Event[] = []
-        
-        if (userInterests.length > 0) {
-          // 관심 카테고리와 일치하는 행사만 필터링 (event.category와 직접 비교)
-          interestBasedEvents.push(...activeEvents.filter(event => {
-            return userInterests.includes(event.category)
-          }))
-          
-        }
-        
-        // 2. 찜 추천: 찜한 종목 + 유사한 사용자들이 찜한 종목 기반
-        const favoriteBasedEvents: Event[] = []
-        
-        try {
-          const myFavorites = await FavoriteService.getMyFavorites()
-          
-          if (myFavorites.length > 0) {
-            // 찜한 종목 추출
-            const myFavoriteSports = [
-              ...new Set(
-                myFavorites
-                  .map((fav) => fav.sub_sport)
-                  .filter((sub): sub is string => sub !== null)
-              )
-            ]
-            
-            if (myFavoriteSports.length > 0) {
-              try {
-                // 사용자-종목 선호도 행렬 가져오기
-                const { matrix, users, sports } = await FavoriteService.getUserSportMatrix()
-                
-                // 유사한 사용자 찾기
-                const similarUsers = findSimilarUsers(Number(user.id), matrix, users, sports, 5)
-                
-                // 유사한 사용자들이 찜한 종목 추천
-                const recommendedSportsList = recommendSportsFromSimilarUsers(
-                  similarUsers,
-                  matrix,
-                  sports,
-                  myFavoriteSports
-                )
-                
-                // 상위 3개 추천 종목 선택
-                const topRecommendedSports = recommendedSportsList.slice(0, 3).map((item: RecommendedSportItem) => item.sport)
-                
-                // 찜한 종목 + 추천 종목 모두 포함
-                const allTargetSports = [...new Set([...myFavoriteSports, ...topRecommendedSports])]
-                
-                // 해당 종목의 활성 이벤트 필터링
-                favoriteBasedEvents.push(...activeEvents.filter(event => {
-                  return allTargetSports.includes(event.sub_sport || '')
-                }))
-              } catch (matrixError) {
-                // 행렬 조회 실패 시 찜한 종목만으로 필터링
-                favoriteBasedEvents.push(...activeEvents.filter(event => {
-                  return myFavoriteSports.includes(event.sub_sport || '')
-                }))
-              }
-            }
-          }
-        } catch (favoriteError) {
-          // 찜 목록 조회 실패 시 조용히 무시 (403 에러 등)
-          // 로그인하지 않았거나 토큰이 만료된 경우를 위한 처리
-          if (import.meta.env.DEV) {
-            console.debug('찜 목록 조회 실패 (정상 동작일 수 있음):', favoriteError)
-          }
-        }
-        
-        // 맞춤 추천 + 찜 추천 합치기 (중복 제거)
-        const allRecommendedEvents = [
-          ...interestBasedEvents,
-          ...favoriteBasedEvents
-        ]
-        
-        // 중복 제거 (같은 event.id는 하나만)
-        const uniqueRecommendedEvents = Array.from(
-          new Map(allRecommendedEvents.map(event => [event.id, event])).values()
-        )
-        
-        // 추천 행사 전체 표시 (slice 제거)
-        setRecommendedEvents(uniqueRecommendedEvents)
-      } catch (error) {
-        console.error('추천 계산 오류:', error)
-        // 오류 발생 시 활성 이벤트 중에서 랜덤으로 추천
-        const activeEvents = events.filter(event => {
-          const isActive = event.event_status !== 'inactive'
-          const isNormal = !event.reports_state || event.reports_state === 'normal'
-          return isActive && isNormal
-        })
-        const shuffled = [...activeEvents].sort(() => Math.random() - 0.5)
-        setRecommendedEvents(shuffled)
-      }
-    }
-    
-    loadRecommendations()
-  }, [isAuthenticated, user?.id, user?.interests, events])
-
-  // 카테고리 옵션
-  const categoryOptions = useMemo<CategoryFilter[]>(() => {
-    return ['all', ...SPORT_CATEGORIES.map(cat => cat.value)]
-  }, [])
-
-  // 필터링된 이벤트
-  const filteredEvents = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
-    return events
-      .filter((event) => {
-        const isActive = event.event_status !== 'inactive'
-        const isNormal = !event.reports_state || event.reports_state === 'normal'
-        const regionMatch = selectedRegion ? event.region === selectedRegion : true
-        const cityMatch = selectedCity ? event.city === selectedCity : true
-        const categoryMatch = categoryFilter === 'all' ? true : event.category === categoryFilter
-        
-        // 검색어 매칭: 제목, 설명, 도시, region 정보 포함
-        const termMatch = term
-          ? (() => {
-              // region 정보 가져오기
-              const regionInfo = REGION_INFO[event.region]
-              const regionNames = regionInfo 
-                ? `${regionInfo.name} ${regionInfo.shortName}`
-                : event.region || ''
-              
-              const searchText = `${event.title} ${event.summary || ''} ${event.city} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
-              return searchText.includes(term)
-            })()
-          : true
-        
-        return isActive && isNormal && regionMatch && cityMatch && categoryMatch && termMatch
-      })
-      .slice(0, 50)
-  }, [events, selectedRegion, selectedCity, categoryFilter, searchTerm])
-
 
   // 마커 생성 함수 (메모이제이션)
   const createMarkers = useCallback((eventsToShow: Event[]) => {
@@ -1429,7 +1170,7 @@ export function SearchPage() {
         map: mapRef.current,
         icon: {
           content: markerContent,
-          anchor: isRecommended 
+          anchor: isRecommended
             ? new window.naver.maps.Point(20, 20) // 별 모양: 중앙
             : new window.naver.maps.Point(16, 32), // 핀 모양: 하단
         },
@@ -1471,8 +1212,8 @@ export function SearchPage() {
   }, [recommendedEvents])
 
   // filteredEvents의 ID 목록을 메모이제이션하여 불필요한 리렌더 방지
-  const filteredEventIds = useMemo(() => 
-    filteredEvents.map(e => e.id).join(','), 
+  const filteredEventIds = useMemo(() =>
+    filteredEvents.map(e => e.id).join(','),
     [filteredEvents]
   )
 
@@ -1509,13 +1250,139 @@ export function SearchPage() {
     return () => {
       clearTimeout(timeoutId)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDetailMap, filteredEventIds, createMarkers])
 
-  // 필터 초기화
-  const resetFilters = useCallback(() => {
+  // 뒤로가기
+  const handleBack = useCallback(() => {
     try {
-      // 마커 먼저 제거 (직접 제거하여 의존성 문제 방지)
+      if (selectedCity) {
+        setSelectedCity(null)
+        selectedCityRef.current = null
+
+        // 시/군/구 polygon 스타일 원래대로 복원
+        if (Array.isArray(detailPolygonsRef.current)) {
+          detailPolygonsRef.current.forEach(polygon => {
+            if (polygon && typeof polygon.setOptions === 'function') {
+              try {
+                polygon.setOptions({
+                  fillColor: '#007AFF',
+                  fillOpacity: 0.02,
+                  strokeColor: '#007AFF',
+                  strokeWeight: 1,
+                  strokeOpacity: 0.35,
+                  zIndex: 1
+                })
+              } catch (err) {
+                console.error('Polygon 스타일 복원 중 오류:', err)
+              }
+            }
+          })
+        }
+
+        if (mapRef.current && selectedRegion && REGION_COORDINATES[selectedRegion] && window.naver?.maps) {
+          const coords = REGION_COORDINATES[selectedRegion]
+          const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(selectedRegion)
+          // 사이드바를 피해 오른쪽 중간에 위치하도록 경도 조정
+          // 광역시/특별시는 작은 지역이므로 작게 조정, 도는 큰 지역이므로 크게 조정
+          const adjustedLng = isMetropolitan ? coords.lng - 0.2 : coords.lng - 1.2
+          mapRef.current.setCenter(new window.naver.maps.LatLng(coords.lat, adjustedLng))
+          mapRef.current.setZoom(isMetropolitan ? 11 : 9)
+        }
+      } else {
+        // 시/군/구 polygon 먼저 제거 (setShowDetailMap 호출 전)
+        if (Array.isArray(detailPolygonsRef.current)) {
+          detailPolygonsRef.current.forEach(polygon => {
+            if (polygon && typeof polygon.setMap === 'function') {
+              try {
+                polygon.setMap(null)
+              } catch (err) {
+                console.error('Detail polygon 제거 중 오류:', err)
+              }
+            }
+          })
+        }
+        detailPolygonsRef.current = []
+        sigunguPolygonGroupsRef.current = {}
+
+        // 툴팁 닫기
+        if (sigunguOverlayRef.current) {
+          try {
+            if (typeof sigunguOverlayRef.current.close === 'function') {
+              sigunguOverlayRef.current.close()
+            }
+          } catch (err) {
+            console.error('툴팁 닫기 중 오류:', err)
+          }
+          sigunguOverlayRef.current = null
+        }
+        currentTooltipNameRef.current = null
+        activePolygonNameRef.current = null
+
+        if (mouseoutTimeoutRef.current) {
+          clearTimeout(mouseoutTimeoutRef.current)
+          mouseoutTimeoutRef.current = null
+        }
+
+        setShowDetailMap(false)
+        setSelectedRegion(null)
+        dispatch({ type: 'SELECT_REGION', payload: null })
+
+        if (mapRef.current && window.naver?.maps) {
+          try {
+            mapRef.current.setCenter(new window.naver.maps.LatLng(36.5, 125.5))
+            mapRef.current.setZoom(7)
+          } catch (err) {
+            console.error('지도 초기화 중 오류:', err)
+          }
+        }
+
+        if (Array.isArray(polygonsRef.current)) {
+          polygonsRef.current.forEach((item) => {
+            if (item && item.polygon) {
+              const polygon = item.polygon
+              if (polygon && typeof polygon.setMap === 'function' && mapRef.current) {
+                try {
+                  polygon.setMap(mapRef.current)
+                  if (typeof polygon.setOptions === 'function') {
+                    polygon.setOptions({
+                      fillColor: '#007AFF',
+                      fillOpacity: 0.06,
+                      strokeColor: '#007AFF',
+                      strokeOpacity: 0.5,
+                      strokeWeight: 1.5
+                    })
+                  }
+                } catch (err) {
+                  console.error('Polygon 복원 중 오류:', err)
+                }
+              }
+            }
+          })
+        }
+      }
+    } catch (error) {
+      console.error('뒤로가기 중 오류 발생:', error)
+    }
+  }, [selectedCity, selectedRegion, dispatch])
+
+  // 완전 초기화 (필터 + 지도 상태)
+  const handleReset = useCallback(() => {
+    try {
+      // 1. 이벤트 필터 초기화 (hook)
+      resetEventFilters()
+
+      // 2. 지도 관련 상태 초기화
+      setSelectedCity(null)
+      selectedCityRef.current = null
+      setShowDetailMap(false)
+      showDetailMapRef.current = false
+
+      // 3. dispatch 초기화
+      dispatch({ type: 'CLEAR_FILTERS' })
+      dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
+
+      // 4. 마커 제거
       try {
         if (markerInfoWindowRef.current) {
           if (typeof markerInfoWindowRef.current.close === 'function') {
@@ -1532,25 +1399,23 @@ export function SearchPage() {
       } catch (err) {
         console.error('마커 제거 중 오류:', err)
       }
-      
-    setSelectedRegion(null)
-    setSelectedCity(null)
-      selectedCityRef.current = null
-    setShowDetailMap(false)
-    setCategoryFilter('all')
-    setSearchTerm('')
-      
-      try {
-    dispatch({ type: 'CLEAR_FILTERS' })
-    dispatch({ type: 'SET_ACTIVE_EVENT', payload: null })
-      } catch (err) {
-        console.error('Dispatch 중 오류:', err)
+
+      // 5. 시/군/구 polygon 제거  
+      if (Array.isArray(detailPolygonsRef.current)) {
+        detailPolygonsRef.current.forEach(polygon => {
+          if (polygon && typeof polygon.setMap === 'function') {
+            try {
+              polygon.setMap(null)
+            } catch (err) {
+              console.error('Detail polygon 제거 중 오류:', err)
+            }
+          }
+        })
       }
-      
-      // 시/군/구 polygon 그룹 초기화
+      detailPolygonsRef.current = []
       sigunguPolygonGroupsRef.current = {}
-      
-      // 툴팁 닫기 및 마커 정리
+
+      // 6. 툴팁 닫기
       if (sigunguOverlayRef.current) {
         try {
           if (typeof sigunguOverlayRef.current.close === 'function') {
@@ -1573,15 +1438,16 @@ export function SearchPage() {
       }
       currentTooltipNameRef.current = null
       activePolygonNameRef.current = null
-      
+
       if (mouseoutTimeoutRef.current) {
         clearTimeout(mouseoutTimeoutRef.current)
         mouseoutTimeoutRef.current = null
       }
-      
+
+      // 7. 지도 위치 초기화
       if (mapRef.current && window.naver?.maps) {
         try {
-          const moveLatLon = new window.naver.maps.LatLng(36.5, 125.5)
+          const moveLatLon = new window.naver.maps.LatLng(36.5, 127.5)
           if (typeof mapRef.current.setCenter === 'function') {
             mapRef.current.setCenter(moveLatLon)
           }
@@ -1592,36 +1458,24 @@ export function SearchPage() {
           console.error('지도 초기화 중 오류:', err)
         }
       }
-      
-      // 시/군/구 polygon 제거
-      if (Array.isArray(detailPolygonsRef.current)) {
-        detailPolygonsRef.current.forEach(polygon => {
-          if (polygon && typeof polygon.setMap === 'function') {
-            try {
-              polygon.setMap(null)
-            } catch (err) {
-              console.error('Detail polygon 제거 중 오류:', err)
-            }
-          }
-        })
-      }
-      detailPolygonsRef.current = []
-      
-      // 지역 polygon 복원
+
+      // 8. 지역 polygon 스타일 복원
       if (Array.isArray(polygonsRef.current)) {
         polygonsRef.current.forEach((item) => {
           if (item && item.polygon) {
             const polygon = item.polygon
+            const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(item.regionId)
             if (polygon && typeof polygon.setMap === 'function' && mapRef.current) {
               try {
-      polygon.setMap(mapRef.current)
+                polygon.setMap(mapRef.current)
                 if (typeof polygon.setOptions === 'function') {
-      polygon.setOptions({ 
-                    fillColor: '#007AFF', 
+                  polygon.setOptions({
+                    fillColor: '#007AFF',
                     fillOpacity: 0.06,
                     strokeColor: '#007AFF',
-                    strokeOpacity: 0.5,
-                    strokeWeight: 1.5
+                    strokeOpacity: isMetropolitan ? 0.8 : 0.5,
+                    strokeWeight: isMetropolitan ? 2 : 1.5,
+                    zIndex: isMetropolitan ? 100 : 1
                   })
                 }
               } catch (err) {
@@ -1634,129 +1488,7 @@ export function SearchPage() {
     } catch (error) {
       console.error('초기화 중 오류 발생:', error)
     }
-  }, [dispatch])
-
-  // 카테고리 변경
-  const handleCategoryChange = useCallback((option: CategoryFilter) => {
-    setCategoryFilter(option)
-    const nextCategory = option === 'all' ? null : option
-    if (state.selectedCategory !== nextCategory) {
-      dispatch({ type: 'SELECT_CATEGORY', payload: nextCategory })
-    }
-  }, [state.selectedCategory, dispatch])
-
-  // 뒤로가기
-  const handleBack = useCallback(() => {
-    try {
-                      if (selectedCity) {
-                        setSelectedCity(null)
-        selectedCityRef.current = null
-        
-        // 시/군/구 polygon 스타일 원래대로 복원
-        if (Array.isArray(detailPolygonsRef.current)) {
-          detailPolygonsRef.current.forEach(polygon => {
-            if (polygon && typeof polygon.setOptions === 'function') {
-              try {
-                polygon.setOptions({
-                  fillColor: '#007AFF',
-                  fillOpacity: 0.02,
-                  strokeColor: '#007AFF',
-                  strokeWeight: 1,
-                  strokeOpacity: 0.35,
-                  zIndex: 1
-                })
-              } catch (err) {
-                console.error('Polygon 스타일 복원 중 오류:', err)
-              }
-            }
-          })
-        }
-        
-        if (mapRef.current && selectedRegion && REGION_COORDINATES[selectedRegion] && window.naver?.maps) {
-                          const coords = REGION_COORDINATES[selectedRegion]
-          const isMetropolitan = ['seoul', 'busan', 'daegu', 'incheon', 'gwangju', 'daejeon', 'ulsan'].includes(selectedRegion)
-          // 사이드바를 피해 오른쪽 중간에 위치하도록 경도 조정
-          // 광역시/특별시는 작은 지역이므로 작게 조정, 도는 큰 지역이므로 크게 조정
-          const adjustedLng = isMetropolitan ? coords.lng - 0.2 : coords.lng - 1.2
-          mapRef.current.setCenter(new window.naver.maps.LatLng(coords.lat, adjustedLng))
-          mapRef.current.setZoom(isMetropolitan ? 11 : 9)
-                        }
-                      } else {
-        // 시/군/구 polygon 먼저 제거 (setShowDetailMap 호출 전)
-        if (Array.isArray(detailPolygonsRef.current)) {
-          detailPolygonsRef.current.forEach(polygon => {
-            if (polygon && typeof polygon.setMap === 'function') {
-              try {
-                polygon.setMap(null)
-              } catch (err) {
-                console.error('Detail polygon 제거 중 오류:', err)
-              }
-            }
-          })
-        }
-        detailPolygonsRef.current = []
-        sigunguPolygonGroupsRef.current = {}
-        
-        // 툴팁 닫기
-        if (sigunguOverlayRef.current) {
-          try {
-            if (typeof sigunguOverlayRef.current.close === 'function') {
-              sigunguOverlayRef.current.close()
-            }
-          } catch (err) {
-            console.error('툴팁 닫기 중 오류:', err)
-          }
-          sigunguOverlayRef.current = null
-        }
-        currentTooltipNameRef.current = null
-        activePolygonNameRef.current = null
-        
-        if (mouseoutTimeoutRef.current) {
-          clearTimeout(mouseoutTimeoutRef.current)
-          mouseoutTimeoutRef.current = null
-        }
-        
-                        setShowDetailMap(false)
-                        setSelectedRegion(null)
-                        dispatch({ type: 'SELECT_REGION', payload: null })
-                        
-        if (mapRef.current && window.naver?.maps) {
-          try {
-            mapRef.current.setCenter(new window.naver.maps.LatLng(36.5, 125.5))
-            mapRef.current.setZoom(7)
-          } catch (err) {
-            console.error('지도 초기화 중 오류:', err)
-          }
-        }
-        
-        if (Array.isArray(polygonsRef.current)) {
-          polygonsRef.current.forEach((item) => {
-            if (item && item.polygon) {
-              const polygon = item.polygon
-              if (polygon && typeof polygon.setMap === 'function' && mapRef.current) {
-                try {
-                  polygon.setMap(mapRef.current)
-                  if (typeof polygon.setOptions === 'function') {
-                    polygon.setOptions({ 
-                      fillColor: '#007AFF', 
-                      fillOpacity: 0.06,
-                      strokeColor: '#007AFF',
-                      strokeOpacity: 0.5,
-                      strokeWeight: 1.5
-                    })
-                  }
-                } catch (err) {
-                  console.error('Polygon 복원 중 오류:', err)
-                }
-              }
-            }
-          })
-        }
-      }
-    } catch (error) {
-      console.error('뒤로가기 중 오류 발생:', error)
-    }
-  }, [selectedCity, selectedRegion, dispatch])
+  }, [resetEventFilters, dispatch])
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -1774,24 +1506,24 @@ export function SearchPage() {
                   <p className="text-[13px] text-[#86868b] tracking-tight">
                     네이버 클라우드 플랫폼 콘솔에서 API 키를 확인해주세요.
                   </p>
-          </div>
+                </div>
               ) : (
                 <>
                   <div className="relative mx-auto mb-6 h-12 w-12">
                     <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-[#007AFF]/20"></div>
                     <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#007AFF]"></div>
-        </div>
+                  </div>
                   <p className="text-[15px] font-medium text-[#86868b] tracking-tight">지도를 불러오는 중...</p>
                 </>
               )}
-              </div>
-          </div>
-              )}
-              <div 
-                ref={mapContainerRef}
-          className="h-full w-full"
-              />
             </div>
+          </div>
+        )}
+        <div
+          ref={mapContainerRef}
+          className="h-full w-full"
+        />
+      </div>
 
       {/* 모바일 사이드바 토글 */}
       <button
@@ -1807,12 +1539,11 @@ export function SearchPage() {
       </button>
 
       {/* Glassmorphism 사이드바 */}
-      <aside 
-        className={`absolute left-0 top-0 z-20 h-full w-full transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] lg:left-5 lg:top-5 lg:h-[calc(100%-40px)] lg:w-[420px] lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <aside
+        className={`absolute left-0 top-0 z-20 h-full w-full transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] lg:left-5 lg:top-5 lg:h-[calc(100%-40px)] lg:w-[420px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
-        <div 
+        <div
           className="flex h-full flex-col bg-white/95 backdrop-blur-3xl lg:rounded-[28px] lg:shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] lg:border lg:border-white/40"
           style={{ WebkitBackdropFilter: 'blur(60px)' }}
         >
@@ -1823,33 +1554,18 @@ export function SearchPage() {
               onClick={() => navigate('/')}
               className="mb-4 flex items-center transition-opacity hover:opacity-80 active:scale-[0.98]"
             >
-              <img 
-                src="/images/logo.png" 
-                alt="어디서하니" 
+              <img
+                src="/images/logo.png"
+                alt="어디서하니"
                 className="h-8 w-auto"
               />
             </button>
-            
-            {/* 검색바 - Apple 스타일 */}
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8e8e93]" />
-              <input
-                type="text"
-                placeholder="행사 검색"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-[14px] bg-[#767680]/10 py-[11px] pl-11 pr-11 text-[17px] text-[#1d1d1f] placeholder-[#8e8e93] outline-none transition-all duration-200 focus:bg-[#767680]/15 focus:ring-2 focus:ring-[#007AFF]/30"
-                style={{ letterSpacing: '-0.01em' }}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[#8e8e93]/30 p-1 transition-colors hover:bg-[#8e8e93]/40"
-                >
-                  <X className="h-3.5 w-3.5 text-white" />
-                </button>
-              )}
-                </div>
+
+            {/* 검색바 - SearchBar 컴포넌트 */}
+            <SearchBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+            />
 
             {/* 지역 네비게이션 */}
             <div className="mt-5 flex items-center justify-between">
@@ -1864,209 +1580,43 @@ export function SearchPage() {
               ) : (
                 <h2 className="text-[22px] font-bold text-[#1d1d1f] tracking-tight">전국</h2>
               )}
-              
+
               {(selectedRegion || categoryFilter !== 'all' || searchTerm) && (
                 <button
-                  onClick={resetFilters}
+                  onClick={handleReset}
                   className="rounded-full px-3 py-1.5 text-[13px] font-medium text-[#007AFF] transition-all duration-200 hover:bg-[#007AFF]/10 active:scale-[0.97]"
                 >
                   초기화
                 </button>
               )}
             </div>
+          </div>
+
+          {/* 카테고리 칩 - CategoryChips 컴포넌트 */}
+          <CategoryChips
+            categoryOptions={categoryOptions}
+            selectedCategory={categoryFilter}
+            onCategoryChange={handleCategoryChange}
+          />
+
+          {/* 맞춤 추천 섹션 - RecommendedSection 컴포넌트 */}
+          <RecommendedSection
+            events={recommendedEvents}
+            isAuthenticated={isAuthenticated}
+          />
+
+          {/* 이벤트 리스트 - EventListSection 컴포넌트 */}
+          <EventListSection
+            events={filteredEvents}
+            isLoading={isLoading}
+          />
         </div>
-
-          {/* 카테고리 칩 - 가로 스크롤 */}
-          <div className="flex-shrink-0 border-t border-[#3c3c43]/10 px-6 py-4">
-            <div 
-              className="category-scroll flex gap-2 overflow-x-auto pb-1"
-              onMouseDown={(e) => {
-                // 왼쪽 마우스 버튼만 처리
-                if (e.button !== 0) return
-                
-                const target = e.currentTarget
-                const startX = e.pageX
-                const startScrollLeft = target.scrollLeft
-                
-                const handleMouseMove = (e: MouseEvent) => {
-                  const deltaX = Math.abs(e.pageX - startX)
-                  if (deltaX > 3) {
-                    categoryScrollDraggingRef.current = true
-                    e.preventDefault()
-                    const walk = (e.pageX - startX) * 1
-                    target.scrollLeft = startScrollLeft - walk
-                  }
-                }
-                
-                const handleMouseUp = () => {
-                  document.removeEventListener('mousemove', handleMouseMove)
-                  document.removeEventListener('mouseup', handleMouseUp)
-                  
-                  // 드래그가 끝난 후 약간의 지연 후 드래그 상태 해제
-                  setTimeout(() => {
-                    categoryScrollDraggingRef.current = false
-                  }, 100)
-                }
-                
-                document.addEventListener('mousemove', handleMouseMove)
-                document.addEventListener('mouseup', handleMouseUp)
-              }}
-            >
-              {categoryOptions.map((option) => {
-                const categoryInfo = option === 'all' 
-                  ? { label: '전체', emoji: '🌐' }
-                  : SPORT_CATEGORIES.find(cat => cat.value === option)
-                const isActive = categoryFilter === option
-                
-                return (
-                <button
-                  key={option}
-                    onClick={(e) => {
-                      // 드래그 중이면 클릭 이벤트 방지
-                      if (categoryScrollDraggingRef.current) {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        return
-                      }
-                      handleCategoryChange(option)
-                    }}
-                    className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-[9px] text-[15px] font-medium transition-all duration-200 active:scale-[0.97] ${
-                      isActive
-                        ? 'bg-[#007AFF] text-white shadow-[0_2px_8px_rgba(0,122,255,0.35)]'
-                        : 'bg-[#767680]/10 text-[#1d1d1f] hover:bg-[#767680]/15'
-                    }`}
-                  >
-                    <span className="text-[14px]">{categoryInfo?.emoji}</span>
-                    <span>{categoryInfo?.label || CATEGORY_LABELS[option]}</span>
-                </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* 맞춤 추천 섹션 */}
-          {isAuthenticated && recommendedEvents.length > 0 && (
-            <div className="flex-shrink-0 border-t border-[#3c3c43]/10 px-6 py-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Star className="h-4 w-4 text-[#FF9500]" fill="currentColor" />
-                <span className="text-[15px] font-semibold text-[#1d1d1f]">맞춤 추천</span>
-                <span className="ml-auto rounded-full bg-[#FF9500]/15 px-2.5 py-0.5 text-[12px] font-semibold text-[#FF9500]">
-                  {recommendedEvents.length}
-                </span>
-            </div>
-              <div className="recommended-scroll max-h-[240px] overflow-y-auto space-y-2">
-                {recommendedEvents.map((event) => (
-                  <a
-                    key={event.id}
-                    href={`/events/${event.id}`}
-                    className="group block rounded-2xl bg-gradient-to-r from-[#FF9500]/8 to-transparent p-3.5 transition-all duration-200 hover:from-[#FF9500]/12"
-                  >
-                    <h4 className="text-[15px] font-semibold text-[#1d1d1f] line-clamp-1 transition-colors group-hover:text-[#007AFF]">
-                      {event.title}
-                    </h4>
-                    <p className="mt-1 text-[13px] text-[#8e8e93]">
-                      {REGION_INFO[event.region]?.shortName} · {event.city}
-                    </p>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 이벤트 리스트 */}
-          <div className="flex-1 overflow-hidden border-t border-[#3c3c43]/10">
-            <div className="flex h-full flex-col">
-              {/* 리스트 헤더 */}
-              <div className="flex items-center justify-between px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/10">
-                    <Calendar className="h-3.5 w-3.5 text-[#007AFF]" />
-            </div>
-                  <span className="text-[15px] font-semibold text-[#1d1d1f]">행사 목록</span>
-                </div>
-                <span className="rounded-full bg-[#767680]/10 px-2.5 py-1 text-[12px] font-semibold text-[#8e8e93]">
-                  {filteredEvents.length}건
-                </span>
-          </div>
-
-            {isLoading ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <div className="text-center">
-                    <div className="relative mx-auto mb-4 h-10 w-10">
-                      <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-[#007AFF]/20"></div>
-                      <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#007AFF]"></div>
-            </div>
-                    <p className="text-[14px] text-[#8e8e93]">불러오는 중...</p>
-                  </div>
-              </div>
-            ) : (
-                <div className="recommended-scroll flex-1 overflow-y-auto px-6 pb-6">
-                  {filteredEvents.length > 0 ? (
-                    <div className="space-y-3">
-                      {filteredEvents.map((event) => (
-                        <a
-                          key={event.id}
-                              href={`/events/${event.id}`}
-                          className="group block overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)]"
-                        >
-                          <div className="flex gap-4">
-                            {/* 썸네일 */}
-                            <div className="h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-2xl bg-[#f5f5f7]">
-                              {event.image ? (
-                                <img 
-                                  src={event.image} 
-                                  alt={event.title}
-                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-2xl bg-gradient-to-br from-[#f5f5f7] to-[#e8e8ed]">
-                                  {SPORT_CATEGORIES.find(c => c.value === event.category)?.emoji || '🏆'}
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* 정보 */}
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-[15px] font-semibold text-[#1d1d1f] line-clamp-2 leading-snug transition-colors group-hover:text-[#007AFF]">
-                            {event.title}
-                              </h4>
-                              <div className="mt-2 flex items-center gap-1.5 text-[13px] text-[#8e8e93]">
-                                <MapPin className="h-3.5 w-3.5" />
-                                <span className="truncate">{REGION_INFO[event.region]?.shortName} · {event.city}</span>
-                              </div>
-                              <div className="mt-2 flex items-center justify-between">
-                                <span className="rounded-full bg-[#f5f5f7] px-2.5 py-1 text-[11px] font-medium text-[#1d1d1f]">
-                                  {CATEGORY_LABELS[event.category]}
-                          </span>
-                                <ChevronRight className="h-4 w-4 text-[#c7c7cc] transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-[#007AFF]" />
-                          </div>
-                        </div>
-                        </div>
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-1 items-center justify-center py-16">
-                      <div className="text-center">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#f5f5f7]">
-                          <Calendar className="h-8 w-8 text-[#c7c7cc]" />
-                        </div>
-                        <p className="text-[17px] font-semibold text-[#1d1d1f]">행사가 없습니다</p>
-                        <p className="mt-1 text-[15px] text-[#8e8e93]">다른 조건으로 검색해보세요</p>
-                      </div>
-                    </div>
-                  )}
-            </div>
-            )}
-            </div>
-          </div>
-          </div>
-        </aside>
+      </aside>
 
       {/* 지역 정보 플로팅 배지 (데스크탑) */}
       {showDetailMap && selectedRegion && (
         <div className="absolute right-5 top-5 z-10 hidden lg:block">
-          <div 
+          <div
             className="flex items-center gap-3 rounded-full bg-white/80 backdrop-blur-xl px-5 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.1)]"
             style={{ WebkitBackdropFilter: 'blur(20px)' }}
           >

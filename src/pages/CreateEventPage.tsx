@@ -28,7 +28,7 @@ export function CreateEventPage() {
   const isEditMode = !!eventId
   const { state: authState } = useAuthContext()
   const { user, isAuthenticated } = authState
-  
+
   const [formData, setFormData] = useState<FormData>({
     title: '',
     organizer: '',
@@ -43,7 +43,7 @@ export function CreateEventPage() {
     link: '',
     image: '',
   })
-  
+
   const [errors, setErrors] = useState<FormErrors>({})
   const [imagePreview, setImagePreview] = useState<string>('')
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -55,7 +55,7 @@ export function CreateEventPage() {
   const [successModalMessage, setSuccessModalMessage] = useState('') // 성공 모달 메시지
   const [showErrorModal, setShowErrorModal] = useState(false) // 에러 모달 표시 여부
   const [errorModalMessage, setErrorModalMessage] = useState('') // 에러 모달 메시지
-  
+
   // 컴포넌트 마운트 시 스포츠 종목 목록 가져오기
   const [sportCategories, setSportCategories] = useState<SportCategory[]>([])
   const [subSportCategories, setSubSportCategories] = useState<SubSportCategory[]>([])
@@ -92,7 +92,7 @@ export function CreateEventPage() {
       try {
         setIsLoadingData(true)
         const event = await EventService.getEventById(parseInt(eventId, 10))
-        
+
         // 날짜 포맷팅 (YYYY-MM-DD 형식으로 변환) - 공통 유틸리티 함수 사용
 
         // 스포츠 카테고리 이름으로 ID 찾기
@@ -108,51 +108,51 @@ export function CreateEventPage() {
           subSportCategoryId = subCategory?.id || null
         }
 
-          setFormData({
-            title: event.title || '',
-            organizer: event.organizer_user_name || '',
-            sport_category_id: sportCategoryId,
-            sub_sport_category_id: subSportCategoryId,
-            start_at: normalizeDateToYYYYMMDD(event.start_at),
-            end_at: normalizeDateToYYYYMMDD(event.end_at),
-            region: event.region || '',
-            sub_region: event.sub_region || '',
-            address: '',
-            summary: event.description || '',
-            link: event.website || '',
-            image: event.image || '',
-          })
+        setFormData({
+          title: event.title || '',
+          organizer: event.organizer_user_name || '',
+          sport_category_id: sportCategoryId,
+          sub_sport_category_id: subSportCategoryId,
+          start_at: normalizeDateToYYYYMMDD(event.start_at),
+          end_at: normalizeDateToYYYYMMDD(event.end_at),
+          region: event.region || '',
+          sub_region: event.sub_region || '',
+          address: '',
+          summary: event.description || '',
+          link: event.website || '',
+          image: event.image || '',
+        })
 
-          // 주소 데이터 로드
-          if (event.address) {
-            const formattedPostcode = String(event.address).padStart(5, '0')
-            setPostcode(formattedPostcode)
-          }
-          if (event.venue) {
-            setFullAddress(event.venue)
-            setDetailAddress('') // 상세 주소는 별도 필드가 없으므로 빈 문자열로 시작
-          }
-
-          // 이미지 미리보기 설정
-          if (event.image) {
-            setImagePreview(event.image)
-            setOriginalImageUrl(event.image) // 기존 이미지 URL 저장
-          }
-        } catch (err) {
-          console.error('행사 데이터 로딩 오류:', err)
-          setError('행사 데이터를 불러오는데 실패했습니다')
-        } finally {
-          setIsLoadingData(false)
+        // 주소 데이터 로드
+        if (event.address) {
+          const formattedPostcode = String(event.address).padStart(5, '0')
+          setPostcode(formattedPostcode)
         }
+        if (event.venue) {
+          setFullAddress(event.venue)
+          setDetailAddress('') // 상세 주소는 별도 필드가 없으므로 빈 문자열로 시작
+        }
+
+        // 이미지 미리보기 설정
+        if (event.image) {
+          setImagePreview(event.image)
+          setOriginalImageUrl(event.image) // 기존 이미지 URL 저장
+        }
+      } catch (err) {
+        console.error('행사 데이터 로딩 오류:', err)
+        setError('행사 데이터를 불러오는데 실패했습니다')
+      } finally {
+        setIsLoadingData(false)
       }
     }
     loadEventData()
   }, [isEditMode, eventId])
 
+
   // sport_category 선택 시 sub_sport 목록 가져오기
   // sport_category_id 선택 시 소분류 목록 가져오기
   const [isInitialLoad, setIsInitialLoad] = useState(true)
-  
+
   useEffect(() => {
     const loadSubSportCategories = async () => {
       if (!formData.sport_category_id) {
@@ -214,7 +214,7 @@ export function CreateEventPage() {
       }
       return
     }
-    
+
 
     // 파일 타입 검증 (이미지만 허용)
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/tif']
@@ -261,7 +261,7 @@ export function CreateEventPage() {
       return
     }
     new (window as any).daum.Postcode({
-      oncomplete: function(data: any) {
+      oncomplete: function (data: any) {
         const zonecode = data.zonecode || ''
         const fullAddr = data.address || ''
         let extraAddr = ''
@@ -328,7 +328,7 @@ export function CreateEventPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    
+
     const isValid = validateForm()
     if (!isValid) {
       return
@@ -355,7 +355,7 @@ export function CreateEventPage() {
             console.error('[행사 수정] 이미지 업로드 실패:', uploadError)
             setIsUploading(false)
             setIsLoading(false)
-            
+
             // 세션 만료 에러인 경우
             if (uploadError.message.includes('세션이 만료')) {
               setError(uploadError.message)
@@ -364,14 +364,14 @@ export function CreateEventPage() {
               }, 2000)
               return
             }
-            
+
             setError(`이미지 업로드에 실패했습니다: ${uploadError.message}`)
             return
           } finally {
             setIsUploading(false)
           }
         }
-        
+
         // 전체 주소 + 상세 주소 조합
         const combinedAddress = detailAddress.trim()
           ? `${fullAddress} ${detailAddress.trim()}`
@@ -400,7 +400,7 @@ export function CreateEventPage() {
           website: formData.link || null,
           organizer_user_name: formData.organizer || '',
         }
-        
+
         // 이미지 처리: 새 이미지가 업로드되었으면 그 URL 사용, 아니면 기존 이미지 URL을 그대로 전송
         if (imageUrl) {
           // 새 이미지가 업로드됨
@@ -410,7 +410,7 @@ export function CreateEventPage() {
           updateData.image = originalImageUrl
         }
         // 둘 다 없으면 image 필드를 아예 보내지 않음 (서버에서 기존 값 유지)
-        
+
         await EventService.updateEvent(parseInt(eventId, 10), updateData)
         // 성공 메시지 표시 (수정 모드일 때만)
         setSuccessModalMessage('행사 정보가 성공적으로 수정되었습니다. 스팸 검사 후 최종 등록됩니다. 결과는 마이페이지에서 확인하실 수 있습니다.')
@@ -469,7 +469,7 @@ export function CreateEventPage() {
     } catch (err) {
       console.error('행사 등록/수정 오류:', err)
       const errorMessage = err instanceof Error ? err.message : (isEditMode ? '행사 수정에 실패했습니다' : '행사 등록에 실패했습니다')
-      
+
       // 스팸으로 분류된 경우 특별 처리
       if (errorMessage.includes('스팸으로 분류')) {
         setErrorModalMessage('해당 행사는 스팸으로 분류되어 등록할 수 없습니다!')
@@ -479,7 +479,7 @@ export function CreateEventPage() {
         }
         return
       }
-      
+
       setError(errorMessage)
       setIsLoading(false)
     }
@@ -529,7 +529,7 @@ export function CreateEventPage() {
   // 권한 체크: 행사 주최자(manager=1) 또는 master(manager=2)만 행사 등록 가능
   const isOrganizer = user?.manager === 1
   const isMaster = user?.manager === 2
-  
+
   if (!isAuthenticated || (!isOrganizer && !isMaster)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-[#F5F7FA]">
@@ -613,366 +613,358 @@ export function CreateEventPage() {
 
       <div className="space-y-8 pb-16 bg-[#F5F7FA] min-h-screen pt-6">
 
-      {/* 폼 */}
-      <section className="mx-auto max-w-3xl px-4 md:px-6 lg:px-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 에러 메시지 */}
-          {error && (
-            <div className="flex items-start gap-2 rounded-[14px] bg-red-50/80 border border-red-200/50 p-3 text-sm text-red-600">
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          {/* 기본 정보 섹션 */}
-          <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
-              <Tag className="h-5 w-5 text-[#007AFF]" />
-              기본 정보
-            </h2>
-            
-            <div className="space-y-5">
-              {/* 행사명 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  행사명 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  placeholder="예: 2025 서울 마라톤 대회"
-                  className={`w-full rounded-[14px] border ${
-                    errors.title ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
-                />
-                {errors.title && (
-                  <p className="mt-1 text-xs text-red-600">{errors.title}</p>
-                )}
+        {/* 폼 */}
+        <section className="mx-auto max-w-3xl px-4 md:px-6 lg:px-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 에러 메시지 */}
+            {error && (
+              <div className="flex items-start gap-2 rounded-[14px] bg-red-50/80 border border-red-200/50 p-3 text-sm text-red-600">
+                <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                <span>{error}</span>
               </div>
+            )}
+            {/* 기본 정보 섹션 */}
+            <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
+              <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
+                <Tag className="h-5 w-5 text-[#007AFF]" />
+                기본 정보
+              </h2>
 
-              {/* 개최사 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  개최사 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
+              <div className="space-y-5">
+                {/* 행사명 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    행사명 <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    value={formData.organizer}
-                    onChange={(e) => handleChange('organizer', e.target.value)}
-                    placeholder="예: 서울시청, 대한체육회"
-                    className={`w-full rounded-[14px] border ${
-                      errors.organizer ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                    } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
+                    value={formData.title}
+                    onChange={(e) => handleChange('title', e.target.value)}
+                    placeholder="예: 2025 서울 마라톤 대회"
+                    className={`w-full rounded-[14px] border ${errors.title ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                      } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                   />
+                  {errors.title && (
+                    <p className="mt-1 text-xs text-red-600">{errors.title}</p>
+                  )}
                 </div>
-                {errors.organizer && (
-                  <p className="mt-1 text-xs text-red-600">{errors.organizer}</p>
-                )}
-              </div>
 
-              {/* 스포츠 대분류 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  스포츠 대분류 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.sport_category_id || ''}
-                  onChange={(e) => handleChange('sport_category_id', e.target.value ? Number(e.target.value) : null)}
-                  disabled={isLoadingData}
-                  className={`w-full rounded-[14px] border ${
-                    errors.sport_category_id ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed`}
-                >
-                  <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
-                  {sportCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.sport_category_id && (
-                  <p className="mt-1 text-xs text-red-600">{errors.sport_category_id}</p>
-                )}
-              </div>
-
-              {/* 스포츠 소분류 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  스포츠 소분류 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.sub_sport_category_id || ''}
-                  onChange={(e) => handleChange('sub_sport_category_id', e.target.value ? Number(e.target.value) : null)}
-                  disabled={!formData.sport_category_id || isLoadingData}
-                  className={`w-full rounded-[14px] border ${
-                    errors.sub_sport_category_id ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed`}
-                >
-                  <option value="">
-                    {!formData.sport_category_id 
-                      ? '먼저 스포츠 대분류를 선택해주세요' 
-                      : isLoadingData 
-                        ? '로딩 중...' 
-                        : '선택해주세요'}
-                  </option>
-                  {subSportCategories.map((subSport) => (
-                    <option key={subSport.id} value={subSport.id}>
-                      {subSport.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.sub_sport_category_id && (
-                  <p className="mt-1 text-xs text-red-600">{errors.sub_sport_category_id}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 일시/장소 섹션 */}
-          <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
-              <MapPin className="h-5 w-5 text-[#007AFF]" />
-              일시 및 장소
-            </h2>
-            
-            <div className="space-y-5">
-              {/* 시작 날짜 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  시작 날짜 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
-                  <input
-                    type="date"
-                    value={formData.start_at}
-                    onChange={(e) => handleChange('start_at', e.target.value)}
-                    className={`w-full rounded-[14px] border ${
-                      errors.start_at ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                    } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
-                  />
-                </div>
-                {errors.start_at && (
-                  <p className="mt-1 text-xs text-red-600">{errors.start_at}</p>
-                )}
-              </div>
-
-              {/* 종료 날짜 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  종료 날짜 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
-                  <input
-                    type="date"
-                    value={formData.end_at}
-                    onChange={(e) => handleChange('end_at', e.target.value)}
-                    min={formData.start_at || undefined}
-                    className={`w-full rounded-[14px] border ${
-                      errors.end_at ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                    } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
-                  />
-                </div>
-                {errors.end_at && (
-                  <p className="mt-1 text-xs text-red-600">{errors.end_at}</p>
-                )}
-              </div>
-
-              {/* 주소 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  주소 <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={postcode}
-                    placeholder="우편번호"
-                    readOnly
-                    className={`flex-1 rounded-[14px] border ${
-                      errors.address ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                    } px-4 py-3 text-[#1d1d1f] bg-[#767680]/5`}
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePostcodeSearch}
-                    className="rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
-                  >
-                    우편번호 검색
-                  </button>
-                </div>
-                {postcode && (
-                  <input
-                    type="text"
-                    value={fullAddress}
-                    placeholder="주소"
-                    readOnly
-                    className="mt-2 w-full rounded-[14px] border border-[#3c3c43]/10 px-4 py-3 text-[#1d1d1f] bg-[#767680]/5"
-                  />
-                )}
-                {postcode && (
-                  <input
-                    type="text"
-                    value={detailAddress}
-                    onChange={(e) => setDetailAddress(e.target.value)}
-                    placeholder="상세 주소를 입력하세요 (예: 4층, 101호 등)"
-                    className="mt-2 w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
-                  />
-                )}
-                {errors.address && (
-                  <p className="mt-1 text-xs text-red-600">{errors.address}</p>
-                )}
-                {postcode && (
-                  <p className="mt-1 text-xs text-[#8e8e93]">
-                    선택된 주소: {formData.region} {formData.sub_region}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 콘텐츠 섹션 */}
-          <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
-              <Upload className="h-5 w-5 text-[#007AFF]" />
-              콘텐츠
-            </h2>
-            
-            <div className="space-y-5">
-              {/* 포스터 이미지 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  포스터 이미지/파일
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  disabled={isUploading || isLoading}
-                  className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#007AFF] file:text-white hover:file:bg-[#0051D5]"
-                />
-                <p className="mt-1 text-xs text-[#8e8e93]">
-                  이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, BMP, TIFF, 최대 50MB)
-                </p>
-                {/* 기존 이미지 정보 표시 */}
-                {!imageFile && originalImageUrl && (
-                  <p className="mt-2 text-sm text-green-600">
-                    ✓ 기존 이미지가 등록되어 있습니다. 새 이미지를 선택하면 기존 이미지가 교체됩니다.
-                  </p>
-                )}
-                {isUploading && (
-                  <p className="mt-2 text-sm text-blue-600">파일 업로드 중...</p>
-                )}
-                {imagePreview && (
-                  <div className="mt-3 overflow-hidden rounded-[20px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <img
-                      src={imagePreview}
-                      alt="포스터 미리보기"
-                      className="h-48 w-full object-cover"
-                      onError={() => {
-                        // 이미지 로드 실패 시에도 기존 이미지 URL 복원 시도
-                        if (originalImageUrl && imagePreview !== originalImageUrl) {
-                          setImagePreview(originalImageUrl)
-                        } else if (formData.image && imagePreview !== formData.image) {
-                          setImagePreview(formData.image)
-                        } else {
-                          setImagePreview('')
-                        }
-                      }}
+                {/* 개최사 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    개최사 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
+                    <input
+                      type="text"
+                      value={formData.organizer}
+                      onChange={(e) => handleChange('organizer', e.target.value)}
+                      placeholder="예: 서울시청, 대한체육회"
+                      className={`w-full rounded-[14px] border ${errors.organizer ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                        } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
                     />
                   </div>
-                )}
-                {imageFile && !imagePreview && (
-                  <div className="mt-3 rounded-[14px] border border-white/40 bg-[#767680]/5 p-4">
-                    <p className="text-sm text-[#1d1d1f]">
-                      선택된 파일: <span className="font-medium">{imageFile.name}</span>
-                    </p>
-                    <p className="text-xs text-[#8e8e93] mt-1">
-                      {(imageFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* 관련 링크 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  관련 링크
-                </label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
-                  <input
-                    type="url"
-                    value={formData.link}
-                    onChange={(e) => handleChange('link', e.target.value)}
-                    placeholder="https://example.com/event-info"
-                    className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
-                  />
-                </div>
-              </div>
-
-              {/* 간단 요약 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
-                  간단 요약 <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={formData.summary}
-                  onChange={(e) => handleChange('summary', e.target.value)}
-                  placeholder="행사를 한 줄로 요약해주세요 (최대 100자)"
-                  rows={2}
-                  maxLength={100}
-                  className={`w-full rounded-[14px] border ${
-                    errors.summary ? 'border-red-300/50' : 'border-[#3c3c43]/10'
-                  } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
-                />
-                <div className="mt-1 flex justify-between text-xs text-[#8e8e93]">
-                  {errors.summary ? (
-                    <span className="text-red-600">{errors.summary}</span>
-                  ) : (
-                    <span></span>
+                  {errors.organizer && (
+                    <p className="mt-1 text-xs text-red-600">{errors.organizer}</p>
                   )}
-                  <span>{formData.summary.length}/100</span>
+                </div>
+
+                {/* 스포츠 대분류 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    스포츠 대분류 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.sport_category_id || ''}
+                    onChange={(e) => handleChange('sport_category_id', e.target.value ? Number(e.target.value) : null)}
+                    disabled={isLoadingData}
+                    className={`w-full rounded-[14px] border ${errors.sport_category_id ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                      } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed`}
+                  >
+                    <option value="">{isLoadingData ? '로딩 중...' : '선택해주세요'}</option>
+                    {sportCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.sport_category_id && (
+                    <p className="mt-1 text-xs text-red-600">{errors.sport_category_id}</p>
+                  )}
+                </div>
+
+                {/* 스포츠 소분류 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    스포츠 소분류 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.sub_sport_category_id || ''}
+                    onChange={(e) => handleChange('sub_sport_category_id', e.target.value ? Number(e.target.value) : null)}
+                    disabled={!formData.sport_category_id || isLoadingData}
+                    className={`w-full rounded-[14px] border ${errors.sub_sport_category_id ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                      } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed`}
+                  >
+                    <option value="">
+                      {!formData.sport_category_id
+                        ? '먼저 스포츠 대분류를 선택해주세요'
+                        : isLoadingData
+                          ? '로딩 중...'
+                          : '선택해주세요'}
+                    </option>
+                    {subSportCategories.map((subSport) => (
+                      <option key={subSport.id} value={subSport.id}>
+                        {subSport.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.sub_sport_category_id && (
+                    <p className="mt-1 text-xs text-red-600">{errors.sub_sport_category_id}</p>
+                  )}
                 </div>
               </div>
-
             </div>
-          </div>
 
-          {/* 버튼 그룹 */}
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={isLoading || isLoadingData}
-              onClick={(e) => {
-                if (!e.isDefaultPrevented()) {
-                  // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
-                }
-              }}
-              className="flex-1 rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading || isLoadingData ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '행사 수정' : '행사 등록')}
-            </button>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/10"
-            >
-              초기화
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/10"
-            >
-              취소
-            </button>
-          </div>
-        </form>
-      </section>
+            {/* 일시/장소 섹션 */}
+            <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
+              <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
+                <MapPin className="h-5 w-5 text-[#007AFF]" />
+                일시 및 장소
+              </h2>
+
+              <div className="space-y-5">
+                {/* 시작 날짜 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    시작 날짜 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
+                    <input
+                      type="date"
+                      value={formData.start_at}
+                      onChange={(e) => handleChange('start_at', e.target.value)}
+                      className={`w-full rounded-[14px] border ${errors.start_at ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                        } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
+                    />
+                  </div>
+                  {errors.start_at && (
+                    <p className="mt-1 text-xs text-red-600">{errors.start_at}</p>
+                  )}
+                </div>
+
+                {/* 종료 날짜 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    종료 날짜 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
+                    <input
+                      type="date"
+                      value={formData.end_at}
+                      onChange={(e) => handleChange('end_at', e.target.value)}
+                      min={formData.start_at || undefined}
+                      className={`w-full rounded-[14px] border ${errors.end_at ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                        } bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
+                    />
+                  </div>
+                  {errors.end_at && (
+                    <p className="mt-1 text-xs text-red-600">{errors.end_at}</p>
+                  )}
+                </div>
+
+                {/* 주소 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    주소 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={postcode}
+                      placeholder="우편번호"
+                      readOnly
+                      className={`flex-1 rounded-[14px] border ${errors.address ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                        } px-4 py-3 text-[#1d1d1f] bg-[#767680]/5`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePostcodeSearch}
+                      className="rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
+                    >
+                      우편번호 검색
+                    </button>
+                  </div>
+                  {postcode && (
+                    <input
+                      type="text"
+                      value={fullAddress}
+                      placeholder="주소"
+                      readOnly
+                      className="mt-2 w-full rounded-[14px] border border-[#3c3c43]/10 px-4 py-3 text-[#1d1d1f] bg-[#767680]/5"
+                    />
+                  )}
+                  {postcode && (
+                    <input
+                      type="text"
+                      value={detailAddress}
+                      onChange={(e) => setDetailAddress(e.target.value)}
+                      placeholder="상세 주소를 입력하세요 (예: 4층, 101호 등)"
+                      className="mt-2 w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
+                    />
+                  )}
+                  {errors.address && (
+                    <p className="mt-1 text-xs text-red-600">{errors.address}</p>
+                  )}
+                  {postcode && (
+                    <p className="mt-1 text-xs text-[#8e8e93]">
+                      선택된 주소: {formData.region} {formData.sub_region}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 콘텐츠 섹션 */}
+            <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] md:p-8" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
+              <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-[#1d1d1f]">
+                <Upload className="h-5 w-5 text-[#007AFF]" />
+                콘텐츠
+              </h2>
+
+              <div className="space-y-5">
+                {/* 포스터 이미지 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    포스터 이미지/파일
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    disabled={isUploading || isLoading}
+                    className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 disabled:bg-[#767680]/5 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#007AFF] file:text-white hover:file:bg-[#0051D5]"
+                  />
+                  <p className="mt-1 text-xs text-[#8e8e93]">
+                    이미지 파일만 업로드 가능 (JPG, PNG, GIF, WEBP, BMP, TIFF, 최대 50MB)
+                  </p>
+                  {/* 기존 이미지 정보 표시 */}
+                  {!imageFile && originalImageUrl && (
+                    <p className="mt-2 text-sm text-green-600">
+                      ✓ 기존 이미지가 등록되어 있습니다. 새 이미지를 선택하면 기존 이미지가 교체됩니다.
+                    </p>
+                  )}
+                  {isUploading && (
+                    <p className="mt-2 text-sm text-blue-600">파일 업로드 중...</p>
+                  )}
+                  {imagePreview && (
+                    <div className="mt-3 overflow-hidden rounded-[20px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                      <img
+                        src={imagePreview}
+                        alt="포스터 미리보기"
+                        className="h-48 w-full object-cover"
+                        onError={() => {
+                          // 이미지 로드 실패 시에도 기존 이미지 URL 복원 시도
+                          if (originalImageUrl && imagePreview !== originalImageUrl) {
+                            setImagePreview(originalImageUrl)
+                          } else if (formData.image && imagePreview !== formData.image) {
+                            setImagePreview(formData.image)
+                          } else {
+                            setImagePreview('')
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  {imageFile && !imagePreview && (
+                    <div className="mt-3 rounded-[14px] border border-white/40 bg-[#767680]/5 p-4">
+                      <p className="text-sm text-[#1d1d1f]">
+                        선택된 파일: <span className="font-medium">{imageFile.name}</span>
+                      </p>
+                      <p className="text-xs text-[#8e8e93] mt-1">
+                        {(imageFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 관련 링크 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    관련 링크
+                  </label>
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8e8e93]" />
+                    <input
+                      type="url"
+                      value={formData.link}
+                      onChange={(e) => handleChange('link', e.target.value)}
+                      placeholder="https://example.com/event-info"
+                      className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 py-3 pl-11 pr-4 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* 간단 요약 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
+                    간단 요약 <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={formData.summary}
+                    onChange={(e) => handleChange('summary', e.target.value)}
+                    placeholder="행사를 한 줄로 요약해주세요 (최대 100자)"
+                    rows={2}
+                    maxLength={100}
+                    className={`w-full rounded-[14px] border ${errors.summary ? 'border-red-300/50' : 'border-[#3c3c43]/10'
+                      } bg-[#767680]/5 px-4 py-3 text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30`}
+                  />
+                  <div className="mt-1 flex justify-between text-xs text-[#8e8e93]">
+                    {errors.summary ? (
+                      <span className="text-red-600">{errors.summary}</span>
+                    ) : (
+                      <span></span>
+                    )}
+                    <span>{formData.summary.length}/100</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* 버튼 그룹 */}
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={isLoading || isLoadingData}
+                onClick={(e) => {
+                  if (!e.isDefaultPrevented()) {
+                    // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
+                  }
+                }}
+                className="flex-1 rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoading || isLoadingData ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '행사 수정' : '행사 등록')}
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/10"
+              >
+                초기화
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="rounded-full border border-[#3c3c43]/20 bg-white/95 backdrop-blur-xl px-6 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/10"
+              >
+                취소
+              </button>
+            </div>
+          </form>
+        </section>
       </div>
     </>
   )
