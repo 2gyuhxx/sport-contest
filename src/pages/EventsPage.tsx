@@ -305,7 +305,7 @@ export function EventsPage() {
 
   return (
     <div className="pb-12">
-      <div className="mx-auto max-w-content px-2 sm:px-4 md:px-6">
+      <div className={`mx-auto max-w-content px-2 sm:px-4 md:px-6 ${isMobile ? 'mt-2' : ''}`}>
         {/* 모바일 추천 빠른 접근 배너 */}
         {isMobile && isAuthenticated && favoriteBasedEvents.length > 0 && sortBy !== 'recommended' && (
           <div className="mb-2.5 rounded-lg border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-2.5 shadow-md">

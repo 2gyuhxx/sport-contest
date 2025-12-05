@@ -330,7 +330,7 @@ export function AppShell() {
         <div className={`flex min-h-screen flex-col ${isFullScreenPage ? '' : 'bg-[#F5F7FA]'}`}>
           {!isFullScreenPage && <FloatingHeader />}
 
-          <main className={isFullScreenPage ? 'flex-1' : 'flex-1 pt-28 pb-12'}>
+          <main className={isFullScreenPage ? 'flex-1' : 'flex-1 pt-44 md:pt-28 pb-12'}>
             <Outlet />
           </main>
 
