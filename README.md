@@ -297,7 +297,6 @@
 
 <!-- 이미지 삽입 예시 -->
 <!-- 방법 1: 상대 경로 (로컬 및 GitHub 모두 지원) -->
-![로고](./public/images/logo.png)
 
 ![로고](./public/images/main.png)
 
