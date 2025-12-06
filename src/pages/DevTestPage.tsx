@@ -380,6 +380,8 @@ export function DevTestPage() {
                           src={event.image}
                           alt={event.title}
                           className="ml-4 h-24 w-24 rounded-lg object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                       )}
                     </div>
@@ -485,6 +487,8 @@ export function DevTestPage() {
                     src={selectedEvent.image}
                     alt={selectedEvent.title}
                     className="h-64 w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               )}

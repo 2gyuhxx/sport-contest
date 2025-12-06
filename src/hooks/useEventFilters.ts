@@ -130,9 +130,6 @@ export function useEventFilters({
                     }
                 } catch (favoriteError) {
                     // 찜 목록 조회 실패 시 조용히 무시 (403 에러 등)
-                    if (import.meta.env.DEV) {
-                        console.debug('찜 목록 조회 실패 (정상 동작일 수 있음):', favoriteError)
-                    }
                 }
 
                 // 맞춤 추천 + 찜 추천 합치기 (중복 제거)

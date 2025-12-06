@@ -19,6 +19,23 @@ const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   ...CATEGORY_LABEL_MAP,
 }
 
+// 카테고리별 색상 상수 (함수 내부에서 재생성 방지)
+const CATEGORY_COLORS: Record<string, string> = {
+  'team-ball': '#FF6B6B',
+  'racket-ball': '#4ECDC4',
+  'martial-arts': '#45B7D1',
+  'fitness-skill': '#96CEB4',
+  'precision': '#FFEAA7',
+  'ice-snow': '#74B9FF',
+  'water': '#0984E3',
+  'leisure': '#00B894',
+  'mind': '#A29BFE',
+  'other': '#FD79A8',
+}
+
+// 카테고리별 이모지 Map (find 연산 최적화)
+const CATEGORY_EMOJI_MAP = new Map(SPORT_CATEGORIES.map(c => [c.value, c.emoji]))
+
 export function SearchPage() {
   const navigate = useNavigate()
   const { state, dispatch, isLoading } = useEventContext()
@@ -1088,20 +1105,6 @@ export function SearchPage() {
     // 추천 행사 ID 목록 (빠른 조회를 위해 Set 사용)
     const recommendedEventIds = new Set(recommendedEvents.map(e => e.id))
 
-    // 카테고리별 색상 (함수 밖에서 정의하여 재사용)
-    const categoryColors: Record<string, string> = {
-      'team-ball': '#FF6B6B',
-      'racket-ball': '#4ECDC4',
-      'martial-arts': '#45B7D1',
-      'fitness-skill': '#96CEB4',
-      'precision': '#FFEAA7',
-      'ice-snow': '#74B9FF',
-      'water': '#0984E3',
-      'leisure': '#00B894',
-      'mind': '#A29BFE',
-      'other': '#FD79A8',
-    }
-
     // 최대 30개 마커만 표시 (성능 최적화)
     const limitedEvents = eventsToShow.slice(0, 30)
 
@@ -1126,8 +1129,8 @@ export function SearchPage() {
       }
 
       const isRecommended = recommendedEventIds.has(event.id)
-      const markerColor = categoryColors[event.category] || '#007AFF'
-      const emoji = SPORT_CATEGORIES.find(c => c.value === event.category)?.emoji || '📍'
+      const markerColor = CATEGORY_COLORS[event.category] || '#007AFF'
+      const emoji = CATEGORY_EMOJI_MAP.get(event.category) || '📍'
 
       // 추천 행사는 별 모양, 일반 행사는 기존 핀 모양
       const markerContent = isRecommended

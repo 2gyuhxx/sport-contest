@@ -122,17 +122,8 @@ export function SignupPage() {
       // 홈으로 이동
       navigate('/')
     } catch (err) {
-      console.error('회원가입 오류:', err)
       const errorMessage = err instanceof Error ? err.message : '회원가입에 실패했습니다'
       setError(errorMessage)
-      console.error('오류 상세:', {
-        error: err,
-        message: errorMessage,
-        email,
-        name,
-        role,
-        selectedCategoryIds,
-      })
     } finally {
       setIsLoading(false)
     }

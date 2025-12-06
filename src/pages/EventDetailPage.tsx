@@ -49,6 +49,14 @@ export function EventDetailPage() {
     [event?.region, regions],
   )
 
+  // 이미지 URL 메모이제이션
+  const eventImageUrl = useMemo(() => {
+    if (!event) return ''
+    return (event.image && event.image.trim() !== '') 
+      ? event.image 
+      : getDefaultImage(event.sub_sport, event.sport, event.category)
+  }, [event?.image, event?.sub_sport, event?.sport, event?.category])
+
   // EventContext에 없으면 API에서 가져오기
   useEffect(() => {
     if (!eventFromContext && eventId && !isLoadingEvent && !fetchedEvent) {
@@ -317,9 +325,7 @@ export function EventDetailPage() {
           <div className="flex flex-col gap-6">
             <div className="overflow-hidden rounded-[20px]">
               <img
-                src={(event.image && event.image.trim() !== '') 
-                  ? event.image 
-                  : getDefaultImage(event.sub_sport, event.sport, event.category)}
+                src={eventImageUrl}
                 alt={event.title}
                 className="h-full w-full object-cover"
                 loading="lazy"

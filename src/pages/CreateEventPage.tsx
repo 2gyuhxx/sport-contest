@@ -941,7 +941,7 @@ export function CreateEventPage() {
                 disabled={isLoading || isLoadingData}
                 onClick={(e) => {
                   if (!e.isDefaultPrevented()) {
-                    // handleSubmit이 form의 onSubmit으로 호출되므로 여기서는 로그만
+                    // handleSubmit이 form의 onSubmit으로 호출됨
                   }
                 }}
                 className="flex-1 rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)] disabled:cursor-not-allowed disabled:opacity-60"

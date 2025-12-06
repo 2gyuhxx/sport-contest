@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { Event } from '../../types/events'
 import { formatDateShort } from '../../utils/formatDate'
@@ -47,13 +47,15 @@ export const EventCard = memo(function EventCard({
   }, [event, onSelect])
 
   const deadlineDate = event.registration_deadline || event.end_at
-  const ddayInfo = deadlineDate ? calculateDday(deadlineDate) : null
+  const ddayInfo = useMemo(() => deadlineDate ? calculateDday(deadlineDate) : null, [deadlineDate])
   const isFeatured = variant === 'featured'
   const isCompact = variant === 'compact'
   
-  const imageUrl = (event.image && event.image.trim() !== '') 
-    ? event.image 
-    : getDefaultImage(event.sub_sport, event.sport, event.category)
+  const imageUrl = useMemo(() => {
+    return (event.image && event.image.trim() !== '') 
+      ? event.image 
+      : getDefaultImage(event.sub_sport, event.sport, event.category)
+  }, [event.image, event.sub_sport, event.sport, event.category])
 
   // Apple-style: 보더 없는 흰색 카드, 호버 시 떠있는 효과
   const card = (
