@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Category, Event } from '../types/events'
-import { SPORT_CATEGORIES, REGION_INFO } from '../constants'
+import { SPORT_CATEGORIES } from '../constants'
 import { FavoriteService } from '../services/FavoriteService'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
 import { filterEventsBySearch } from '../utils/eventSearch'
