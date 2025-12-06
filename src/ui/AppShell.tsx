@@ -159,7 +159,7 @@ function FloatingHeader() {
       <header className="floating-header">
         {/* 모바일: 2줄 레이아웃, 데스크탑: 1줄 레이아웃 */}
         <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 min-w-0">
-          {/* 첫 번째 줄: 로고 + 네비게이션 + 로그인 */}
+          {/* 첫 번째 줄: 로고 + 네비게이션 + 로그인 (모바일) */}
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-initial">
             {/* 로고 */}
             <button
@@ -247,8 +247,8 @@ function FloatingHeader() {
             )}
           </div>
 
-          {/* 검색 - 모바일: 두 번째 줄, 데스크탑: 같은 줄 */}
-          <form onSubmit={handleSearch} className="relative min-w-0 flex-1 md:flex-initial">
+          {/* 검색 - 모바일: 두 번째 줄, 데스크탑: 같은 줄 (더 길게) */}
+          <form onSubmit={handleSearch} className="relative min-w-0 flex-1 md:flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400 flex-shrink-0" />
             <input
               type="text"
@@ -274,7 +274,7 @@ function FloatingHeader() {
             )}
           </form>
           
-          {/* 사용자 프로필 - 데스크탑에서만 표시 */}
+          {/* 사용자 프로필 - 데스크탑에서만 표시 (오른쪽 끝) */}
           {!isMobile && (
             <>
               {isAuthenticated && user ? (
@@ -335,10 +335,10 @@ export function AppShell() {
           </main>
 
           {!isFullScreenPage && (
-            <footer className="border-t-0 bg-transparent py-8">
-              <div className="mx-auto flex max-w-content flex-col gap-4 px-6 text-xs text-gray-500 md:flex-row md:items-center md:justify-between">
+            <footer className="border-t-0 bg-transparent py-3 md:py-4">
+              <div className="mx-auto flex max-w-content flex-col gap-2 md:gap-3 px-6 text-xs text-gray-500 md:flex-row md:items-center md:justify-between">
                 <span>Copyright 2025 by Shift+Delete</span>
-                <div className="text-left space-y-1 leading-tight">
+                <div className="text-left space-y-0.5 leading-tight">
                   <div>안유리 (PL&PM) - ahnyuri4900@gmail.com</div>
                   <div>이규현 (AA&TA) - home543095@naver.com</div>
                   <div>임형근 (DA&AA) - lhgdream4@naver.com</div>

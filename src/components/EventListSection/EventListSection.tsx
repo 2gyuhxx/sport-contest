@@ -9,10 +9,13 @@ const CATEGORY_LABELS = {
 
 interface EventListSectionProps {
     events: Event[]
+    totalCount?: number
     isLoading: boolean
 }
 
-export function EventListSection({ events, isLoading }: EventListSectionProps) {
+export function EventListSection({ events, totalCount, isLoading }: EventListSectionProps) {
+    const displayCount = totalCount !== undefined ? totalCount : events.length
+    
     return (
         <div className="flex-1 overflow-hidden border-t border-[#3c3c43]/10">
             <div className="flex h-full flex-col">
@@ -25,7 +28,7 @@ export function EventListSection({ events, isLoading }: EventListSectionProps) {
                         <span className="text-[15px] font-semibold text-[#1d1d1f]">행사 목록</span>
                     </div>
                     <span className="rounded-full bg-[#767680]/10 px-2.5 py-1 text-[12px] font-semibold text-[#8e8e93]">
-                        {events.length}건
+                        {displayCount}건
                     </span>
                 </div>
 

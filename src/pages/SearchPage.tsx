@@ -39,6 +39,7 @@ export function SearchPage() {
     searchTerm,
     setSearchTerm,
     filteredEvents,
+    filteredEventsCount,
     recommendedEvents,
     categoryOptions,
     handleCategoryChange,
@@ -1635,6 +1636,7 @@ export function SearchPage() {
           {/* 이벤트 리스트 - EventListSection 컴포넌트 */}
           <EventListSection
             events={filteredEvents}
+            totalCount={filteredEventsCount}
             isLoading={isLoading}
           />
         </div>

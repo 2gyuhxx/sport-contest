@@ -450,18 +450,24 @@ export function EventsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
-            {filteredAndSortedEvents.map((event) => {
-              // 모든 카드를 텍스트 오버레이 스타일(featured)로 표시
-              return (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  variant="featured"
-                  detailHref={`/events/${event.id}`}
-                />
-              )
-            })}
+          <div 
+            className={classNames(
+              filteredAndSortedEvents.length >= 8 && "max-h-[850px] overflow-y-auto recommended-scroll"
+            )}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredAndSortedEvents.map((event) => {
+                // 모든 카드를 텍스트 오버레이 스타일(featured)로 표시
+                return (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    variant="featured"
+                    detailHref={`/events/${event.id}`}
+                  />
+                )
+              })}
+            </div>
           </div>
         )}
 
@@ -503,15 +509,21 @@ export function EventsPage() {
                 <p className="text-gray-500">찜한 종목과 일치하는 새로운 행사가 없습니다.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
-                {favoriteBasedEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    variant="featured" // 모든 카드를 featured variant로 설정
-                    detailHref={`/events/${event.id}`}
-                  />
-                ))}
+              <div 
+                className={classNames(
+                  favoriteBasedEvents.length >= 8 && "max-h-[850px] overflow-y-auto recommended-scroll"
+                )}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {favoriteBasedEvents.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      variant="featured" // 모든 카드를 featured variant로 설정
+                      detailHref={`/events/${event.id}`}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>

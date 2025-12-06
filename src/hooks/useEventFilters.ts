@@ -3,6 +3,7 @@ import type { Category, Event } from '../types/events'
 import { SPORT_CATEGORIES, REGION_INFO } from '../constants'
 import { FavoriteService } from '../services/FavoriteService'
 import { findSimilarUsers, recommendSportsFromSimilarUsers } from '../utils/cosineSimilarity'
+import { filterEventsBySearch } from '../utils/eventSearch'
 import type { RecommendedSportItem } from '../types/favorites'
 
 export type CategoryFilter = 'all' | Category
@@ -27,6 +28,7 @@ interface UseEventFiltersReturn {
     searchTerm: string
     setSearchTerm: (term: string) => void
     filteredEvents: Event[]
+    filteredEventsCount: number
     recommendedEvents: Event[]
     categoryOptions: CategoryFilter[]
     handleCategoryChange: (category: CategoryFilter) => void
@@ -166,35 +168,47 @@ export function useEventFilters({
         return ['all', ...SPORT_CATEGORIES.map(cat => cat.value)]
     }, [])
 
-    // 필터링된 이벤트
-    const filteredEvents = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase()
-        return events
-            .filter((event) => {
-                const isActive = event.event_status !== 'inactive'
-                const isNormal = !event.reports_state || event.reports_state === 'normal'
-                const regionMatch = selectedRegion ? event.region === selectedRegion : true
-                const cityMatch = selectedCity ? event.city === selectedCity : true
-                const categoryMatch = categoryFilter === 'all' ? true : event.category === categoryFilter
+    // 필터링된 이벤트 (전체 개수 계산용)
+    const allFilteredEvents = useMemo(() => {
+        // 1. 기본 필터: 활성 상태 + 신고 상태
+        let filtered = events.filter((event) => {
+            const isActive = event.event_status !== 'inactive'
+            const isNormal = !event.reports_state || event.reports_state === 'normal'
+            return isActive && isNormal
+        })
 
-                // 검색어 매칭: 제목, 설명, 도시, region 정보 포함
-                const termMatch = term
-                    ? (() => {
-                        // region 정보 가져오기
-                        const regionInfo = REGION_INFO[event.region]
-                        const regionNames = regionInfo
-                            ? `${regionInfo.name} ${regionInfo.shortName}`
-                            : event.region || ''
+        // 2. 지역 필터
+        if (selectedRegion) {
+            filtered = filtered.filter(event => event.region === selectedRegion)
+        }
 
-                        const searchText = `${event.title} ${event.summary || ''} ${event.city} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
-                        return searchText.includes(term)
-                    })()
-                    : true
+        // 3. 도시 필터
+        if (selectedCity) {
+            filtered = filtered.filter(event => event.city === selectedCity)
+        }
 
-                return isActive && isNormal && regionMatch && cityMatch && categoryMatch && termMatch
-            })
-            .slice(0, 50)
+        // 4. 카테고리 필터
+        if (categoryFilter !== 'all') {
+            filtered = filtered.filter(event => event.category === categoryFilter)
+        }
+
+        // 5. 검색어 필터 (EventsPage와 동일한 함수 사용)
+        if (searchTerm.trim()) {
+            filtered = filterEventsBySearch(filtered, searchTerm)
+        }
+
+        return filtered
     }, [events, selectedRegion, selectedCity, categoryFilter, searchTerm])
+
+    // 필터링된 이벤트 (표시용, 최대 50개)
+    const filteredEvents = useMemo(() => {
+        return allFilteredEvents.slice(0, 50)
+    }, [allFilteredEvents])
+
+    // 전체 필터링된 이벤트 개수
+    const filteredEventsCount = useMemo(() => {
+        return allFilteredEvents.length
+    }, [allFilteredEvents])
 
     // 카테고리 변경 핸들러
     const handleCategoryChange = useCallback((category: CategoryFilter) => {
@@ -219,6 +233,7 @@ export function useEventFilters({
         searchTerm,
         setSearchTerm,
         filteredEvents,
+        filteredEventsCount,
         recommendedEvents,
         categoryOptions,
         handleCategoryChange,
