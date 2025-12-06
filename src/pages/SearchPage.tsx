@@ -545,14 +545,6 @@ export function SearchPage() {
 
           const geometry = feature.geometry
 
-          // 선택된 지역이 광역시를 포함하는 도인지 확인
-          const PROVINCE_TO_METROS: Record<string, string[]> = {
-            'jeonnam': ['gwangju'],
-            'chungnam': ['daejeon'],
-            'gyeongnam': ['ulsan'],
-          }
-          const hasMetropolitanCity = PROVINCE_TO_METROS[selectedRegion]?.length > 0
-
           const createDetailPolygon = (polygonPath: any[]) => {
             // 부모 도의 시/군/구인 경우 흰색으로 흐려지게 표시
             const isFaded = isParentProvince && !isSelectedRegion
@@ -566,8 +558,8 @@ export function SearchPage() {
               strokeStyle: 'solid',
               fillColor: isFaded ? '#ffffff' : '#007AFF',
               fillOpacity: isFaded ? 0.75 : 0.02,
-              clickable: !hasMetropolitanCity && !isFaded,  // 광역시가 있는 도의 경우 또는 흐려진 경우 클릭 불가능
-              zIndex: isFaded ? 5 : 50,  // 흐려진 polygon은 낮은 z-index
+              clickable: true,  // 모든 polygon 클릭 가능 (부모 도로 이동하기 위해)
+              zIndex: isFaded ? 500 : 50,  // 흐려진 polygon은 높은 z-index로 클릭 가능하게
             })
 
             if (!sigunguPolygonGroupsRef.current[sigunguName]) {
@@ -575,13 +567,10 @@ export function SearchPage() {
             }
             sigunguPolygonGroupsRef.current[sigunguName].push(detailPolygon)
 
-            // 흐려진 polygon은 이벤트 리스너를 추가하지 않음
-            if (isFaded) {
-              detailPolygonsRef.current.push(detailPolygon)
-              return
-            }
-
             window.naver.maps.Event.addListener(detailPolygon, 'mouseover', function (e: any) {
+              // 흐려진 polygon(부모 도 영역)은 툴팁 표시하지 않음
+              if (isFaded) return
+              
               if (mouseoutTimeoutRef.current) {
                 clearTimeout(mouseoutTimeoutRef.current)
                 mouseoutTimeoutRef.current = null
@@ -818,6 +807,32 @@ export function SearchPage() {
               if (sigunguOverlayRef.current) {
                 sigunguOverlayRef.current.close()
                 currentTooltipNameRef.current = null
+              }
+
+              // 흐려진 polygon(부모 도 영역) 클릭 시 부모 도로 네비게이션
+              if (isFaded && parentProvince) {
+                const coords = REGION_COORDINATES[parentProvince]
+                if (coords && mapRef.current) {
+                  setSelectedRegion(parentProvince)
+                  setShowDetailMap(true)
+                  dispatch({ type: 'SELECT_REGION', payload: parentProvince })
+                  
+                  // 사이드바를 피해 오른쪽 중간에 위치하도록 경도 조정
+                  const adjustedLng = coords.lng - 1.2
+                  const targetLatLng = new window.naver.maps.LatLng(coords.lat, adjustedLng)
+                  const zoom = Math.max(8, Math.min(9, 14 - coords.level + 2))
+                  
+                  mapRef.current.setCenter(targetLatLng)
+                  mapRef.current.setZoom(zoom)
+                  
+                  setTimeout(() => {
+                    if (mapRef.current) {
+                      mapRef.current.setCenter(targetLatLng)
+                      mapRef.current.setZoom(zoom)
+                    }
+                  }, 100)
+                  return
+                }
               }
 
               // 선택된 시/군/구 설정
