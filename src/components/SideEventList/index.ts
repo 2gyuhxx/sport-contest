@@ -1,1 +1,0 @@
-export { SideEventList } from './SideEventList'

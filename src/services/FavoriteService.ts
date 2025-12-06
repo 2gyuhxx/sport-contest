@@ -1,11 +1,12 @@
 import apiRequest from '../config/api'
+import type { Favorite } from '../types/favorites'
 
 interface FavoriteResponse {
   success: boolean
   message?: string
   isFavorite?: boolean
   count?: number
-  favorites?: any[]
+  favorites?: Favorite[]
 }
 
 export const FavoriteService = {
@@ -67,7 +68,7 @@ export const FavoriteService = {
   /**
    * 내 찜 목록 조회
    */
-  async getMyFavorites(): Promise<any[]> {
+  async getMyFavorites(): Promise<Favorite[]> {
     try {
       const response = await apiRequest<FavoriteResponse>('/favorites')
       return response.favorites || []

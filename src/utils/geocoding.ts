@@ -1,23 +1,17 @@
-// 카카오맵 API를 사용한 주소 -> 좌표 변환
+// 네이버맵 API를 사용한 주소 -> 좌표 변환
 
-const KAKAO_REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || 'YOUR_KAKAO_REST_API_KEY'
+const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_MAP_CLIENT_ID || ''
+const NAVER_CLIENT_SECRET = import.meta.env.VITE_NAVER_MAP_CLIENT_SECRET || ''
 
-interface KakaoGeocodingResponse {
-  documents: Array<{
-    address: {
-      address_name: string
-      x: string // 경도
-      y: string // 위도
-    }
-    road_address: {
-      address_name: string
-      x: string
-      y: string
-    } | null
+interface NaverGeocodingResponse {
+  status: string
+  addresses: Array<{
+    roadAddress: string
+    jibunAddress: string
+    x: string // 경도
+    y: string // 위도
   }>
-  meta: {
-    total_count: number
-  }
+  errorMessage?: string
 }
 
 interface Coordinates {
@@ -25,48 +19,47 @@ interface Coordinates {
   longitude: number
 }
 
-// 주소를 좌표로 변환 (카카오맵 API 사용)
+// 주소를 좌표로 변환 (네이버맵 API 사용)
 export async function addressToCoordinates(address: string): Promise<Coordinates | null> {
   if (!address || address.trim() === '') {
     return null
   }
 
-  if (!KAKAO_REST_API_KEY || KAKAO_REST_API_KEY === 'YOUR_KAKAO_REST_API_KEY') {
-    console.error('[Geocoding] 카카오 REST API 키가 설정되지 않았습니다. .env 파일에 VITE_KAKAO_REST_API_KEY를 설정해주세요.')
+  if (!NAVER_CLIENT_ID || !NAVER_CLIENT_SECRET) {
+    console.error('[Geocoding] 네이버 API 키가 설정되지 않았습니다. .env 파일에 VITE_NAVER_MAP_CLIENT_ID와 VITE_NAVER_MAP_CLIENT_SECRET을 설정해주세요.')
     return null
   }
 
   try {
     const encodedAddress = encodeURIComponent(address)
-    const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodedAddress}`
+    const url = `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodedAddress}`
     
     const response = await fetch(url, {
       headers: {
-        Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
+        'X-NCP-APIGW-API-KEY-ID': NAVER_CLIENT_ID,
+        'X-NCP-APIGW-API-KEY': NAVER_CLIENT_SECRET,
       },
     })
 
     if (!response.ok) {
-      console.error('[Geocoding] 카카오맵 API 오류:', response.status, response.statusText)
+      console.error('[Geocoding] 네이버맵 API 오류:', response.status, response.statusText)
       const errorText = await response.text()
       console.error('[Geocoding] 오류 내용:', errorText)
       return null
     }
 
-    const data: KakaoGeocodingResponse = await response.json()
+    const data: NaverGeocodingResponse = await response.json()
 
-    if (data.documents.length === 0) {
+    if (data.status !== 'OK' || !data.addresses || data.addresses.length === 0) {
       console.warn('[Geocoding] 주소를 찾을 수 없습니다:', address)
       return null
     }
 
-    const result = data.documents[0]
-    // 도로명 주소 우선, 없으면 지번 주소
-    const coords = result.road_address || result.address
+    const result = data.addresses[0]
 
     const coordinates = {
-      latitude: parseFloat(coords.y),
-      longitude: parseFloat(coords.x),
+      latitude: parseFloat(result.y),
+      longitude: parseFloat(result.x),
     }
 
     return coordinates

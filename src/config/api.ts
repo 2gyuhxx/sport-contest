@@ -1,5 +1,13 @@
 // API 기본 URL 설정
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
+// 프로덕션 환경에서는 HTTPS 강제
+let baseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://wherehani.com/api' : 'http://localhost:3001/api')
+
+// 프로덕션 환경에서 HTTP를 HTTPS로 자동 변환 (Mixed Content 오류 방지)
+if (import.meta.env.PROD && baseUrl.startsWith('http://')) {
+  baseUrl = baseUrl.replace('http://', 'https://')
+}
+
+export const API_BASE_URL = baseUrl
 
 // API 요청 헬퍼 함수
 async function apiRequest<T>(
@@ -28,12 +36,6 @@ async function apiRequest<T>(
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '요청에 실패했습니다' }))
-      console.error('API 오류:', {
-        status: response.status,
-        statusText: response.statusText,
-        error,
-        url,
-      })
       
       // 403 에러 (유효하지 않은 토큰)인 경우 토큰 갱신 시도
       if (response.status === 403 && error.error?.includes('토큰')) {
@@ -53,6 +55,15 @@ async function apiRequest<T>(
             }
           }
         }
+        // 토큰 갱신 실패 시 조용히 에러 반환 (상위에서 처리)
+      } else if (response.status !== 403) {
+        // 403이 아닌 경우에만 에러 로그 출력
+        console.error('API 오류:', {
+          status: response.status,
+          statusText: response.statusText,
+          error,
+          url,
+        })
       }
       
       throw new Error(error.error || `요청에 실패했습니다 (${response.status})`)

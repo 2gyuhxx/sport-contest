@@ -21,6 +21,10 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     // 타겟 브라우저 (최신 브라우저만 지원하여 번들 크기 감소)
     target: 'es2020',
+    // 모듈 형식 최적화
+    modulePreload: {
+      polyfill: false, // 최신 브라우저는 네이티브 모듈 프리로드 지원
+    },
     rollupOptions: {
       output: {
         // 청크 분할 전략 (더 세밀하게)
@@ -35,10 +39,7 @@ export default defineConfig({
             if (id.includes('lucide-react')) {
               return 'icons'
             }
-            // 지도 라이브러리
-            if (id.includes('d3-geo') || id.includes('topojson') || id.includes('react-simple-maps')) {
-              return 'maps'
-            }
+            // 큰 라이브러리 분리 (향후 추가 가능)
             // 기타 큰 라이브러리는 별도 청크로
             return 'vendor'
           }
@@ -53,11 +54,11 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
-    // 소스맵 비활성화 (프로덕션)
+    // 소스맵 완전 비활성화 (프로덕션 - 보안 강화)
     sourcemap: false,
     // CSS 코드 분할
     cssCodeSplit: true,
-    // 압축 최적화
+    // 압축 최적화 (esbuild는 빠르고 효과적인 압축 제공)
     minify: 'esbuild',
     // 인라인 limit 증가 (작은 에셋을 base64로 인라인)
     assetsInlineLimit: 4096, // 4KB

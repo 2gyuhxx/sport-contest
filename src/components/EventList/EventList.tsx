@@ -78,7 +78,6 @@ export const EventList = memo(function EventList({
             onSelect={handleSelect}
             isActive={activeEventId === event.id || detailEvent?.id === event.id}
             variant={cardVariant}
-            layout={layout === 'grid' ? 'vertical' : 'horizontal'}
             detailHref={
               !showDetailOnSelect && detailHrefBase ? `${detailHrefBase}${event.id}` : undefined
             }

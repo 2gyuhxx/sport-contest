@@ -1,8 +1,12 @@
-import { useMemo, useReducer, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { useMemo, useReducer, useEffect, useState, useCallback, createContext, type ReactNode } from 'react'
 import { EventService } from '../services/EventService'
-import { EventContext } from './EventContextObject'
 import type { EventAction, EventContextValue, EventState } from './types'
 import type { EventFilters } from '../types/events'
+import { regions } from '../data/regions'
+
+// EventContext 생성
+export const EventContext = createContext<EventContextValue | undefined>(undefined)
+
 
 const initialState: EventState = {
   events: [], // DB에서 로드할 때까지 빈 배열
@@ -69,10 +73,10 @@ function eventReducer(state: EventState, action: EventAction): EventState {
         events: state.events.map((event) =>
           event.id === action.payload.eventId
             ? {
-                ...event,
-                reports_count: action.payload.reports_count,
-                reports_state: action.payload.reports_state as 'normal' | 'pending' | 'blocked',
-              }
+              ...event,
+              reports_count: action.payload.reports_count,
+              reports_state: action.payload.reports_state as 'normal' | 'pending' | 'blocked',
+            }
             : event
         ),
       }
@@ -121,11 +125,17 @@ export function EventProvider({ children }: { children: ReactNode }) {
       // reports_state가 'normal'이 아닌 이벤트는 다른 사용자에게 보이지 않게 필터링
       // (pending: 신고 5회 이상, blocked: super 계정 판단)
       if (event.reports_state && event.reports_state !== 'normal') return false
-      
+
       if (region && event.region !== region) return false
       if (category && event.category !== category) return false
       if (lowerKeyword) {
-        const haystack = `${event.title} ${event.summary} ${event.city}`.toLowerCase()
+        // region 정보 가져오기
+        const regionInfo = regions.find(r => r.id === event.region)
+        const regionNames = regionInfo
+          ? `${regionInfo.name} ${regionInfo.shortName} ${regionInfo.aliases.join(' ')}`
+          : event.region || ''
+
+        const haystack = `${event.title} ${event.summary} ${event.city} ${event.region} ${event.sub_region || ''} ${regionNames}`.toLowerCase()
         if (!haystack.includes(lowerKeyword)) return false
       }
       return true

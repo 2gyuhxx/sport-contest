@@ -327,13 +327,13 @@ export function MyPage() {
   // 권한 체크
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#F5F7FA]">
         <div className="mx-auto max-w-md text-center">
-          <h1 className="mb-2 text-2xl font-bold text-slate-900">로그인이 필요합니다</h1>
-          <p className="mb-6 text-slate-600">마이페이지를 보려면 로그인해주세요.</p>
+          <h1 className="mb-2 text-2xl font-bold text-[#1d1d1f]">로그인이 필요합니다</h1>
+          <p className="mb-6 text-[#8e8e93]">마이페이지를 보려면 로그인해주세요.</p>
           <Link
             to="/login"
-            className="inline-block rounded-lg bg-brand-primary px-6 py-3 font-semibold text-white transition hover:bg-brand-secondary"
+            className="inline-block rounded-full bg-[#007AFF] px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
           >
             로그인하기
           </Link>
@@ -493,8 +493,8 @@ export function MyPage() {
     <>
       {/* 행사 삭제 확인/결과 모달 */}
       {showDeleteEventModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm transform rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-all" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
             <div className="p-6">
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-100 p-3">
@@ -505,21 +505,21 @@ export function MyPage() {
                   )}
                 </div>
               </div>
-              <p className="text-center text-sm text-slate-600 mb-6">
+              <p className="text-center text-sm text-[#8e8e93] mb-6">
                 {deleteEventModalMessage}
               </p>
               {eventToDelete ? (
                 <div className="flex gap-2">
                   <button
                     onClick={cancelDeleteEvent}
-                    className="flex-1 rounded-lg bg-slate-100 py-3 font-semibold text-slate-700 transition hover:bg-slate-200"
+                    className="flex-1 rounded-full bg-[#767680]/10 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/15"
                   >
                     취소
                   </button>
                   <button
                     onClick={confirmDeleteEvent}
                     disabled={deletingEventId !== null}
-                    className="flex-1 rounded-lg bg-red-600 py-3 font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 rounded-full bg-red-500 py-3 font-semibold text-white transition-all duration-200 hover:bg-red-600 hover:shadow-[0_4px_12px_rgba(239,68,68,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {deletingEventId ? '삭제 중...' : '삭제'}
                   </button>
@@ -527,7 +527,7 @@ export function MyPage() {
               ) : (
                 <button
                   onClick={() => setShowDeleteEventModal(false)}
-                  className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+                  className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
                 >
                   확인
                 </button>
@@ -539,8 +539,8 @@ export function MyPage() {
 
       {/* 찜 제거 성공 모달 */}
       {showRemoveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm transform rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-all" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
@@ -553,17 +553,17 @@ export function MyPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-lg font-semibold text-[#1d1d1f]">
                     {removeModalMessage.includes('오류') ? '오류' : '완료'}
                   </h3>
                 </div>
               </div>
-              <p className="text-sm text-slate-600 mb-6">
+              <p className="text-sm text-[#8e8e93] mb-6">
                 {removeModalMessage}
               </p>
               <button
                 onClick={() => setShowRemoveModal(false)}
-                className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+                className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
               >
                 확인
               </button>
@@ -572,21 +572,21 @@ export function MyPage() {
         </div>
       )}
 
-      <div className="space-y-16 pb-20">
+      <div className="min-h-screen bg-[#F5F7FA] pb-20">
 
-      <div className="mx-auto max-w-content px-6">
+      <div className="mx-auto max-w-content px-4 md:px-6 lg:px-8">
         {/* 역할별 메인 섹션 */}
-        <section className="space-y-8">
+        <section className="space-y-6 pt-16">
         
         {/* master, 행사 주최자, 일반 사용자 레이아웃 */}
         {(isMaster || isOrganizer) ? (
           <div className="space-y-6">
             {/* 등록한 행사 목록 (전체 너비) */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">
+            <div className="scroll-mt-32 rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)]">
+              <h2 className="mb-4 text-lg font-semibold text-[#1d1d1f]">
                 {isMaster ? '모든 행사 목록' : '내가 등록한 행사'}
               </h2>
-              <p className="mb-4 text-sm text-slate-600">
+              <p className="mb-6 text-sm text-[#8e8e93]">
                 {isMaster 
                   ? 'master 계정으로 등록된 모든 행사를 확인할 수 있습니다.' 
                   : '내가 등록한 행사를 확인하고 수정/삭제할 수 있습니다.'}
@@ -596,7 +596,7 @@ export function MyPage() {
                 <div className="flex min-h-[300px] items-center justify-center">
                   <div className="text-center">
                     <Loader2 className="mx-auto h-12 w-12 animate-spin text-brand-primary" />
-                    <p className="mt-4 text-slate-600">행사 목록을 불러오는 중...</p>
+                    <p className="mt-4 text-[#8e8e93]">행사 목록을 불러오는 중...</p>
                   </div>
                 </div>
               ) : error ? (
@@ -610,7 +610,7 @@ export function MyPage() {
                 <div className="flex min-h-[300px] items-center justify-center">
                   <div className="text-center">
                     <Calendar className="mx-auto h-12 w-12 text-slate-300" />
-                    <p className="mt-4 text-slate-600">등록한 행사가 없습니다.</p>
+                    <p className="mt-4 text-[#8e8e93]">등록한 행사가 없습니다.</p>
                     <Link
                       to="/events/create"
                       className="mt-2 inline-block text-sm text-brand-primary hover:underline"
@@ -620,7 +620,7 @@ export function MyPage() {
                   </div>
                 </div>
               ) : (
-                <div className={`grid gap-4 md:grid-cols-2 ${events.length > 6 ? 'max-h-[600px] overflow-y-auto' : ''}`}>
+                <div className={`grid gap-4 md:grid-cols-2 ${events.length > 6 ? 'max-h-[600px] overflow-y-auto pr-1' : ''} pt-6`}>
                   {events.map((event) => {
                     const statusBadge = getStatusBadge(event)
                     const StatusIcon = statusBadge.icon
@@ -630,19 +630,19 @@ export function MyPage() {
                     return (
                       <div
                         key={event.id}
-                        className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-primary hover:shadow-md"
+                        className="flex flex-col rounded-[20px] border border-white/40 bg-white/95 backdrop-blur-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 hover:border-[#007AFF]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                       >
                         {/* 제목과 상태 */}
                         <div className="mb-3 flex items-start justify-between gap-4">
                           <Link
                             to={`/events/${event.id}`}
-                            className="text-lg font-bold text-slate-900 hover:text-brand-primary transition-colors cursor-pointer line-clamp-1"
+                            className="text-lg font-bold text-[#1d1d1f] hover:text-[#007AFF] transition-colors cursor-pointer line-clamp-1"
                           >
                             {event.title}
                           </Link>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <div
-                              className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold ${statusBadge.color}`}
+                              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge.color}`}
                             >
                               <StatusIcon className={`h-3 w-3 ${statusBadge.iconColor}`} />
                               <span>{statusBadge.text}</span>
@@ -659,20 +659,20 @@ export function MyPage() {
                         </div>
 
                         {/* 정보 */}
-                        <div className="space-y-1.5 text-sm text-slate-600 mb-3">
+                        <div className="space-y-1.5 text-sm text-[#8e8e93] mb-3">
                           <div className="flex items-center gap-2">
-                            <Tag className="h-3.5 w-3.5 text-slate-400" />
+                            <Tag className="h-3.5 w-3.5 text-[#8e8e93]" />
                             <span>{event.sport}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                            <MapPin className="h-3.5 w-3.5 text-[#8e8e93]" />
                             <span>
                               {event.region} {event.sub_region}
                               {event.venue && ` · ${event.venue}`}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                            <Calendar className="h-3.5 w-3.5 text-[#8e8e93]" />
                             <span>
                               {formatDate(event.start_at)} ~ {formatDate(event.end_at)}
                             </span>
@@ -683,7 +683,7 @@ export function MyPage() {
                         <div className="mt-auto flex items-center justify-end gap-2">
                           {/* 스팸 판정 중이거나 신고 pending 상태인 행사는 수정/삭제 불가 */}
                           {(event.status === 'pending' || event.reports_state === 'pending') ? (
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-[#8e8e93]">
                               {event.status === 'pending' && '판정 중인 행사는 수정/삭제할 수 없습니다'}
                               {event.status !== 'pending' && event.reports_state === 'pending' && 
                                '신고 처리 중인 행사는 수정/삭제할 수 없습니다'}
@@ -703,7 +703,7 @@ export function MyPage() {
                             <>
                               <Link
                                 to={`/admin/events/edit/${event.id}`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary/5 px-3 py-1.5 text-sm font-semibold text-brand-primary transition hover:border-brand-primary hover:bg-brand-primary/10"
+                                className="inline-flex items-center gap-2 rounded-full border border-[#007AFF]/30 bg-[#007AFF]/10 px-4 py-2 text-sm font-semibold text-[#007AFF] transition-all duration-200 hover:bg-[#007AFF]/15 hover:border-[#007AFF]/50 hover:shadow-[0_2px_8px_rgba(0,122,255,0.2)]"
                               >
                                 <Edit className="h-3.5 w-3.5" />
                                 수정
@@ -712,7 +712,7 @@ export function MyPage() {
                                 type="button"
                                 onClick={() => handleDeleteEvent(event.id, event.title)}
                                 disabled={deletingEventId === event.id}
-                                className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-2 rounded-full border border-red-300/50 bg-red-50/80 px-4 py-2 text-sm font-semibold text-red-600 transition-all duration-200 hover:bg-red-100 hover:border-red-400 hover:shadow-[0_2px_8px_rgba(239,68,68,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 {deletingEventId === event.id ? '삭제 중...' : '삭제'}
@@ -728,12 +728,12 @@ export function MyPage() {
             </div>
 
             {/* 설정 (하단) - 관리자는 전체 너비 */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">설정</h2>
+            <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)]">
+              <h2 className="mb-4 text-lg font-semibold text-[#1d1d1f]">설정</h2>
               <button
                 type="button"
                 onClick={handleOpenChangePassword}
-                className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
+                className="w-full flex items-center justify-between rounded-[20px] border border-[#3c3c43]/10 bg-white px-4 py-3 text-left text-sm text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/5 hover:border-[#007AFF]/30 hover:shadow-[0_2px_8px_rgba(0,122,255,0.15)]"
               >
                 <div>
                   <p className="font-semibold">내 계정 관리</p>
@@ -749,21 +749,21 @@ export function MyPage() {
           /* 일반 사용자: 찜 목록을 상단에, 계정 관리를 하단에 배치 */
           <div className="space-y-6">
             {/* 찜 목록 관리 (전체 너비) */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">찜 목록 관리</h2>
+            <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)]">
+              <h2 className="mb-4 text-lg font-semibold text-[#1d1d1f]">찜 목록 관리</h2>
                 
                 {isLoadingFavorites ? (
                   <div className="flex min-h-[300px] items-center justify-center">
                     <div className="text-center">
                       <Loader2 className="mx-auto h-12 w-12 animate-spin text-brand-primary" />
-                      <p className="mt-4 text-slate-600">찜 목록을 불러오는 중...</p>
+                      <p className="mt-4 text-[#8e8e93]">찜 목록을 불러오는 중...</p>
                     </div>
                   </div>
                 ) : favoriteEvents.length === 0 ? (
                   <div className="flex min-h-[300px] items-center justify-center">
                     <div className="text-center">
                       <Heart className="mx-auto h-12 w-12 text-slate-300" />
-                      <p className="mt-4 text-slate-600">찜한 행사가 없습니다.</p>
+                      <p className="mt-4 text-[#8e8e93]">찜한 행사가 없습니다.</p>
                       <Link
                         to="/"
                         className="mt-2 inline-block text-sm text-brand-primary hover:underline"
@@ -777,14 +777,14 @@ export function MyPage() {
                     {favoriteEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="group relative flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-primary hover:shadow-md"
+                        className="group relative flex items-center justify-between rounded-[20px] border border-white/40 bg-white/95 backdrop-blur-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 hover:border-[#007AFF]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                       >
                         <Link to={`/events/${event.id}`} className="flex-1 min-w-0">
                           {/* 행사 정보 */}
                           <div className="space-y-1.5">
-                            <h3 className="font-semibold text-slate-900 line-clamp-1">{event.title}</h3>
+                            <h3 className="font-semibold text-[#1d1d1f] line-clamp-1">{event.title}</h3>
                             
-                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <div className="flex items-center gap-2 text-xs text-[#8e8e93]">
                               <Tag className="h-3 w-3 flex-shrink-0" />
                               <span className="truncate">{event.sport}</span>
                               {event.sub_sport && (
@@ -795,12 +795,12 @@ export function MyPage() {
                               )}
                             </div>
                             
-                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <div className="flex items-center gap-2 text-xs text-[#8e8e93]">
                               <MapPin className="h-3 w-3 flex-shrink-0" />
                               <span className="truncate">{event.region} {event.sub_region}</span>
                             </div>
                             
-                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <div className="flex items-center gap-2 text-xs text-[#8e8e93]">
                               <Calendar className="h-3 w-3 flex-shrink-0" />
                               <span>{formatDate(event.start_at)}</span>
                             </div>
@@ -828,35 +828,35 @@ export function MyPage() {
               </div>
 
               {/* 설정 (하단) */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-lg font-semibold text-slate-900">설정</h2>
+              <div className="rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)]">
+                <h2 className="mb-4 text-lg font-semibold text-[#1d1d1f]">설정</h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   <button
                     type="button"
                     onClick={handleOpenChangePassword}
-                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
+                    className="flex items-center justify-between rounded-[20px] border border-[#3c3c43]/10 bg-white px-4 py-3 text-left text-sm text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/5 hover:border-[#007AFF]/30 hover:shadow-[0_2px_8px_rgba(0,122,255,0.15)]"
                   >
                     <div>
                       <p className="font-semibold">내 계정 관리</p>
-                      <p className="mt-1 text-xs text-slate-600">
+                      <p className="mt-1 text-xs text-[#8e8e93]">
                         계정 비밀번호를 변경하거나 회원탈퇴를 할 수 있습니다.
                       </p>
                     </div>
-                    <Key className="h-5 w-5 flex-shrink-0 text-brand-primary" />
+                    <Key className="h-5 w-5 flex-shrink-0 text-[#007AFF]" />
                   </button>
 
                   <button
                     type="button"
                     onClick={handleChangeInterests}
-                    className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 transition hover:border-brand-primary hover:shadow-md"
+                    className="w-full flex items-center justify-between rounded-[20px] border border-[#3c3c43]/10 bg-white px-4 py-3 text-left text-sm text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/5 hover:border-[#007AFF]/30 hover:shadow-[0_2px_8px_rgba(0,122,255,0.15)]"
                   >
                     <div>
                       <p className="font-semibold">관심 종목 변경하기</p>
-                      <p className="mt-1 text-xs text-slate-600">
+                      <p className="mt-1 text-xs text-[#8e8e93]">
                         관심 있는 체육 종목과 사용자 유형을 다시 선택할 수 있습니다.
                       </p>
                     </div>
-                    <Tag className="h-5 w-5 flex-shrink-0 text-brand-primary" />
+                    <Tag className="h-5 w-5 flex-shrink-0 text-[#007AFF]" />
                   </button>
                 </div>
               </div>
@@ -866,8 +866,8 @@ export function MyPage() {
 
       {/* 회원 탈퇴 모달 */}
       {showDeleteAccountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm transform rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-all" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
             <div className="p-6">
               <div className="flex items-center justify-center mb-4">
                 {isDeleteAccountConfirm ? (
@@ -878,10 +878,10 @@ export function MyPage() {
                   <XCircle className="h-10 w-10 text-red-500" />
                 )}
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 text-center mb-2">
+              <h3 className="text-lg font-semibold text-[#1d1d1f] text-center mb-2">
                 {isDeleteAccountConfirm ? '회원 탈퇴 확인' : deleteAccountModalMessage.includes('완료되었습니다') ? '탈퇴 완료' : '탈퇴 실패'}
               </h3>
-              <p className="text-sm text-slate-600 mb-6 text-center whitespace-pre-line">
+              <p className="text-sm text-[#8e8e93] mb-6 text-center whitespace-pre-line">
                 {deleteAccountModalMessage}
               </p>
               <div className="flex justify-center gap-3">
@@ -889,14 +889,14 @@ export function MyPage() {
                   <>
                     <button
                       onClick={handleCloseDeleteAccountModal}
-                      className="w-full rounded-lg border border-slate-300 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                      className="w-full rounded-full bg-[#767680]/10 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/15"
                     >
                       취소
                     </button>
                     <button
                       onClick={confirmDeleteAccount}
                       disabled={isLoading}
-                      className="w-full rounded-lg bg-red-500 py-3 font-semibold text-white transition hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded-full bg-red-500 py-3 font-semibold text-white transition-all duration-200 hover:bg-red-600 hover:shadow-[0_4px_12px_rgba(239,68,68,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? '처리 중...' : '탈퇴'}
                     </button>
@@ -904,7 +904,7 @@ export function MyPage() {
                 ) : (
                   <button
                     onClick={handleCloseDeleteAccountModal}
-                    className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+                    className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
                   >
                     확인
                   </button>
@@ -917,8 +917,8 @@ export function MyPage() {
 
       {/* 비밀번호 변경 모달 */}
       {showChangePasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-md transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-md transform rounded-[28px] border border-white/40 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-all" style={{ WebkitBackdropFilter: 'blur(40px)' }}>
             <div className="p-6">
               {!showPasswordSuccess ? (
                 <>
@@ -927,8 +927,8 @@ export function MyPage() {
                     <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10">
                       <Key className="h-6 w-6 text-brand-primary" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900">비밀번호 변경</h3>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <h3 className="text-lg font-semibold text-[#1d1d1f]">비밀번호 변경</h3>
+                    <p className="mt-1 text-sm text-[#8e8e93]">
                       현재 비밀번호를 입력하고 새 비밀번호를 설정하세요
                     </p>
                   </div>
@@ -937,7 +937,7 @@ export function MyPage() {
                   <div className="space-y-4 mb-6">
                     {/* 현재 비밀번호 */}
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                      <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                         현재 비밀번호
                       </label>
                       <input
@@ -945,13 +945,13 @@ export function MyPage() {
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                         placeholder="현재 비밀번호를 입력하세요"
-                        className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                        className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-sm text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                       />
                     </div>
 
                     {/* 새 비밀번호 */}
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                      <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                         새 비밀번호
                       </label>
                       <input
@@ -959,14 +959,14 @@ export function MyPage() {
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                         placeholder="새 비밀번호 (최소 6자)"
-                        className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                        className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-sm text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                       />
                       
                       {/* 비밀번호 강도 표시 */}
                       {passwordData.newPassword && (
                         <div className="mt-2">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-600">비밀번호 강도</span>
+                            <span className="text-xs text-[#8e8e93]">비밀번호 강도</span>
                             <span className={`text-xs font-semibold ${
                               passwordStrength.level === 1 ? 'text-red-600' :
                               passwordStrength.level === 2 ? 'text-yellow-600' :
@@ -977,16 +977,16 @@ export function MyPage() {
                           </div>
                           <div className="flex gap-1">
                             <div className={`h-1.5 flex-1 rounded-full transition-colors ${
-                              passwordStrength.level >= 1 ? passwordStrength.color : 'bg-slate-200'
+                              passwordStrength.level >= 1 ? passwordStrength.color : 'bg-[#767680]/20'
                             }`}></div>
                             <div className={`h-1.5 flex-1 rounded-full transition-colors ${
-                              passwordStrength.level >= 2 ? passwordStrength.color : 'bg-slate-200'
+                              passwordStrength.level >= 2 ? passwordStrength.color : 'bg-[#767680]/20'
                             }`}></div>
                             <div className={`h-1.5 flex-1 rounded-full transition-colors ${
-                              passwordStrength.level >= 3 ? passwordStrength.color : 'bg-slate-200'
+                              passwordStrength.level >= 3 ? passwordStrength.color : 'bg-[#767680]/20'
                             }`}></div>
                           </div>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-[#8e8e93]">
                             {passwordStrength.level === 1 && '대소문자, 숫자, 특수문자를 포함하세요'}
                             {passwordStrength.level === 2 && '더 안전한 비밀번호를 위해 다양한 문자를 사용하세요'}
                             {passwordStrength.level === 3 && '안전한 비밀번호입니다'}
@@ -997,7 +997,7 @@ export function MyPage() {
 
                     {/* 새 비밀번호 확인 */}
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                      <label className="mb-2 block text-sm font-medium text-[#1d1d1f]">
                         새 비밀번호 확인
                       </label>
                       <input
@@ -1005,13 +1005,13 @@ export function MyPage() {
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                         placeholder="새 비밀번호를 다시 입력하세요"
-                        className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                        className="w-full rounded-[14px] border border-[#3c3c43]/10 bg-[#767680]/5 px-4 py-3 text-sm text-[#1d1d1f] transition-all duration-200 focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                       />
                     </div>
 
                     {/* 에러 메시지 */}
                     {passwordError && (
-                      <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                      <div className="rounded-[14px] bg-red-50/80 border border-red-200/50 p-3 text-sm text-red-600">
                         {passwordError}
                       </div>
                     )}
@@ -1022,14 +1022,14 @@ export function MyPage() {
                     <button
                       onClick={handleChangePassword}
                       disabled={isLoading}
-                      className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? '변경 중...' : '비밀번호 변경'}
                     </button>
                     <button
                       onClick={handleCloseChangePassword}
                       disabled={isLoading}
-                      className="w-full rounded-lg border border-slate-300 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                      className="w-full rounded-full bg-[#767680]/10 py-3 font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#767680]/15 disabled:opacity-50"
                     >
                       취소
                     </button>
@@ -1049,7 +1049,7 @@ export function MyPage() {
                       handleDeleteAccount()
                     }}
                     disabled={isLoading}
-                    className="w-full rounded-lg border border-red-300 bg-red-50 py-3 font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                    className="w-full rounded-full border border-red-300/50 bg-red-50/80 py-3 font-semibold text-red-600 transition-all duration-200 hover:bg-red-100 hover:shadow-[0_2px_8px_rgba(239,68,68,0.2)] disabled:opacity-50"
                   >
                     회원탈퇴
                   </button>
@@ -1061,13 +1061,13 @@ export function MyPage() {
                     <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                       <CheckCircle2 className="h-6 w-6 text-green-600" />
                     </div>
-                    <h3 className="mb-2 text-lg font-semibold text-slate-900">변경 완료</h3>
-                    <p className="mb-6 text-sm text-slate-600">
+                    <h3 className="mb-2 text-lg font-semibold text-[#1d1d1f]">변경 완료</h3>
+                    <p className="mb-6 text-sm text-[#8e8e93]">
                       비밀번호가 성공적으로 변경되었습니다
                     </p>
                     <button
                       onClick={handleCloseChangePassword}
-                      className="w-full rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary py-3 font-semibold text-white transition hover:opacity-90"
+                      className="w-full rounded-full bg-[#007AFF] py-3 font-semibold text-white transition-all duration-200 hover:bg-[#0051D5] hover:shadow-[0_4px_12px_rgba(0,122,255,0.4)]"
                     >
                       확인
                     </button>
