@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { useEventContext } from '../context/useEventContext'
 import { useAuthContext } from '../context/useAuthContext'
@@ -22,6 +22,9 @@ const SORT_OPTIONS = [
   { value: 'popular' as const, label: '인기순', icon: TrendingUp },
 ]
 
+// ✨ 상단에 스토리지 키 정의 (유지보수를 위해)
+const STORAGE_KEY_PREFIX = 'EVENTS_PAGE_'
+
 export function EventsPage() {
   const {
     state: { events },
@@ -36,31 +39,54 @@ export function EventsPage() {
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
 
-  const [sortBy, setSortBy] = useState<SortOption>('latest')
+  // ✨ 수정 1: useState 초기화 시 sessionStorage 확인
+  // 페이지에 돌아왔을 때 이전에 선택한 정렬 옵션을 기억합니다.
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const saved = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}SORT`)
+    return (saved as SortOption) || 'latest'
+  })
   
   // URL이 완전히 초기화되었을 때 (홈 경로이고 쿼리 파라미터 없음) 상태 초기화
   useEffect(() => {
     const isHomePage = location.pathname === '/'
     const hasQueryParams = location.search.length > 0
     
+    // ✨ 수정 2: '홈' 버튼 등을 눌러서 명시적으로 새로 진입했을 때만 초기화
+    // (뒤로가기로 왔을 때는 location.key가 다르거나 동작 방식에 따라 이 로직을 탈 수 있으므로 주의)
+    // 여기서는 사용자가 '명시적으로 초기화'를 원할 때 스토리지도 비워줍니다.
     if (isHomePage && !hasQueryParams) {
-      // 모든 필터 상태 초기화
-      setSelectedSportCategoryId(null)
-      setSelectedSubSportCategoryId(null)
-      setSortBy('latest')
+      // 만약 네비게이션 방식(POP vs PUSH)을 구분하기 어렵다면 
+      // 이 부분은 유지하되, 아래의 스크롤 복원 로직이 우선순위를 갖도록 합니다.
+      
+      // 다만, 뒤로가기가 아니라 "로고 클릭" 등으로 왔을 때 완전 초기화를 원한다면:
+      // sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SORT`)
+      // sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}CAT`)
+      // sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SUB_CAT`)
+      // sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SCROLL`)
     }
   }, [location.pathname, location.search])
   
+  // ✨ 수정 3: 카테고리 상태도 스토리지에서 복원
   // 대분류/소분류 상태
   const [sportCategories, setSportCategories] = useState<SportCategory[]>([])
   const [subSportCategories, setSubSportCategories] = useState<SubSportCategory[]>([])
-  const [selectedSportCategoryId, setSelectedSportCategoryId] = useState<number | null>(null)
-  const [selectedSubSportCategoryId, setSelectedSubSportCategoryId] = useState<number | null>(null)
+  const [selectedSportCategoryId, setSelectedSportCategoryId] = useState<number | null>(() => {
+    const saved = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}CAT`)
+    return saved ? Number(saved) : null
+  })
+  const [selectedSubSportCategoryId, setSelectedSubSportCategoryId] = useState<number | null>(() => {
+    const saved = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}SUB_CAT`)
+    return saved ? Number(saved) : null
+  })
   
   // 찜 기반 추천 상태
   const [myFavorites, setMyFavorites] = useState<Favorite[]>([])
   const [favoriteBasedEvents, setFavoriteBasedEvents] = useState<Event[]>([])
   const [recommendedSports, setRecommendedSports] = useState<string[]>([])
+
+  // 그리드 컨테이너 ref (스크롤 위치 복원용)
+  const eventsGridRef = useRef<HTMLDivElement>(null)
+  const favoriteGridRef = useRef<HTMLDivElement>(null)
 
   // 대분류 카테고리 로드
   useEffect(() => {
@@ -277,6 +303,188 @@ export function EventsPage() {
     return filtered
   }, [events, selectedSportCategoryId, selectedSubSportCategoryId, sortBy, user, subSportCategories, sportCategories, searchQuery])
 
+  // ✨ 추가 4: 상태가 변경될 때마다 sessionStorage에 저장
+  // 필터/정렬 변경 시 스크롤 위치 초기화를 위한 이전 값 추적
+  const previousSortByRef = useRef<SortOption>(sortBy)
+  const previousCategoryRef = useRef<number | null>(selectedSportCategoryId)
+  const previousSubCategoryRef = useRef<number | null>(selectedSubSportCategoryId)
+  const isInitialMountRef = useRef(true)
+  
+  useEffect(() => {
+    // 초기 마운트 시에는 스크롤 복원을 위해 초기화하지 않음
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false
+      previousSortByRef.current = sortBy
+      previousCategoryRef.current = selectedSportCategoryId
+      previousSubCategoryRef.current = selectedSubSportCategoryId
+      
+      sessionStorage.setItem(`${STORAGE_KEY_PREFIX}SORT`, sortBy)
+      if (selectedSportCategoryId) {
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}CAT`, String(selectedSportCategoryId))
+      } else {
+        sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}CAT`)
+      }
+      
+      if (selectedSubSportCategoryId) {
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}SUB_CAT`, String(selectedSubSportCategoryId))
+      } else {
+        sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SUB_CAT`)
+      }
+      return
+    }
+    
+    // 정렬 또는 필터가 변경되었는지 확인
+    const sortChanged = previousSortByRef.current !== sortBy
+    const categoryChanged = previousCategoryRef.current !== selectedSportCategoryId
+    const subCategoryChanged = previousSubCategoryRef.current !== selectedSubSportCategoryId
+    
+    // 필터/정렬이 변경되면 스크롤 위치 초기화
+    if (sortChanged || categoryChanged || subCategoryChanged) {
+      // 스크롤 위치 스토리지에서 삭제
+      sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SCROLL`)
+      sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}FAVORITE_SCROLL`)
+      
+      // 그리드 컨테이너 스크롤을 맨 위로 이동
+      if (eventsGridRef.current) {
+        eventsGridRef.current.scrollTop = 0
+      }
+      if (favoriteGridRef.current) {
+        favoriteGridRef.current.scrollTop = 0
+      }
+      
+      // 이전 값 업데이트
+      previousSortByRef.current = sortBy
+      previousCategoryRef.current = selectedSportCategoryId
+      previousSubCategoryRef.current = selectedSubSportCategoryId
+    }
+    
+    sessionStorage.setItem(`${STORAGE_KEY_PREFIX}SORT`, sortBy)
+    if (selectedSportCategoryId) {
+      sessionStorage.setItem(`${STORAGE_KEY_PREFIX}CAT`, String(selectedSportCategoryId))
+    } else {
+      sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}CAT`)
+    }
+    
+    if (selectedSubSportCategoryId) {
+      sessionStorage.setItem(`${STORAGE_KEY_PREFIX}SUB_CAT`, String(selectedSubSportCategoryId))
+    } else {
+      sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SUB_CAT`)
+    }
+  }, [sortBy, selectedSportCategoryId, selectedSubSportCategoryId])
+
+  // ✨ 추가 5: 스크롤 위치 저장 및 복원 로직 (핵심)
+  useEffect(() => {
+    // 브라우저의 기본 스크롤 복원 기능 끄기 (충돌 방지)
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual'
+    }
+    
+    // 페이지 스크롤도 0으로 유지 (그리드 컨테이너 스크롤만 사용)
+    window.scrollTo(0, 0)
+  }, [])
+
+  // 그리드 스크롤 위치 저장 (실시간)
+  useEffect(() => {
+    if (location.pathname !== '/') return
+
+    const eventsGrid = eventsGridRef.current
+    const favoriteGrid = favoriteGridRef.current
+    
+    const handleEventsScroll = () => {
+      if (eventsGrid && eventsGrid.scrollTop > 0) {
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}SCROLL`, eventsGrid.scrollTop.toString())
+      }
+    }
+    
+    const handleFavoriteScroll = () => {
+      if (favoriteGrid && favoriteGrid.scrollTop > 0) {
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}FAVORITE_SCROLL`, favoriteGrid.scrollTop.toString())
+      }
+    }
+    
+    if (eventsGrid && filteredAndSortedEvents.length >= 8) {
+      eventsGrid.addEventListener('scroll', handleEventsScroll, { passive: true })
+    }
+    
+    if (favoriteGrid && favoriteBasedEvents.length >= 8) {
+      favoriteGrid.addEventListener('scroll', handleFavoriteScroll, { passive: true })
+    }
+    
+    return () => {
+      if (eventsGrid) {
+        eventsGrid.removeEventListener('scroll', handleEventsScroll)
+        // 페이지를 떠날 때 최종 저장
+        if (eventsGrid.scrollTop > 0) {
+          sessionStorage.setItem(`${STORAGE_KEY_PREFIX}SCROLL`, eventsGrid.scrollTop.toString())
+        }
+      }
+      if (favoriteGrid) {
+        favoriteGrid.removeEventListener('scroll', handleFavoriteScroll)
+        // 페이지를 떠날 때 최종 저장
+        if (favoriteGrid.scrollTop > 0) {
+          sessionStorage.setItem(`${STORAGE_KEY_PREFIX}FAVORITE_SCROLL`, favoriteGrid.scrollTop.toString())
+        }
+      }
+    }
+  }, [location.pathname, filteredAndSortedEvents.length, favoriteBasedEvents.length])
+
+  // ✨ 추가 6: 데이터가 준비되었을 때 스크롤 복원 실행
+  useEffect(() => {
+    if (!isLoading && events.length > 0 && location.pathname === '/') {
+      // 메인 그리드 스크롤 복원
+      const savedScroll = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}SCROLL`)
+      if (savedScroll && filteredAndSortedEvents.length >= 8) {
+        const scrollTop = parseInt(savedScroll, 10)
+        if (scrollTop > 0) {
+          const restore = () => {
+            const grid = eventsGridRef.current
+            if (grid && grid.scrollHeight > scrollTop) {
+              grid.scrollTop = scrollTop
+            }
+          }
+          
+          // 여러 시점에서 복원 시도
+          requestAnimationFrame(restore)
+          setTimeout(restore, 50)
+          setTimeout(restore, 100)
+          setTimeout(restore, 200)
+          setTimeout(restore, 300)
+          setTimeout(restore, 500)
+          setTimeout(() => {
+            restore()
+            sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}SCROLL`)
+          }, 700)
+        }
+      }
+      
+      // 찜 그리드 스크롤 복원
+      const savedFavoriteScroll = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}FAVORITE_SCROLL`)
+      if (savedFavoriteScroll && favoriteBasedEvents.length >= 8) {
+        const scrollTop = parseInt(savedFavoriteScroll, 10)
+        if (scrollTop > 0) {
+          const restore = () => {
+            const grid = favoriteGridRef.current
+            if (grid && grid.scrollHeight > scrollTop) {
+              grid.scrollTop = scrollTop
+            }
+          }
+          
+          // 여러 시점에서 복원 시도
+          requestAnimationFrame(restore)
+          setTimeout(restore, 50)
+          setTimeout(restore, 100)
+          setTimeout(restore, 200)
+          setTimeout(restore, 300)
+          setTimeout(restore, 500)
+          setTimeout(() => {
+            restore()
+            sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}FAVORITE_SCROLL`)
+          }, 700)
+        }
+      }
+    }
+  }, [isLoading, events.length, filteredAndSortedEvents.length, favoriteBasedEvents.length, location.pathname])
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -451,6 +659,7 @@ export function EventsPage() {
           </div>
         ) : (
           <div 
+            ref={eventsGridRef}
             className={classNames(
               filteredAndSortedEvents.length >= 8 && "max-h-[850px] overflow-y-auto recommended-scroll"
             )}
@@ -510,6 +719,7 @@ export function EventsPage() {
               </div>
             ) : (
               <div 
+                ref={favoriteGridRef}
                 className={classNames(
                   favoriteBasedEvents.length >= 8 && "max-h-[850px] overflow-y-auto recommended-scroll"
                 )}
